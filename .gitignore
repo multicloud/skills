@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# The audit log audit.py writes by default. It holds command output from the
+# customer's own cluster and is created 0600 — never commit one.
+multicloud-advisor-audit.log

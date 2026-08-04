@@ -1,0 +1,79 @@
+Multicloud Skills — Proprietary Software License
+
+Copyright (c) 2026 Multicloud. All rights reserved.
+
+The contents of this repository — the skills, scripts and documentation (the
+"Materials") — are the proprietary property of Multicloud. They are made
+publicly readable so that you, and the people who review software on your
+behalf, can see exactly what they do before you run them. They are licensed,
+not sold, and they are not open source.
+
+1. GRANT
+
+   Multicloud grants you a personal, non-exclusive, non-transferable,
+   non-sublicensable and revocable licence to:
+
+   (a) download, read and retain the Materials;
+   (b) run and follow them, and permit an automated agent acting on your
+       behalf to run and follow them, for the purpose of evaluating,
+       installing, configuring, operating and removing the Multicloud Advisor
+       within infrastructure you own or are authorised to administer; and
+   (c) make copies internally, and adjust configuration values within them,
+       as reasonably necessary for that purpose.
+
+2. RESTRICTIONS
+
+   Except as section 1 permits, and except to the extent a restriction below
+   is unenforceable under applicable law, you may not:
+
+   (a) redistribute, publish, sell, rent, lease, sublicense, or otherwise make
+       the Materials available to any third party;
+   (b) create or distribute derivative works of the Materials;
+   (c) remove or obscure any copyright, licence or attribution notice; or
+   (d) use the Materials to develop, train or improve a product or service
+       that competes with Multicloud.
+
+3. RESERVATION OF RIGHTS
+
+   All rights not expressly granted are reserved to Multicloud. No rights are
+   granted by implication, estoppel or otherwise. Nothing in this licence
+   grants any right in any Multicloud name, logo or trademark.
+
+4. SEPARATELY LICENSED COMPONENTS
+
+   Software that the Materials install, invoke or describe — including the
+   Multicloud Advisor container image and its Helm chart — is licensed
+   separately. The terms accompanying those components govern them, not this
+   file.
+
+5. YOUR DATA
+
+   The Materials run on your machine and against your infrastructure. Records
+   they produce, including the audit log, are yours. Multicloud claims no
+   right in them and has no mechanism to read them.
+
+6. TERMINATION
+
+   This licence terminates automatically if you breach it, and Multicloud may
+   terminate it at any time on notice. On termination you must stop using the
+   Materials and destroy the copies in your possession. Sections 2 through 8
+   survive termination.
+
+7. NO WARRANTY
+
+   THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. YOU ARE
+   RESPONSIBLE FOR REVIEWING ANY COMMAND BEFORE IT IS RUN AGAINST YOUR
+   INFRASTRUCTURE.
+
+8. LIMITATION OF LIABILITY
+
+   TO THE MAXIMUM EXTENT PERMITTED BY LAW, MULTICLOUD SHALL NOT BE LIABLE FOR
+   ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY OR PUNITIVE
+   DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA OR GOODWILL, ARISING
+   FROM OR RELATING TO THE MATERIALS, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+Licensing questions, and requests for terms broader than section 1:
+info@multicloud.io

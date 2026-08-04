@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "multicloud-advisor",
+  "description": "Install the Multicloud Advisor into a Kubernetes cluster and connect to it over MCP. The skill knows only what has to happen before the pod answers — consent, one cluster, the catalog key, three preflight checks, the install and the tunnel. Everything after that is served live by the Advisor you just installed, so no permission list, quota code or region list is packaged here to go stale.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Multicloud",
+    "url": "https://multicloud.io"
+  },
+  "homepage": "https://multicloud.io/agent",
+  "repository": "https://github.com/multicloud/skills",
+  "license": "LicenseRef-Proprietary",
+  "keywords": [
+    "kubernetes",
+    "finops",
+    "cost-optimization",
+    "cloud-savings",
+    "spot",
+    "quota",
+    "mcp",
+    "eks",
+    "gke",
+    "aks",
+    "helm"
+  ]
+}

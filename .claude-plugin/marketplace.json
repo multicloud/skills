@@ -1,0 +1,33 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "multicloud",
+  "description": "Multicloud's customer-facing skills: point your own agent at your cluster and your cloud accounts, and keep the credentials on your machine.",
+  "owner": {
+    "name": "Multicloud",
+    "url": "https://multicloud.io"
+  },
+  "metadata": {
+    "description": "Customer-facing skills for the Multicloud platform. Names reserved for the rest of the shelf are listed in README.md.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "multicloud-advisor",
+      "source": "./plugins/multicloud-advisor",
+      "description": "Install the Multicloud Advisor into a Kubernetes cluster and connect to it over MCP, so your agent can price what you run today against every major cloud's spot and on-demand markets.",
+      "category": "finops",
+      "tags": [
+        "kubernetes",
+        "finops",
+        "cost-optimization",
+        "cloud-savings",
+        "quota",
+        "mcp",
+        "eks",
+        "gke",
+        "aks"
+      ],
+      "strict": false
+    }
+  ]
+}
