@@ -336,9 +336,32 @@ over a release you did not install:
 **Never run `helm upgrade` over an unknown release to "make it current".** And when an upgrade is
 the agreed answer, see the flag warning in Step 6 — the obvious flag is the wrong one.
 
-### Step 3a — It is GitOps-managed: stop and hand it back
+### Step 3a — It is GitOps-managed: check whether you need to change it at all
 
-**Do not upgrade it, do not edit it, and do not install a second one beside it.** A GitOps
+**First, the good case, because it is the common one.** A controller owning the release is only a
+problem if something has to change. If the Advisor already running is healthy and complete, you
+need no install, no upgrade and no conversation with whoever owns that repository — you adopt it
+and rejoin at Step 7. Check that before concluding anything, all read-only:
+
+```bash
+kubectl --context <ctx> -n <ns> get deploy <name> \
+  -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{.valueFrom.secretKeyRef.name}/{.valueFrom.secretKeyRef.key}{"\n"}{end}'
+kubectl --context <ctx> -n <ns> get pods -o wide
+```
+
+It is complete when it has a catalog key from somewhere, MCP is enabled, and its pods are
+**Running** rather than merely created. Running pods settle more than health: a DaemonSet whose
+pods are up has already passed admission, which answers the PodSecurity question in Step 4 for
+real rather than by inference. Say what you found, say you are adopting rather than installing,
+take the Service name from the cluster rather than assuming `<release>-advisor`, and go to Step 7.
+
+Report anything you noticed while checking, as observations to confirm later rather than
+conclusions — which quota credentials exist and which are absent, whether pricing is running at
+list price, whether metrics autodiscovery is on. Those shape what the report can say, and it is
+better for the human to know now than to be surprised by a gap in the numbers.
+
+**If something does have to change, stop there.** Do not upgrade it, do not edit it, and do not
+install a second one beside it. A GitOps
 controller holds the authoritative copy of these objects in a git repository you cannot see from
 here, and reconciles the cluster back to it on a loop. Where `SELFHEAL` reads `true`, anything you
 change is reverted within about a minute — and the report you then read is produced by the manifest
