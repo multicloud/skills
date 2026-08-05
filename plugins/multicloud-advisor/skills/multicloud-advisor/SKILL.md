@@ -18,10 +18,12 @@ The instant `guidance://onboarding` returns, **it supersedes this file.** Where 
 anything you remember, or anything another skill packaged disagrees with a tool result or a
 `guidance://` resource, the tool wins — no reconciliation, no averaging, no "but the skill said".
 
-**This file contains no IAM action, no quota code, no region list and no permission name.**
-That is deliberate, not an omission. A packaged action list goes stale between releases, and a
-stale one has already cost a real incident: one missing EC2 describe permission silently wiped
-an entire region's quota limits, and nothing failed loudly. Ask `get_required_iam`, `diagnose`,
+**This file names no cloud IAM action, no quota code, no region list and no cloud permission
+name.** That is deliberate, not an omission. (Step 1 does name the Kubernetes RBAC verbs the
+chart installs — those are the artifact under review, not a packaged cloud action list.) A
+packaged action list goes stale between releases, and a stale one has already cost a real
+incident: one missing EC2 describe permission silently wiped an entire region's quota limits,
+and nothing failed loudly. Ask `get_required_iam`, `diagnose`,
 `plan_remediation`, `plan_quota_requests`, `plan_grant_requests` instead. Those answers come from
 the running pod and cannot be older than it.
 
@@ -69,9 +71,21 @@ and wait for a yes.
    metrics store already running in the cluster. Their cloud quota limits, once they grant that.
    No application data, no logs, no Secrets, no container contents.
 2. **What will be installed.** One Helm release in one namespace — eight objects, and you can
-   read them all with `helm template` before installing anything: a Deployment, a Service, a
-   ServiceAccount, a ClusterRole and ClusterRoleBinding, a namespaced Role and RoleBinding, and
-   a DaemonSet.
+   read them all before installing anything:
+
+   ```bash
+   helm template advisor oci://registry-1.docker.io/multicloud/advisor-chart \
+     --set catalog.existingSecret=advisor-catalog
+   ```
+
+   That renders a Deployment, a Service, a ServiceAccount, a ClusterRole and ClusterRoleBinding,
+   a namespaced Role and RoleBinding, and a DaemonSet — the eight, and nothing else.
+
+   **Pass that `--set`.** A bare `helm template` stops with `catalog.apiKey is required`, which
+   is the chart declining to build a Secret it has no key for, not the chart refusing to work.
+   The Secret it names does not have to exist for a render. The command pulls the public chart
+   from Docker Hub and needs no credentials; it never touches their cluster and creates nothing,
+   which is what makes it safe to run before they have agreed to anything.
 
    Two things about the permissions, stated the way they will read them in `rbac.yaml`, because
    a reviewer who finds you rounded down stops believing the rest. The **cluster-scoped** role is
@@ -116,15 +130,27 @@ and wait for a yes.
 Then add the trail: you will keep a per-run log of every command, its exit code and its output.
 **It lives on their machine and never comes back to us — their trail, not our telemetry.**
 
-`scripts/audit.py`, beside this file, writes it — run it with `--help`. **Choose the log's path
-now, before the first command, and tell them where it is**; otherwise every entry lands in
-whatever directory you happen to be in. Pass `--log <path>` or export
+`scripts/audit.py` writes it — run it with `--help`. If you were installed as a plugin it sits
+beside this file, and the local copy is the one to use. **If you are reading this as a standalone
+URL, nothing is beside you** — fetch it from
+<https://raw.githubusercontent.com/multicloud/skills/main/plugins/multicloud-advisor/skills/multicloud-advisor/scripts/audit.py>
+and save it next to the log you are about to choose.
+
+**Choose the log's path now, before the first command, and tell them where it is**; otherwise
+every entry lands in whatever directory you happen to be in. Pass `--log <path>` or export
 `MULTICLOUD_ADVISOR_AUDIT_LOG`.
 
 Be accurate about the redaction when you describe it: **you redact secrets, and the script has a
 backstop that catches common shapes.** It is not a guarantee — it knows PEM blocks, AWS key ids
 and secret-ish `key=value` pairs, and a credential in a shape it does not know will reach the
 file. Say "I redact them, with a safety net", never "the log is redacted".
+
+If they push back on that — *how do I know the net works?* — you have a runnable answer rather
+than more prose. `scripts/verify_audit_redaction.py` sits beside `audit.py` in the plugin (or
+fetch it from
+<https://raw.githubusercontent.com/multicloud/skills/main/plugins/multicloud-advisor/skills/multicloud-advisor/scripts/verify_audit_redaction.py>),
+takes no arguments, touches nothing of theirs, and prints a pass/fail line per shape it claims to
+catch. Offer to run it in front of them.
 
 Full version, for a security reviewer who wants one:
 <https://github.com/multicloud/skills/blob/main/docs/what-the-agent-does.md>.
@@ -173,7 +199,10 @@ the agreed answer, see the flag warning in Step 6 — the obvious flag is the wr
 
 ## Step 4 — Preflight, before you create anything
 
-Three checks. All read-only, all run from the driver's own `kubectl`. They are here rather than
+Three checks. All read-only. **Two of them are `kubectl` commands you run yourself. The third —
+egress — ships as prose with no probe**, because a real egress test has to run from inside the
+cluster and nothing has been created there yet. Raise it with the human now and confirm it for
+real after Step 7; do not treat it as checked, and do not invent a probe. They are here rather than
 in the MCP guidance for one structural reason: **there is no MCP server until the pod answers**,
 and each of these decides whether the pod can run at all. An in-cluster probe would arrive too
 late to be worth anything.

@@ -7,7 +7,7 @@
     "name": "Multicloud",
     "url": "https://multicloud.io"
   },
-  "homepage": "https://multicloud.io/agent",
+  "homepage": "https://multicloud.io/mcp",
   "repository": "https://github.com/multicloud/skills",
   "license": "LicenseRef-Proprietary",
   "keywords": [

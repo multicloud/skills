@@ -20,6 +20,11 @@
 #      A link into the private repo renders as a 404 for the reader we
 #      published this for, which is the same failure as not publishing.
 #
+# After writing, a LEAK SWEEP runs over the result. The private repo's GitHub
+# slug is a hard failure; bare private-repo file paths are listed for you to
+# eyeball, because some of those citations are deliberate. This sweep used to
+# be an echoed suggestion, which meant nobody ran it. It now runs.
+#
 # Usage:
 #   scripts/sync-docs.sh                 # gate, then sync
 #   scripts/sync-docs.sh --check         # gate only, write nothing
@@ -38,7 +43,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --from) SRC_REPO="$2"; shift 2 ;;
     --check) CHECK_ONLY=1; shift ;;
-    -h|--help) sed -n '2,30p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '2,34p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "ERROR: unknown arg: $1" >&2; exit 1 ;;
   esac
 done
@@ -127,4 +132,37 @@ for f in "${files[@]}"; do
 done
 echo
 echo "$(( ${#files[@]} )) file(s) synced to $DEST"
-echo "Verify independently: git diff --stat docs/ && grep -rn 'multicloud/platform' docs/"
+
+# The leak sweep, RUN rather than suggested. It used to be an echoed hint, which
+# meant nobody ran it. Two needles, two severities:
+#
+#   1. `multicloud/platform` — the private repo's GitHub slug. A pasted URL or
+#      repo reference is an unambiguous leak, so this is a hard failure.
+#   2. Bare private-repo file paths (`backend/api-server/src/orgs_api.py`,
+#      `advisor/src/catalog_client.py`). This is the shape that actually ships
+#      and some citations are deliberate, so it LISTS them for a human rather
+#      than failing. `scripts/sync-docs.sh` is excluded: that one is this repo.
+echo "Verifying the synced set:"
+git -C "$REPO_ROOT" diff --stat -- docs/ 2>/dev/null || true   # quiet in a non-git checkout
+echo
+
+slug_hits="$(cd "$REPO_ROOT" && grep -rn 'multicloud/platform' docs/ || true)"
+if [ -n "$slug_hits" ]; then
+  echo "FAIL  leak   private repo slug in the synced docs:"
+  echo "$slug_hits" | sed 's/^/        /'
+  echo
+  echo "Fix it in the authoring home ($SRC_DIR) and re-run. Do not commit this."
+  exit 1
+fi
+echo "PASS  leak   no 'multicloud/platform' reference"
+
+PRIVATE_PATH_RE='(backend|advisor|common|scheduler|catalog|client|discovery|agent|data|tools|scripts|helm)/[A-Za-z0-9_./-]+\.(py|java|yaml|yml|sql|sh|tsx?|properties)'
+path_hits="$(cd "$REPO_ROOT" && grep -rnoE "$PRIVATE_PATH_RE" docs/ \
+             | grep -v ':scripts/sync-docs\.sh$' || true)"
+if [ -n "$path_hits" ]; then
+  echo "CHECK path   $(printf '%s\n' "$path_hits" | wc -l | tr -d ' ') private-repo file path citation(s)."
+  echo "             Confirm each is one you meant to publish:"
+  printf '%s\n' "$path_hits" | sed 's/^/        /'
+else
+  echo "PASS  path   no private-repo file paths cited"
+fi
