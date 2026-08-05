@@ -86,6 +86,13 @@ claude plugin tag plugins/<name>
 git push --tags
 ```
 
+**Which component moves: fixes are patch bumps** — `0.2.0` → `0.2.1` → `0.2.2`. A minor bump is
+for genuinely new capability, not for correcting behaviour that was already there. The version is
+customer-visible and is the only signal anyone gets about what a release contains; inflating it
+for fixes makes it meaningless to someone deciding whether an update is worth a session restart.
+`check-release.sh` catches a missing bump but cannot tell you which component you should have
+moved — that judgement is this rule.
+
 Updates are pull-based and manual at the customer's end too. Someone who added this marketplace
 earlier keeps serving themselves an older copy until they run `claude plugin marketplace update
 multicloud`, and `claude plugin update` needs a session restart to take effect. Neither is
