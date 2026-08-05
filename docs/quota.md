@@ -69,8 +69,11 @@ and the capacity you already have in use. Your answer is a floor, not a cap.
 | External IPv4 (Google Cloud) | 1 × peak nodes |
 | Network interfaces (AWS) | 2 × peak nodes |
 
-Each recommendation then asks for headroom above the requirement — 2× on spot pools, 1.5×
-elsewhere — rounded up to the increment that cloud accepts.
+Each recommendation then asks for the bar at which the quota stops being called marginal — 2×
+the requirement, on spot pools and on-demand alike — rounded up to the increment that cloud
+accepts. That is deliberately the same number the adequacy check uses: an ask sized below it
+would be reported as still-marginal the moment it was granted, and you would be back in front of
+the same approver for the difference.
 
 ## Two severities, and why the distinction is load-bearing
 
@@ -188,6 +191,14 @@ created.
 
 That failure is detected and reported, never papered over: you get the Azure portal's quota
 blade plus the exact request text to paste in. Portal quota tickets still work on free plans.
+
+**That branch is unvalidated, and we say so rather than implying otherwise.** Validating it would
+require a paid support plan we do not hold, so no live `InvalidSupportPlan` has ever been
+observed and no ticket has ever been created or refused through this API. The detection and the
+portal fallback are covered by tests; the ticket API's own payload is not, and neither is the
+portal blade itself. Azure's own metadata does back the one claim above it: the
+`Microsoft.Support` provider exposes no plan-tier resource, so the tier really cannot be read
+without attempting the write.
 
 This affects the quotas Azure does **not** treat as adjustable. The adjustable set — regional
 vCPU total, per-family vCPUs, the spot pool, and regional network counts — goes through the

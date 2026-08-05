@@ -27,7 +27,7 @@
         "gke",
         "aks"
       ],
-      "strict": false
+      "strict": true
     }
   ]
 }

@@ -32,6 +32,24 @@ One command. Your agent gains the ability to install, configure and drive the Ad
 claude plugin marketplace add multicloud/skills && claude plugin install multicloud-advisor@multicloud
 ```
 
+**If that first command fails on a git error**, it is almost certainly SSH, not us.
+`marketplace add` *clones* the repository, and it prefers SSH — so a machine with no GitHub SSH
+key fails here even though `multicloud/skills` is public and needs no credentials to read. The
+error will name a git transport and mention neither Multicloud nor the Advisor, which is why it
+is worth saying plainly. Force HTTPS and run it again:
+
+```bash
+CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1 claude plugin marketplace add multicloud/skills && claude plugin install multicloud-advisor@multicloud
+```
+
+Two more things worth knowing before you need them. `@multicloud` is not a typo for the repo
+name: the repository is `multicloud/skills`, and `multicloud` is the marketplace's own name
+declared inside it. And if you have added this marketplace before, run `claude plugin marketplace
+update multicloud` — updates are manual, so an older copy will keep serving you an older skill.
+
+To undo all of it: `claude plugin marketplace remove multicloud`, which also uninstalls the
+plugin that came with it.
+
 Using a different agent — Cursor, Codex, anything that speaks MCP? Point it at
 <https://multicloud.io/agent/skill.md> and tell it to follow what it finds there. Same
 instructions, fetched fresh each time; you just have to ask for it explicitly rather than have it

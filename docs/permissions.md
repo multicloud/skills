@@ -42,7 +42,7 @@ cannot read logs, cannot exec into a container, cannot port-forward, and holds n
 `update`, `patch` or `delete` verb anywhere in the cluster.
 
 It is deliberately short enough to audit in under a minute. Read it yourself:
-`helm/advisor/templates/rbac.yaml` in the chart.
+`templates/rbac.yaml` in the chart.
 
 ### Exactly what it reads, and why
 
@@ -952,7 +952,7 @@ Do not take any of the above on trust. Each claim is checkable against the shipp
 
 | Claim | How to verify |
 |---|---|
-| Cluster access is read-only cluster-wide | Read `helm/advisor/templates/rbac.yaml`. Under a minute end to end. The ClusterRole is `get`/`list`/`watch` only; the one write grant in the file is a namespaced Role over a single ConfigMap, where the Advisor stores your own quota-questionnaire answers — `get`/`update`/`patch` pinned to it by name, plus a `create` that Kubernetes cannot name-pin, bounded by the namespace |
+| Cluster access is read-only cluster-wide | Read `templates/rbac.yaml` in the chart (`helm pull oci://registry-1.docker.io/multicloud/advisor-chart --untar`). Under a minute end to end. The ClusterRole is `get`/`list`/`watch` only; the one write grant in the file is a namespaced Role over a single ConfigMap, where the Advisor stores your own quota-questionnaire answers — `get`/`update`/`patch` pinned to it by name, plus a `create` that Kubernetes cannot name-pin, bounded by the namespace |
 | Every IAM section in this document is generated, not hand-copied | `docs/external/advisor/permissions.md` is regenerated from `src/requirements.py`'s catalog by `advisor/scripts/render_permissions.py`; a test runs it with `--check` and fails the build if the committed file diverges. The same catalog also renders the setup console's IAM blocks, so the two surfaces cannot drift apart |
 | The action lists are complete AND minimal, per cloud | A guard test derives the invoked-action or invoked-API set from each client's own code constants (`quota_clients.aws`'s tables, `quota_clients.gcp`'s/`quota_clients.azure`'s source) and asserts EQUALITY against the catalog cell — in both directions, so an extra action is caught as loudly as a missing one |
 | Read and write credentials are kept apart | Separate value keys, separate Secrets and separate container environment variables (`QUOTA_*` versus `QUOTA_REQUESTS_*`), and the chart refuses to render if you name the same Secret for both. Check it: `helm template t ./helm/advisor --set catalog.apiKey=x --set quota.aws.enabled=true --set quota.aws.existingSecret=same --set quotaRequests.aws.enabled=true --set quotaRequests.aws.existingSecret=same` must fail. Two *different* Secrets holding the same underlying cloud principal is still yours to avoid — the chart cannot see that |

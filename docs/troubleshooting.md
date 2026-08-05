@@ -23,6 +23,7 @@ round a loop that will not close.
 | "List price only" after granting a role | [Tier 3 still says "list price only"](#tier-3-still-says-list-price-only-after-you-granted-the-read-only-role) |
 | The number moved | [The number changed between two questions](#the-number-changed-between-two-questions) |
 | A quoted figure is nowhere on the page | [A figure your agent quoted is not on the page](#a-figure-your-agent-quoted-is-not-on-the-page) |
+| `claude plugin marketplace add` fails | [`claude plugin marketplace add` fails with a git or SSH error](#claude-plugin-marketplace-add-fails-with-a-git-or-ssh-error) |
 | `helm upgrade` fails immediately | [`helm upgrade` aborts before anything is applied](#helm-upgrade-aborts-before-anything-is-applied) |
 | "additional properties … not allowed" | [`helm upgrade` aborts before anything is applied](#helm-upgrade-aborts-before-anything-is-applied) |
 | "already exists", "invalid ownership metadata" | [A Secret you are creating already exists](#a-secret-you-are-creating-already-exists) |
@@ -36,6 +37,7 @@ round a loop that will not close.
 | A filed request is missing | [A request you filed has disappeared](#a-request-you-filed-has-disappeared-from-the-list) |
 | The same increase filed twice | [The same increase is now open twice with AWS](#the-same-increase-is-now-open-twice-with-aws) |
 | An Azure ticket fails | [An Azure quota ticket fails to open](#an-azure-quota-ticket-fails-to-open) |
+| An Azure quota request is throttled | [An Azure quota request returns `RequestThrottled`](#an-azure-quota-request-returns-requestthrottled) |
 | Verdicts differ by cloud | [Request verdicts look inconsistent across clouds](#request-verdicts-look-inconsistent-across-clouds) |
 | The tunnel died | [The tunnel drops mid-flow](#the-tunnel-drops-mid-flow) |
 | 503 "no audit available" | [A rebuild returns 503 and the report will not come back](#a-rebuild-returns-503-and-the-report-will-not-come-back) |
@@ -619,6 +621,39 @@ the way the console does, so the person receiving it can make this same check.
 
 ## Install and upgrade
 
+### `claude plugin marketplace add` fails with a git or SSH error
+
+**What is happening.** `marketplace add` **clones** the repository rather than fetching a file,
+and it prefers SSH. So a machine with no GitHub SSH key fails here — even though
+`multicloud/skills` is public and needs no credentials to read. The message names a git
+transport (`Permission denied (publickey)`, `Could not read from remote repository`, `Host key
+verification failed`) and mentions neither Multicloud nor the Advisor, which is why it reads like
+our repository is private or missing. It is neither.
+
+**What to do.** Force HTTPS and run it again:
+
+```bash
+CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1 claude plugin marketplace add multicloud/skills && claude plugin install multicloud-advisor@multicloud
+```
+
+**Two adjacent things that look like the same failure and are not:**
+
+- **`multicloud-advisor@multicloud` looks like a typo and is not.** The repository is
+  `multicloud/skills`; `multicloud` after the `@` is the *marketplace's* own name, declared
+  inside it. Changing it to `@skills` is what actually breaks.
+- **Nothing changed after we shipped a fix.** Marketplace updates are manual. If you added this
+  marketplace before, you are still on your local copy until you run `claude plugin marketplace
+  update multicloud`.
+
+**If your organization manages Claude Code centrally**, adding any marketplace can be restricted
+by policy (`strictKnownMarketplaces`). If the command is refused rather than failing on
+transport, that is the gate, and it needs your admin — not a different flag. The
+[manual install](manual-install.md) path needs no plugin and no marketplace, and reaches the
+same place.
+
+**To undo everything and start clean:** `claude plugin marketplace remove multicloud`, which also
+uninstalls the plugin that came with it.
+
 ### `helm upgrade` aborts before anything is applied
 
 **What is happening.** The chart deliberately fails at render time — before a single object is
@@ -1017,7 +1052,42 @@ There is no read-only way to learn the support-plan tier ahead of a ticket attem
 above, by design, only ever happens by trying. Under the agent flow, `preflight`'s
 `azure-support-plan` row reports this honestly as undetectable (rather than a guess or a hidden
 write of its own) and names the portal fallback up front, so you hear about the possibility
-before the attempt, not only after it fails.
+before the attempt, not only after it fails. That is not merely our reading of the API: listing
+the `Microsoft.Support` provider's own resource types returns only ticket, service and
+classification surfaces — Azure publishes no plan-tier resource to read.
+
+**Status: unvalidated.** This branch has never been exercised against a live Azure subscription —
+validating it needs a paid support plan, which we do not hold. What has been verified is the
+detection either side of Azure's answer: the asynchronous failure is classified rather than
+swallowed, and the caller degrades to the portal link plus the generated request text instead of
+reporting a ticket that does not exist. What has *not* been verified is either end of that: no
+live `InvalidSupportPlan` has been seen, and the *My quotas* blade the fallback points at
+(`https://portal.azure.com/#view/Microsoft_Azure_Capacity/QuotaMenuBlade/~/myQuotas`) has not
+been opened in a browser signed in to a live subscription.
+
+The adjustable `Microsoft.Quota` path is **also** short of a live end-to-end run, and for a
+different reason — Task 29's attempt never got past the throttle described below. Do not
+describe either Azure write path in the register you can use for AWS, where a real increase was
+submitted, polled and confirmed on 2026-08-03. What Azure has is a validated *read* path and a
+`Microsoft.Quota` poll matcher fixed against a verbatim live payload.
+
+### An Azure quota request returns `RequestThrottled`
+
+**What is happening.** `Microsoft.Quota` rate-limits quota *writes* separately from ordinary ARM
+traffic — you can see this in the response, which carries a plain `429` with `retry-after: 3600`
+while `x-ms-ratelimit-remaining-subscription-resource-requests` is still in the hundreds. Your
+general ARM budget is fine; the quota-write budget is not.
+
+**What to do: wait, and do not retry inside the window.** Measured on 2026-08-03, a subscription
+that kept retrying inside its hour saw `retry-after` escalate from `3600` to `86400` — a 24-hour
+lockout — at the moment the original hour lapsed. Whether the retries caused that or a daily cap
+took over cannot be told apart from outside, and the safe reading is the same either way: one
+attempt, then wait the stated interval. A quota increase is not urgent enough to be worth a day
+of lockout.
+
+**If you are driving this through the agent**, note the same caution applies to automated
+retries, not just to your own — see `quota_clients.request_with_retry`, which honours a
+`Retry-After` literally and without a ceiling.
 
 ### Request verdicts look inconsistent across clouds
 

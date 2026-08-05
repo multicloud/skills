@@ -49,7 +49,7 @@ offer a way to expose it by default.**
   risk to take, and it stays yours.
 - Read your Secrets — but read how this one is guaranteed, because the two halves of it are not
   the same strength. The **Advisor** cannot: `secrets` appears nowhere in its ClusterRole
-  (`helm/advisor/templates/rbac.yaml`), so the capability does not exist to be misused, and you
+  (`templates/rbac.yaml` in the chart), so the capability does not exist to be misused, and you
   can confirm that in thirty seconds. The **agent** is a different subject: it drives your own
   kubeconfig, with whatever that kubeconfig can do, and it creates the credential Secrets you
   approve. Nothing structural stops it reading one — its not doing so is a promise this document

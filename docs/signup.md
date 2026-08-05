@@ -46,16 +46,40 @@ Creating an organization makes you its first member and its first owner.
 ### Finding an organization that might already be yours
 
 Before you create one, check whether your employer already has one. If Multicloud recognizes
-organizations at your email domain, you'll see them listed — **by name and creation date only** —
-next to an equally prominent "create a new organization" choice. Free-mail domains (Gmail, Outlook,
-iCloud, and similar) are never used for this: two strangers sharing gmail.com should never be shown
-to each other.
+organizations at your email domain, you'll see them listed — **a name and a creation date are all
+you are shown** — next to an equally prominent "create a new organization" choice. No members, no
+addresses, not even a headcount: this listing cannot tell anyone who works anywhere. (Each row also
+carries that organization's internal identifier, which is never displayed; it's only there so the
+button described below has a way to say which organization you mean. It names no person.) Free-mail
+domains (Gmail, Outlook, iCloud, and similar) are never used for this: two strangers sharing
+gmail.com should never be shown to each other.
 
 **This list is a hint, not membership.** Seeing your employer's organization does not add you to
 it, and nothing here is ever blocked or admitted automatically — there's no way, at signup time, to
 tell an organization that's still active from one somebody abandoned a year ago. If you recognize
-it, ask someone there to invite you. If you don't, or aren't sure, create a new one — that's the
-expected path, not a fallback.
+one, press **Request to join** on that row. If you don't, or aren't sure, create a new one — that's
+the expected path, not a fallback.
+
+### Asking to join one
+
+Pressing **Request to join** does not put you in the organization. It emails that organization's
+owners a link. An owner has to open the link, sign in as themselves, and confirm — and only then
+does an ordinary invitation, the same one described under "Inviting a colleague" below, arrive in
+your inbox. **Nobody is admitted automatically at any point.** The request puts a question in front
+of a person; a person's click is the only thing that answers it.
+
+An owner may also simply not act, and that is an ordinary outcome rather than a malfunction. There
+is no decline button, and nothing comes back to tell you a request was turned down: the invitation
+arriving is the only signal that it worked, and **silence means no.** The link stops working after
+seven days, and you're welcome to ask again after that. Pressing the button twice
+inside an hour doesn't send a second email, and there's a limit of a handful of requests a day, so
+this isn't a way to get someone's attention by volume.
+
+**Creating your own organization stays an equal choice the whole time.** A pending request never
+blocks it, never greys it out, and doesn't have to be cancelled first — the two sit side by side on
+the page for a reason. If you'd rather not wait on somebody else's inbox, create one and carry on;
+you can belong to more than one organization, so an invitation that turns up later costs you
+nothing.
 
 ### Roles: owners and members
 
@@ -202,6 +226,14 @@ above was instead checked directly against the code that implements it:
 - **Invitations not granting ownership** — `backend/api-server/src/keycloak_admin.py`'s
   `invite_member` (adds a member only; the creator alone is put into `/owners`, in
   `orgs_api.create_org`) and `add_to_group`.
+- **Request to join: that it only asks, that an owner's confirmation is the only thing that admits
+  anyone, the seven-day link, the one-hour repeat window and the daily cap** —
+  `backend/api-server/src/orgs_api.py`'s `request_to_join` and `approve_join_request` (the approve
+  path invites the address carried inside the signed link, never one handed to it by a browser),
+  `JOIN_TOKEN_TTL_SECONDS` in `backend/api-server/src/join_tokens.py`, and the by-domain endpoint
+  above them, which is what carries the never-displayed identifier the button sends. The page an
+  owner lands on lives in the website repo and, like the revoke button below, is confirmed in source
+  in an unmerged worktree rather than observed in production.
 - **Catalog key mint/list/rename/revoke, the shown-once response shape, the 10-active-key cap, and
   "any owner regardless of who minted it"** — `backend/api-server/src/api_keys_api.py` and the
   `CatalogKeyCreatedResponse` / `ApiKeyRecord` / `CreateApiKeyRequest` models in

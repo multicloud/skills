@@ -23,9 +23,9 @@ name.** That is deliberate, not an omission. (Step 1 does name the Kubernetes RB
 chart installs — those are the artifact under review, not a packaged cloud action list.) A
 packaged action list goes stale between releases, and a stale one has already cost a real
 incident: one missing EC2 describe permission silently wiped an entire region's quota limits,
-and nothing failed loudly. Ask `get_required_iam`, `diagnose`,
-`plan_remediation`, `plan_quota_requests`, `plan_grant_requests` instead. Those answers come from
-the running pod and cannot be older than it.
+and nothing failed loudly. Ask `get_required_iam`, `diagnose`, `plan_remediation`,
+`plan_quota_requests`, `plan_grant_requests` instead. Those answers come from the running pod and
+cannot be older than it.
 
 If you catch yourself about to name a cloud permission from memory, stop. That is the exact
 failure this design exists to remove.
@@ -202,10 +202,11 @@ the agreed answer, see the flag warning in Step 6 — the obvious flag is the wr
 Three checks. All read-only. **Two of them are `kubectl` commands you run yourself. The third —
 egress — ships as prose with no probe**, because a real egress test has to run from inside the
 cluster and nothing has been created there yet. Raise it with the human now and confirm it for
-real after Step 7; do not treat it as checked, and do not invent a probe. They are here rather than
-in the MCP guidance for one structural reason: **there is no MCP server until the pod answers**,
-and each of these decides whether the pod can run at all. An in-cluster probe would arrive too
-late to be worth anything.
+real after Step 7; do not treat it as checked, and do not invent a probe.
+
+All three checks are here rather than in the MCP guidance for one structural reason: **there is no
+MCP server until the pod answers**, and each of them decides whether the pod can run at all. An
+in-cluster probe would arrive too late to be worth anything.
 
 They come **before** the key write in Step 5, and that order is load-bearing. If the RBAC check
 answers `no` — the documented stop-and-guide — you must not already have written their catalog
