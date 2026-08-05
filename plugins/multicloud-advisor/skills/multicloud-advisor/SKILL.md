@@ -65,6 +65,32 @@ their cloud account, and the one thing you can do there that cannot be undone is
 on a wrong assumption. A stop costs a minute. From Step 9 the pod states its own maturity per
 path — honour that over anything remembered from here.
 
+### If your own tooling blocks you, say which it is
+
+A command you cannot *run* is a different thing from a command that *failed*, and the human cannot
+tell them apart from your summary unless you say so. If your shell tool is denied, times out, or
+errors before the command reaches their machine, name it as a tooling failure, say which step you
+stopped on, and say what exists in their cluster so far. Do not describe it as a problem with
+their cluster, their credentials, or this runbook.
+
+**Do not propose widening your own permissions.** Editing the file that governs what you may
+execute is a privilege escalation, and it stays the human's decision even when they ask you to do
+it. Offer it as something *they* do, never as something you do for them.
+
+**Prefer handing the commands over.** Every command in this runbook is safe to paste into their
+own terminal, because none of them contains a secret: the catalog key lives in a file and is read
+with `--from-file`, so it never appears in a command line, an environment variable, or your
+context. Print the exact commands, ask them to run them, read the output they paste back, and
+carry on from where you were. That costs a round trip and nothing else.
+
+If they decide to add a permission rule anyway, one thing is worth telling them, because it is not
+obvious and it is easy to get backwards: **these rules match on the start of the command text, so
+scope them by cluster rather than by verb.** `kubectl` takes `--context` before the verb, so a rule
+meant to block `kubectl delete` will not match `kubectl --context their-cluster delete …` and gives
+protection it does not actually provide. A rule keyed to `kubectl --context <their pinned context>`
+does hold, and confines the grant to the one cluster you agreed on in Step 2 instead of every
+cluster in their kubeconfig — which, on a working machine, usually includes production.
+
 ---
 
 ## Step 1 — Say the scope, then ask
@@ -244,24 +270,101 @@ that catches "wrong cluster", which is the scariest failure in this design.
 
 ## Step 3 — Detect an Advisor that is already there
 
+**`helm list` is not the check.** It answers *"does Helm remember a release here"*, which is a
+different question from *"is an Advisor running here"*. A GitOps controller — ArgoCD, Flux —
+renders the chart with `helm template` and applies the result, so the objects exist and Helm's
+bookkeeping is empty. You get an empty table and exit 0, indistinguishable from a clean cluster.
+This has already produced a false "clean install" against a cluster with an Advisor plainly
+running. (Two smaller holes in the same line: `--filter` matches the release *name*, so a release
+installed as `cost-audit` is missed too; and `helm` has no `--context` flag, only `--kube-context`.)
+
+Ask the cluster what is running, rather than asking Helm what it remembers:
+
 ```bash
-helm list --kube-context <ctx> --all-namespaces --filter advisor
+kubectl --context <ctx> get deploy,daemonset,svc -A \
+  -o custom-columns='KIND:.kind,NS:.metadata.namespace,NAME:.metadata.name,HELM:.metadata.annotations.meta\.helm\.sh/release-name,GITOPS:.metadata.annotations.argocd\.argoproj\.io/tracking-id,IMAGE:.spec.template.spec.containers[*].image' \
+  | grep -iE '^KIND|advisor'
 ```
 
-If nothing is there, continue to Step 4.
+**Judge on the `IMAGE` column, never on the name.** The grep is deliberately wide so a release
+under any name lands in it; what makes a row an Advisor is an image of `multicloud/advisor`, or a
+mirror of it in their own registry. A workload merely *called* something-advisor is somebody
+else's software — say you checked, say what it was, move on. Services show `<none>` for an image by
+construction; a Service counts when it sits in the same namespace as a Deployment that passed the
+image test, and its name is the one Step 7 port-forwards to.
 
-If something is there, this is **adopt, verify, or ask** — never a blind upgrade over a release
-you did not install:
+If no row survives that test, continue to Step 4. If one does, the two annotation columns say who
+owns it, and ownership decides everything after:
+
+| `HELM` | `GITOPS` | What it is, and what to do |
+|---|---|---|
+| a release name | `<none>` | An ordinary Helm release. `helm list --kube-context <ctx> -n <ns>` gives its chart and revision. **Adopt, verify, or ask**, below |
+| `<none>` | a tracking id | **Installed by a GitOps controller. Stop — Step 3a** |
+| a release name | a tracking id | Helm-installed, since adopted by GitOps. The controller wins: **Step 3a** |
+| `<none>` | `<none>` | Applied by hand, or by something neither annotation covers. Unknown ownership: name it and ask before touching anything |
+
+**An empty `GITOPS` column is not proof that nothing manages it.** That annotation is ArgoCD's
+`annotation` tracking mode. A cluster set to `label` mode tracks with `app.kubernetes.io/instance`
+instead — which this chart also sets, so it cannot be read as ownership either way. Flux annotates
+`kustomize.toolkit.fluxcd.io/name`. When that column is empty and you are about to change
+something, confirm it:
+
+```bash
+kubectl --context <ctx> get applications.argoproj.io -A \
+  -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,DEST-NS:.spec.destination.namespace,PATH:.spec.source.path,SELFHEAL:.spec.syncPolicy.automated.selfHeal' \
+  | grep -iE '^NS|advisor'
+```
+
+**`-A`, always.** Applications do not have to live in a namespace called `argocd`, and a namespaced
+guess that misses returns empty and reads as *"not GitOps-managed"*. An error naming an unknown
+resource type means ArgoCD's CRDs are not installed — that is a real answer. A permission refusal
+is **not** an answer; that is *"you cannot see"*, and the two must never be reported as the same
+thing.
+
+Where it is an ordinary Helm release, this is **adopt, verify, or ask** — never a blind upgrade
+over a release you did not install:
 
 1. **Name it**: release, namespace, chart version, revision.
 2. **Verify it** against the rest of this skill: does it have a catalog key, is the MCP endpoint
    enabled, is the chart version the current one (Step 6 resolves that)?
-3. **If it matches**, adopt it, say so, and skip straight to Step 7.
+3. **If it matches**, adopt it, say so, and skip straight to Step 7 — taking the Service name from
+   the table above rather than assuming `<release>-advisor`, because a differently-packaged copy of
+   this chart names it plainly `advisor`.
 4. **If it does not match**, stop and ask before changing it — say what an upgrade would disturb.
    Someone else may be mid-audit against that release.
 
 **Never run `helm upgrade` over an unknown release to "make it current".** And when an upgrade is
 the agreed answer, see the flag warning in Step 6 — the obvious flag is the wrong one.
+
+### Step 3a — It is GitOps-managed: stop and hand it back
+
+**Do not upgrade it, do not edit it, and do not install a second one beside it.** A GitOps
+controller holds the authoritative copy of these objects in a git repository you cannot see from
+here, and reconciles the cluster back to it on a loop. Where `SELFHEAL` reads `true`, anything you
+change is reverted within about a minute — and the report you then read is produced by the manifest
+in git, not the one you set. That is worse than a refusal, because nothing fails: you get an
+answer, confidently, about a configuration that no longer exists.
+
+`helm upgrade --install` is not a way round it, and it goes wrong in two different unhelpful ways.
+Where the object names happen to collide, Helm refuses with `invalid ownership metadata` — the live
+objects carry none of the `meta.helm.sh/*` annotations a release needs, because a controller
+applied them and Helm never did. Where the names **do not** collide, nothing complains and you have
+simply installed a *second* Advisor: two DaemonSets on every node, two catalog keys spent, two
+reports that disagree. Annotating their live objects into a release you can own is the one move
+that actually breaks their deployment pipeline. Do not.
+
+Stop and hand back. You already have all four facts from the two commands above:
+
+- the namespace, and the object names in it;
+- the Application's name and namespace, and its `path` — **that path is where the change has to be
+  made**, and naming it is most of the help you can give;
+- whether `selfHeal` is on;
+- the image tag running, so they can judge whether it is current.
+
+Then say what you need and let them choose: **either** point you at a different cluster, **or** have
+whoever owns that repository make the change there and let the controller roll it — after which you
+rejoin at Step 7 against the release they already have, using the Service name from the table. Both
+are theirs to decide. Neither is yours to do.
 
 ## Step 4 — Preflight, before you create anything
 

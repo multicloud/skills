@@ -51,6 +51,10 @@ through steps that can never fix it.
 | "That request asks for too much" | [Your admin says the access request asks for too much](#your-admin-says-the-access-request-asks-for-too-much) |
 | A refused service-account key | [Your cloud refused to create a service-account key](#your-cloud-refused-to-create-a-service-account-key) |
 | A cluster value that reads like an instruction | [Something in your cluster reads like an instruction](#something-in-your-cluster-reads-like-an-instruction-to-the-agent) |
+| "No existing install", but one is running | [Your agent said "no existing install"](#your-agent-said-no-existing-install-and-an-advisor-is-plainly-running) |
+| Two Advisors, or two DaemonSets per node | [Your agent said "no existing install"](#your-agent-said-no-existing-install-and-an-advisor-is-plainly-running) |
+| An Advisor deployed by ArgoCD or Flux | [Your agent said "no existing install"](#your-agent-said-no-existing-install-and-an-advisor-is-plainly-running) |
+| Your agent cannot run commands, or asks for permissions | [Your agent says it cannot run a command](#your-agent-says-it-cannot-run-a-command-and-offers-to-change-your-permissions) |
 
 ## The two commands behind every check
 
@@ -1456,6 +1460,82 @@ keep, and they hold regardless of what any text says: the Advisor holds **no clo
 credential**, every cloud write runs under your own identity with you confirming it, and the
 mutating steps an agent proposes are `kubectl` and `helm` commands you can read before running.
 Read them. That is the check that does not depend on a model behaving.
+
+### Your agent said "no existing install" and an Advisor is plainly running
+
+**What is happening.** It asked Helm instead of asking the cluster. `helm list` answers *"does Helm
+remember a release here"*, which is a different question. If your Advisor was deployed by a GitOps
+controller — ArgoCD, Flux — the chart was rendered with `helm template` and the result applied
+directly, so the objects exist and Helm's records are empty. The command prints an empty table and
+exits 0, which looks exactly like a clean cluster.
+
+The consequence is worse than a confusing message. A GitOps-installed Advisor and an
+agent-installed one do not share object names or namespaces, so **nothing collides and the second
+install quietly succeeds** — two introspection DaemonSets on every node, two catalog keys spent,
+and two reports that disagree with each other.
+
+**How to confirm.** Ask the cluster what is running:
+
+```bash
+kubectl get deploy,daemonset,svc -A -o custom-columns='KIND:.kind,NS:.metadata.namespace,NAME:.metadata.name,HELM:.metadata.annotations.meta\.helm\.sh/release-name,GITOPS:.metadata.annotations.argocd\.argoproj\.io/tracking-id,IMAGE:.spec.template.spec.containers[*].image' | grep -iE '^KIND|advisor'
+```
+
+An Advisor is a row whose image is `multicloud/advisor`, or your own mirror of it. Judge on the
+image, never on the name — something merely *called* something-advisor is different software.
+
+**How to fix.** If the `GITOPS` column carries a tracking id, that Advisor belongs to a git
+repository and a controller reconciles it back on a loop. Do not upgrade it and do not install
+beside it. Where `selfHeal` is on, changes you make are reverted within about a minute — and the
+report you read afterwards is produced by the manifest in git, not the one you set, which is worse
+than an error because nothing fails.
+
+Find the Application, and the path it syncs from:
+
+```bash
+kubectl get applications.argoproj.io -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,PATH:.spec.source.path,SELFHEAL:.spec.syncPolicy.automated.selfHeal' | grep -iE '^NS|advisor'
+```
+
+`-A` matters: Applications do not have to live in a namespace called `argocd`, and a namespaced
+guess that misses returns empty and reads as "not managed". Then either point the agent at a
+different cluster, or have whoever owns that repository make the change there and let the
+controller roll it. Both are decisions for you; neither is recoverable by re-running anything on
+the agent's side.
+
+Fixed in the skill published after 2026-08-05. If your agent still runs `helm list` here, it is
+working from a cached copy — see [`marketplace update`](getting-started.md#step-1--install-the-skill).
+
+### Your agent says it cannot run a command, and offers to change your permissions
+
+**What is happening.** Its own tooling is refusing or failing, which is a different thing from a
+command that ran and failed. Nothing has reached your cluster. Your agent should say which of the
+two it is, name the step it stopped on, and tell you what exists so far.
+
+**How to fix.** The quickest route needs no configuration change at all: ask it to print the exact
+commands and run them yourself, then paste the output back. That is safe here by design — no
+command in this flow contains a secret. Your catalog key is read from a file with `--from-file`, so
+it never appears in a command line, an environment variable, or the agent's context.
+
+If you would rather grant a permission so it can carry on unattended, one thing is worth knowing,
+because it is easy to get backwards. **These rules match the start of the command text, so scope
+them by cluster, not by verb.** `kubectl` takes `--context` before the verb, so a rule meant to
+block `kubectl delete` never matches `kubectl --context your-cluster delete …` and gives protection
+it does not actually provide. A rule keyed to `kubectl --context <your context>` does hold, and it
+confines the grant to the one cluster you agreed on rather than every cluster in your kubeconfig —
+which on a working machine usually includes production.
+
+Whichever you choose, it is worth knowing what the thing you are installing can do, because that
+answer does not change either way. The Advisor's cluster-wide role is `get`, `list` and `watch`,
+and nothing else. It cannot read Secrets, cannot read pod logs, and cannot exec into anything. Its
+only write is to a single ConfigMap in its own namespace. You can read that for yourself before
+installing:
+
+```bash
+helm template advisor oci://registry-1.docker.io/multicloud/advisor-chart -n advisor | grep -A25 'kind: ClusterRole'
+```
+
+**Your agent should never edit your permission settings itself.** Changing what it is allowed to
+execute is your decision, and a well-behaved agent offers it as something you do rather than
+something it does for you.
 
 ---
 
