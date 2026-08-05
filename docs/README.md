@@ -32,7 +32,7 @@ shows you the difference. Every figure is bin-packed on both CPU and memory, so 
 inflated by counting CPU work while ignoring the memory that strands capacity.
 
 Your own AI agent can drive the whole thing: install it, work out what access would improve
-accuracy, prepare two scoped access requests per cloud account for you to approve — one for pricing, one for quota, apply the result,
+accuracy, prepare two scoped access requests per cloud account for you to approve (one for pricing, one for quota), apply the result,
 explain the report, and file quota increases using **your** credentials from **your** machine.
 
 Two properties hold throughout, and both are verifiable rather than promised:
@@ -42,11 +42,12 @@ Two properties hold throughout, and both are verifiable rather than promised:
   **default-disabled** console-only quota-submission path (`quotaRequests.*`); on shipped defaults
   it is unconfigured and its routes return 404. See [permissions.md](permissions.md) §6.
 - **Nothing about your workloads reaches Multicloud.** What reaches the Multicloud catalog is
-  abstract resource-class queries — a CPU floor, a memory floor, a GPU class, a region set — plus,
-  to price what you run today, the instance type and region names of the nodes you already run.
+  abstract resource-class queries — a CPU floor, a memory floor, a GPU class, a region set. To price what
+  you run today, the instance type and region names of the nodes you already run also reach the
+  catalog.
   No workload name, namespace, label or configuration. Your
   **agent** is a different destination and a deliberate one: the MCP endpoint (on by default)
-  serves it your namespace and workload names so it can explain your bill, and anything that
+  serves it your namespace and workload names so it can explain your bill. Anything that
   agent reads goes wherever that agent runs, which may be a hosted model.
 
 [what-the-agent-does.md](what-the-agent-does.md) shows you how to check each of these for
@@ -56,12 +57,12 @@ yourself — including the one that watching the pod's egress cannot tell you.
 
 Read [what-the-agent-does.md](what-the-agent-does.md) first, then
 [permissions.md](permissions.md). Between them they cover what runs where, what each permission
-grants and does not grant, its blast radius, where every credential lives, and how to revoke
+grants and does not grant, its blast radius (how far the damage could reach if it were misused), where every credential lives, and how to revoke
 each one.
 
 The two facts that usually matter most in that review: your cloud credentials never reach
 Multicloud (the agent's stay on your machine; any you grant the Advisor stay in a Kubernetes
-Secret in your own cluster), and the Advisor's Kubernetes role is `get`/`list`/`watch` only — no
+Secret in your own cluster). The other: the Advisor's Kubernetes role is `get`/`list`/`watch` only — no
 Secrets, no logs, no exec — in a file short enough to audit in under a minute. The one write in
 that file is a namespaced Role over a single ConfigMap holding your own quota answers: `get`,
 `update` and `patch` are pinned to that ConfigMap by name, and `create` is bounded by the

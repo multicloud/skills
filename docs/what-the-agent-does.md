@@ -31,11 +31,11 @@ offer a way to expose it by default.**
 - Label nodes, where a missing label is what prevents the Advisor from pricing them.
 - Call **read-only** cloud APIs to read your quotas and, where you grant it, your billing data.
   Each grant request states how far its own capability has been proven against a live account, so
-  you approve knowing which. Nothing calls a cloud API to *identify* instances: nodes are
-  identified from their Kubernetes labels and from node-local instance metadata (IMDS), which
+  you approve knowing the status of each. Nothing calls a cloud API to *identify* instances: nodes are
+  identified from their Kubernetes labels and from node-local instance metadata (IMDS). IMDS
   needs no credential at all, which is why the pricing request deliberately does not ask for
   `ec2:DescribeInstances`. Do not approve an EC2-describe or Cost Explorer permission on the
-  strength of this line — approve what `get_required_iam` actually returns. Which *account*
+  basis of this line — approve what `get_required_iam` actually returns. Which *account*
   those nodes sit in is resolved the same credential-free way, and how much that answer is
   worth differs by cloud: [which account a request names](#which-account-a-request-names-and-how-far-to-trust-it).
 - Prepare access requests for you to approve or forward.
@@ -52,7 +52,7 @@ offer a way to expose it by default.**
   (`templates/rbac.yaml` in the chart), so the capability does not exist to be misused, and you
   can confirm that in thirty seconds. The **agent** is a different subject: it drives your own
   kubeconfig, with whatever that kubeconfig can do, and it creates the credential Secrets you
-  approve. Nothing structural stops it reading one — its not doing so is a promise this document
+  approve. Nothing structural stops it reading one — the fact that it does not is a promise this document
   makes and your own RBAC enforces, not a door the cluster holds shut.
 - Send your workload data **to Multicloud**. Names, namespaces, topology and configuration do
   not reach us — what does reach us is described below, and it is price lookups. (What the agent
@@ -63,7 +63,7 @@ offer a way to expose it by default.**
 
 ## What leaves your cluster
 
-Two destinations, and they are not remotely alike. Read both before you consent.
+Two destinations, and they are not alike at all. Read both before you consent.
 
 **To Multicloud — price lookups, of two kinds.** The forward-looking one is abstract: a benchmark
 floor, a memory floor, a GPU class, a region set — enough to ask *"what does hardware of at least
@@ -77,7 +77,7 @@ cluster's state.
 What does **not** go is everything that makes that inventory yours: no workload name, no
 namespace, no label, no configuration, and no figure the Advisor computed. So the inverse of the
 usual arrangement still holds — most cost tools ship your cluster's state out to their SaaS and
-compute there, and the Advisor pulls prices in and computes inside your cluster — but "nothing of
+compute there, and the Advisor pulls prices in and computes inside your cluster. But "nothing of
 yours leaves" was never the accurate way to say it.
 
 **To your own AI agent — your workload names and namespaces.** The Advisor computes in-cluster,
@@ -104,7 +104,7 @@ and only the first one is ours to keep.
 |---|---|---|
 | **Your cloud credentials** | Your machine only | Never enter the cluster. This is what makes it safe for the agent to act. |
 | **Catalog key** | A Kubernetes Secret | Written via stdin, never a command line. Revocation is self-service from your account page once self-serve signup opens — see [signup.md](signup.md). Until then, it's a request to your Multicloud contact. |
-| **Read-only cloud roles** (optional) | Nothing in the cluster under workload identity; a Kubernetes Secret per cloud if you deliver a static key instead. Opt-in either way | Workload identity is the recommended delivery and is wired for every cloud — the pod trades the ServiceAccount token Kubernetes already issues it for a credential that expires in minutes. Specified and rendered by the charts; not yet exercised against a live cluster. |
+| **Read-only cloud roles** (optional) | Nothing in the cluster under workload identity; a Kubernetes Secret per cloud if you deliver a static key instead. Opt-in either way | Workload identity is the recommended delivery and is wired for every cloud — the pod trades the ServiceAccount token that Kubernetes already issues it for a credential that expires in minutes. Specified and rendered by the charts; not yet run against a live cluster. |
 | **Cloud write access** | Nowhere | The agent flow never places write credentials in your cluster. |
 
 That last row is the important one. Because your agent already holds your credentials on your own
@@ -114,20 +114,20 @@ show.
 
 ## The access it asks for
 
-Your agent works out everything it needs before asking you for anything. Concretely: it calls
+Your agent determines everything it needs before asking you for anything. Concretely: it calls
 `diagnose` first — a pure, credential-free read of what is already known (readiness, data gaps,
 quota flags) that names every unconfigured capability and what it would cost to leave it that
-way — then `get_required_iam` for the ones worth fixing, which returns the exact, minimal,
+way. Then it calls `get_required_iam` for the ones worth fixing, which returns the exact, minimal,
 version-matched access rather than anything hand-assembled. Neither tool touches a cloud or
 accepts a credential; see [mcp-reference.md](mcp-reference.md#plan-tools).
 
 Before either grant is asked for, it also calls `preflight` — the check for everything that
-would make the grant it is about to request fail or turn out to be the wrong ask: a GCP org
+would make the grant it is about to request fail or turn out to be the wrong thing to ask for: a GCP org
 policy that blocks the service-account key the procedure assumes, an unregistered Azure
 resource provider, an Azure support plan that cannot open a ticket, a region your account
 cannot use yet, or a cluster with no OIDC issuer to federate a workload-identity grant against.
 Where `preflight` cannot even tell — Azure restricted regions and Google Cloud region access
-have no programmatic detector at all — it says so plainly rather than implying a clean bill.
+have no programmatic detector at all — it says so plainly rather than implying that nothing is wrong.
 And where the fix is something you can already do yourself (registering a resource provider,
 enabling an opt-in region), it says that too, rather than routing a ticket to your cloud admin
 for something you never needed their help with. This is what makes the two requests below the
@@ -141,7 +141,7 @@ Together, this is what produces **two requests per cloud account**:
 | Read your negotiated rates | Pricing your baseline at what you actually pay, not list price | Whoever owns billing access |
 | Read your quotas | Finding provisioning limits before you commit to a move | Whoever owns cloud IAM |
 
-Each carries its own policy, a reason for every action, what it does not permit, its blast radius,
+Each carries its own policy, a reason for every action, what it does not permit, its blast radius (what it could reach if misused),
 and how to revoke it.
 
 They are split because they usually need different approvers, and they are **independent** —
@@ -170,13 +170,13 @@ account at all, so the account id comes from the introspection DaemonSet instead
 its own node's instance identity document from IMDS and posts it back over `POST /introspect`,
 which is cluster-internal and **unauthenticated**. That endpoint is the whole caveat. Anything
 in the cluster that can reach it can claim any account for any node. So what the read
-establishes is a *candidate* — a number good enough to save you looking one up, and not evidence
+establishes is a *candidate* — a number good enough to save you from looking one up, and not evidence
 that the node is in that account. The Advisor never prints it as checked: the request carries
-the account together with an explicit instruction to confirm it before sending, because printing
+the account together with an explicit instruction to confirm it before sending. That is because printing
 a claimed account as verified is precisely how a workload in your cluster would steer a grant
 toward an account of its own choosing.
 
-**The judgement is per cloud, and it fails closed.** A cloud is reported verified only when
+**The judgement is per cloud, and it fails closed — when in doubt it makes the weaker claim.** A cloud is reported verified only when
 *every* account seen under it came from a providerID. One node contributing an account any other
 way demotes that whole cloud to self-reported — one node does not get to hide behind its
 neighbours. The asymmetry is deliberate: under-claiming costs you a confirmation prompt,
@@ -186,6 +186,60 @@ answer is "none" and you are asked which account to use; a blank never reaches a
 The operator-side view of the same mechanism — what the DaemonSet reads, and what to do when a
 node cannot be identified — is in
 [permissions.md § Node identification](permissions.md#2-node-identification-no-credentials).
+
+## Whether you need the introspection DaemonSet at all
+
+It is the most invasive object in the release, and worth reviewing on that footing: a pod on
+**every** node — it tolerates every taint, so control-plane and otherwise-tainted nodes included —
+running with `hostNetwork: true` and reading node-local metadata every 300 seconds for the life of
+the install. What it does when it is on is disclosed in full in
+[permissions.md § Node identification](permissions.md#2-node-identification-no-credentials), and
+none of that changes.
+
+What is easy to miss is that it is a **fallback**, not a cloud-specific requirement — and on most
+managed clusters it contributes nothing. Node identity is read from Kubernetes labels first, and
+this overlay fills only the fields the labels left empty (`src/collector.py`,
+`merge_introspection`: *"Fills ONLY missing fields (labels win when present)"*). Instance type
+comes from `node.kubernetes.io/instance-type`; spot status comes from
+`eks.amazonaws.com/capacityType`, `cloud.google.com/gke-spot` or
+`kubernetes.azure.com/scalesetpriority` — all three clouds, straight from labels. On EKS, GKE and
+AKS alike, a node whose labels already say what it is leaves the overlay nothing to fill.
+
+One read-only command settles it. It needs nothing installed and no permission you do not already
+have:
+
+```bash
+kubectl get nodes -o custom-columns='NODE:.metadata.name,TYPE:.metadata.labels.node\.kubernetes\.io/instance-type,PROVIDER:.spec.providerID'
+```
+
+- **Every node shows a TYPE** — install with `--set introspection.enabled=false`. Your fleet is
+  still priced in full, and the DaemonSet never enters your cluster. Read the Google note below
+  first if you run GKE.
+- **Any node shows `<none>`** — leave it on. Those nodes are precisely what it exists for; without
+  it they drop out of the priced fleet entirely and your savings number quietly shrinks with them.
+
+**One exception, on Google.** GKE labels only its *spot* nodes; an on-demand GKE node carries no
+capacity label at all, so labels alone leave it neither spot nor on-demand, and it is the
+DaemonSet that resolves it (it reads `instance/scheduling/provisioning-model` from the node's own
+metadata). Such a node is still priced and still counted — but from a catalog lookup that carries
+no spot/on-demand qualifier, and the Advisor deliberately refuses to apply your *negotiated* rates
+to a node it cannot place on that axis, because spot and on-demand differ by far more than any
+discount (`src/pricing.py`, `actual_monthly`). So if you run on-demand GKE nodes **and** you have
+given the Advisor billing access for real rates, that is what turning it off costs you. AWS is
+unaffected — EKS labels both spot and on-demand. Azure is unaffected in the other direction: its
+metadata reports no priority for a regular VM, so those nodes read the same with the DaemonSet on
+or off.
+
+**On AWS there is a second reason, and it is independent of the first** — it survives even when
+every node shows a type. The AWS account id has no other credential-free source, for the reason
+given in the section above, so turning the DaemonSet off on AWS costs you nothing in the report
+and costs you the candidate account id a grant request is addressed to. That is a small loss:
+the request asks you to confirm the account before sending it either way, so you can simply
+supply it yourself. If you do not intend to file grant requests at all, it is no loss.
+
+The chart default is **on** (`introspection.enabled=true`), deliberately: someone who installs the
+chart directly, having read none of this, should get full node identification rather than a
+silently degraded report. Turning it off is a decision to make with the command above in hand.
 
 ## How to revoke everything
 
@@ -202,7 +256,7 @@ you are finished.
 ## Auditability
 
 Your agent keeps a per-run log of every command it issues — the command, its exit code and its
-output. It redacts secrets before writing, and the script that writes the log carries a backstop
+output. It redacts secrets before writing (each secret is replaced with a placeholder), and the script that writes the log carries a backstop
 that catches common shapes — PEM blocks, AWS key ids, secret-ish `key=value` pairs. Treat that
 backstop as a safety net rather than a guarantee: a credential in a shape it does not recognise
 reaches the file, which is why the log is created `0600` and is worth treating as sensitive.
@@ -226,13 +280,14 @@ Do not take the above on trust. Each claim is checkable:
 
 | Claim | How to check |
 |---|---|
-| Cluster reads are read-only | Read `templates/rbac.yaml` in the chart — under a minute end to end. Cluster-wide access is `get`/`list`/`watch` only: no Secrets, no logs, no exec. The one write in that file is a namespaced Role over a single ConfigMap (your quota answers); Kubernetes cannot name-pin `create`, so its bound is namespace scope. |
+| Cluster reads are read-only | Read `templates/rbac.yaml` in the chart — under a minute end to end. Cluster-wide access is `get`/`list`/`watch` only: no Secrets, no logs, no exec. The one write in that file is a namespaced Role over a single ConfigMap (your quota answers); Kubernetes cannot name-pin `create`, so the limit is the namespace. |
 | No cloud writes on the agent path | List the MCP server's tools. There is no submit tool, no cloud-write tool, and no tool that accepts a credential — the absence *is* the guarantee. The tool surface has landed (5 read tools, 7 plan tools including `plan_grant_requests`, 3 act tools that never touch a cloud), so `tools/list` verifies this directly rather than reflecting a still-empty manifest. Separately, the chart ships one opt-in, default-disabled console-only submission path; check it is off with `helm get values` (`quotaRequests.*`). |
 | Nothing about your workloads reaches **Multicloud** | Watch the pod's egress: `api.multicloud.io` always, plus **your own** cloud API endpoints if you enabled quota visibility. To see *what* is sent to the catalog rather than only where, read `advisor/src/catalog_client.py` — every outbound parameter is built there. |
 | What your **agent** is served, and therefore what reaches its model | Egress-watching cannot answer this one and must not be used for it: `/mcp/` is an inbound pull over your own port-forward, so a clean egress trace proves nothing about it. Ask your agent to call `get_workloads` and show you the raw result — your namespaces and workload names are in it, and that is precisely what entered its context. `get_report(detail="full")` is the whole report. If that is more than you want a hosted model to hold, `--set mcp.enabled=false`. |
-| The MCP server is not reachable externally | It has no Ingress and no Service exposed beyond the cluster, and that is enforced rather than assumed: the chart **fails to render** if `mcp.enabled` is combined with anything that publishes the Service — `ingress.enabled=true`, or any `service.type` other than `ClusterIP`/`ExternalName`. That second test is an allowlist rather than a list of forbidden values, so a wrong-case type, a value carrying stray whitespace from a CI variable, and any Service type Kubernetes ships in future are all refused too. Try it: `helm template` refuses, and names which one tripped it. The server additionally answers `421` to any request whose `Host` is not loopback, though treat that as a second line rather than the guarantee — it inspects the `Host` header, not the caller, so the render-time refusal is the load-bearing control. |
+| The MCP server is not reachable externally | It has no Ingress and no Service exposed beyond the cluster, and that is enforced rather than assumed: the chart **fails to render** if `mcp.enabled` is combined with anything that publishes the Service — `ingress.enabled=true`, or any `service.type` other than `ClusterIP`/`ExternalName`. That second test is an allowlist rather than a list of forbidden values, so a wrong-case type, a value carrying stray whitespace from a CI variable, and any Service type Kubernetes ships in future are all refused too. Try it: `helm template` refuses, and names which one tripped it. The server additionally answers `421` to any request whose `Host` is not loopback, though treat that as a second line of defence rather than the guarantee — it inspects the `Host` header, not the caller, so the render-time refusal is the load-bearing control. |
 | Nothing is persisted | The Advisor holds its analysis in memory. The single durable object it writes is a ConfigMap containing your own quota questionnaire answers. |
 | A self-reported account is never dressed up as a verified one | Ask your agent to show you the raw `diagnose` output: every cloud carries `account_source` alongside its accounts — `provider_id` (read from the Node's own `providerID`), `introspection` (self-reported over the unauthenticated in-cluster read), or `none`. Then have it render the request with `plan_grant_requests`: the same distinction is printed into the document itself, so it reaches whoever approves the grant and not only whoever ran the tool. |
+| The introspection DaemonSet is a fallback, not a requirement | Read `merge_introspection` in `advisor/src/collector.py` — it fills only the fields the node's labels left empty, so a fully-labelled node gains nothing from it. Then run the one command in [§ Whether you need the introspection DaemonSet at all](#whether-you-need-the-introspection-daemonset-at-all): if every node reports an instance type, install with `--set introspection.enabled=false` and compare the report against one installed with it on. |
 
 ## One thing to be aware of
 

@@ -8,7 +8,7 @@ Then tell your agent: *"audit my cluster with the Multicloud Advisor."*
 
 Not using Claude Code? Any agent that speaks MCP can follow the same instructions — point it at
 <https://multicloud.io/agent/skill.md> and tell it to read that URL and follow it. You lose
-automatic triggering (you have to ask for it by name) and gain nothing stale, because the fetch
+automatic triggering (you have to ask for it by name) and gain a copy that is never stale, because the fetch
 happens per session.
 
 ## What you get
@@ -18,8 +18,8 @@ somewhere else?**
 
 It prices the performance-normalized compute you run today against every major cloud's spot and
 on-demand markets, packs your actual workloads onto the cheapest fleet that fits, and shows you
-the difference. Every figure is bin-packed on both CPU and memory, so a saving is never inflated
-by counting CPU work while ignoring the memory that strands capacity.
+the difference. Every figure is bin-packed on both CPU and memory (each workload is fitted against both limits at once), so a saving is never inflated
+by counting CPU work while ignoring the memory that leaves capacity unusable.
 
 Your own agent drives all of it: installs the Advisor, works out what access would improve
 accuracy, prepares two scoped access requests per cloud account for you to approve, explains the
@@ -29,7 +29,7 @@ Two properties hold throughout, and both are things you can check rather than th
 
 - **On the agent path, the Advisor never writes to a cloud.** The MCP surface has no tool that
   submits to a cloud and no tool that accepts a credential — when something must be created in a
-  cloud, your own credentials do it, from your own machine, under your own identity. Stated
+  cloud, your own credentials do it, from your own machine, under your own identity. That claim is
   scoped, because the chart does ship one opt-in, **default-disabled** console-only
   quota-submission path (`quotaRequests.*`); on shipped defaults it is unconfigured, its routes
   return 404, and nothing in the agent flow enables it.
@@ -79,7 +79,7 @@ per-run log your agent keeps: every command, its exit code, its output. **It liv
 and never comes back to us.** We have no mechanism to read it and do not want one. Run it with
 `--help`.
 
-The agent redacts secrets before writing, and the script carries a backstop that catches common
+The agent redacts secrets before writing (it replaces secret values with placeholders), and the script carries a second, independent check (a backstop) that catches common
 shapes — PEM blocks, AWS key ids, secret-ish `key=value` pairs. Treat the backstop as a safety
 net rather than a guarantee: a credential in a shape it does not recognise reaches the file, so
 the log is sensitive and is created `0600` accordingly. You can check the net yourself:

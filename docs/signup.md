@@ -9,7 +9,7 @@
 
 
 This page covers the whole lifecycle: creating an account, organizations, invitations, roles, and
-minting and revoking the API keys that authenticate your traffic. If you are here to install the
+minting (creating) and revoking the API keys that authenticate your traffic. If you are here to install the
 Advisor, start at [Step 3 of getting-started.md](getting-started.md#step-3--get-a-catalog-key)
 or [Step 1 of manual-install.md](manual-install.md#step-1--get-a-catalog-key) — both send
 you back here for the account and key steps, then return you to the install.
@@ -25,8 +25,8 @@ not by itself create or join an organization; it just gets you a session.
 organizations might already be yours, both require a verified address — an unverified session
 can sign in, but sees no organizations and cannot create one. Inviting a colleague and minting a
 key aren't checked against your email directly; they're checked against organization ownership,
-which in practice you can only reach by first creating a (verified-email-gated) organization, so
-the effect is the same even though the check itself is different.
+which you can only reach in practice by first creating an organization — and creating one does
+require a verified email. So the effect is the same, even though the check itself is different.
 
 ## Organizations
 
@@ -38,7 +38,7 @@ one and being an ordinary member of another is normal and expected.
 
 Pick a display name and create the organization. In practice, up to two per day. Two
 organizations are allowed to share a display name — the platform assumes some companies run more
-than one — so under the hood each organization also gets its own unique internal identifier, even
+than one — so each organization also gets its own unique internal identifier, even
 if two people at the same company both type "Acme".
 
 Creating an organization makes you its first member and its first owner.
@@ -78,7 +78,7 @@ this isn't a way to get someone's attention by volume.
 **Creating your own organization stays an equal choice the whole time.** A pending request never
 blocks it, never greys it out, and doesn't have to be cancelled first — the two sit side by side on
 the page for a reason. If you'd rather not wait on somebody else's inbox, create one and carry on;
-you can belong to more than one organization, so an invitation that turns up later costs you
+you can belong to more than one organization, so an invitation that arrives later costs you
 nothing.
 
 ### Roles: owners and members
@@ -117,7 +117,7 @@ the same header.
 | Scope | The organization | The organization |
 
 This page covers catalog keys in full, since that's the self-serve path. For deploy keys, ask your
-Multicloud contact until issuance opens up the same way catalog keys have.
+Multicloud contact until deploy keys become self-serve the same way catalog keys are.
 
 ### Minting a catalog key
 
@@ -147,8 +147,8 @@ endpoint can produce the raw value again. If it's lost, revoke it and mint a new
 recovery path, by design.
 
 An organization may hold at most **10 enabled catalog keys** at a time. That caps how many are
-*live* at once — it isn't a lifetime issuance limit — so revoke one you no longer need before
-minting another if you hit the ceiling.
+*live* at once — it isn't a limit on how many you may ever create — so revoke one you no longer
+need before minting another if you reach the limit.
 
 You can tag a key with an `account` label and a free-text `description` — useful for marking which
 prospect, environment, or CI pipeline a given key belongs to.
@@ -179,12 +179,12 @@ Note that this is a `POST` to a `/revoke` path, not a `DELETE` — the row isn't
 disabled, so the audit trail (who minted it, when it was last used) survives. Any owner of the
 organization can revoke any of its keys, again regardless of who minted it. **Revocation takes
 effect within a minute, and usually on the very next request.** The API validates keys against a
-short-lived in-memory cache, and revoking evicts that entry immediately in the process handling the
-request; any sibling process still holding a cached copy re-checks the database within 60 seconds.
-So the honest guarantee is a bounded minute, not an instant — plan a rotation as "revoke, wait a
+short-lived in-memory cache, and revoking removes that entry immediately in the process handling the
+request. Any other worker process still holding a cached copy re-checks the database within 60 seconds.
+So the honest guarantee is at most a minute, not an instant — plan a rotation as "revoke, wait a
 minute, confirm", not "revoke and assume".
 
-Because ownership — not authorship — is what revocation checks, the scenario this whole model
+Revocation checks ownership, not authorship. So the scenario this whole model
 exists for is straightforward: an engineer mints a key, then leaves the company. Nobody needs their
 old login to shut it off. Any remaining owner revokes it directly.
 
@@ -256,7 +256,7 @@ above was instead checked directly against the code that implements it:
   page until signup opens.
 
 One thing this page deliberately does **not** claim: that every catalog key Multicloud has ever
-issued is unrecoverable. That's true for every key minted through the flow described above. It is
+issued cannot be recovered. That's true for every key minted through the flow described above. It is
 not true of a small number of older rows created before this model existed, which authenticate by
 their database row id rather than a hash — an internal detail with no effect on how you use a key
-you mint today, and one that's being closed out separately.
+you mint today, and one that is being fixed separately.

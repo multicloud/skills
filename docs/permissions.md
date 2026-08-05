@@ -20,7 +20,7 @@ improvement in fidelity.
 | # | Capability | What it buys you | Access needed | Approved by | Status |
 |---|---|---|---|---|---|
 | 1 | **In-cluster read** | The report itself: what you run, what it costs, what it would cost elsewhere | Kubernetes RBAC (`get`/`list`/`watch`) | Cluster admin | Shipping |
-| 2 | **Node identification** | Prices nodes whose labels don't say what they are | None — no credentials of any kind | Cluster admin | Shipping, on by default |
+| 2 | **Node identification** | Prices nodes whose labels don't say what they are — and nothing at all if they already do | None — no credentials of any kind | Cluster admin | Shipping, on by default — [often unnecessary; one read-only command decides](#2-node-identification-no-credentials) |
 | 3 | **Utilization source** | Right-sizing against measured usage instead of declared requests | Read access to your own metrics store, if it needs auth | Whoever runs your metrics stack | Shipping |
 | 4 | **Actual negotiated pricing** | Prices your baseline at your committed rates, not public list price | Read-only billing role per cloud | Cloud + billing admin | **AWS: read live and cross-checked** (2026-08-03). **Google Cloud and Azure: built and wired, never yet read against a live billing account** — treat any rate those two derive as unproven |
 | 5 | **Quota visibility** | Shows the provisioning wall before you hit it | Read-only quota/usage role per cloud | Cloud admin | Shipping |
@@ -59,7 +59,7 @@ It is deliberately short enough to audit in under a minute. Read it yourself:
 | `metrics.k8s.io` | `pods` | get, list | Reads metrics-server as a weak fallback when no PromQL store is available | Yes |
 | `metrics.k8s.io` | `nodes` | get, list | Reserved | **No** — see note |
 
-**Note on the "No" rows.** Three grants in the shipped chart are not exercised by the current
+**Note on the "No" rows.** Three grants in the shipped chart are not used by the current
 code: `persistentvolumeclaims`/`persistentvolumes`, `poddisruptionbudgets`, and
 `metrics.k8s.io/nodes`. They are read-only and low-risk, but if your reviewer works to a strict
 least-privilege standard you can delete those three rules from the ClusterRole with **no loss of
@@ -77,7 +77,7 @@ scope). It is the only thing the Advisor persists anywhere.
 
 `create` cannot be name-restricted — Kubernetes ignores `resourceNames` for `create`, because the
 object name is not known at authorization time. The real bound is namespace scope: this identity
-can mint new ConfigMaps in its own namespace and can read or modify exactly one existing ConfigMap,
+can create new ConfigMaps in its own namespace and can read or modify exactly one existing ConfigMap,
 by name. It cannot touch any other ConfigMap in the cluster.
 
 ### What this grant does not permit
@@ -105,7 +105,9 @@ in any outbound request.
 - `ClusterRole` and `ClusterRoleBinding` are cluster-scoped objects. If the person installing the
   Advisor cannot create them, installation fails at that step — worth checking before you start.
 - The node-identification DaemonSet (capability 2) uses `hostNetwork`, which the `baseline` and
-  `restricted` PodSecurity levels forbid. See capability 2.
+  `restricted` PodSecurity levels forbid. Before you argue that exception through, check whether
+  you need the DaemonSet at all — on a fully-labelled cluster you do not, and the question never
+  arises. Capability 2 has the one-command check.
 
 ### How to revoke
 
@@ -134,6 +136,38 @@ The Advisor ships a small DaemonSet that resolves this **without any cloud crede
 reads its own node's instance metadata service and reports type, region and spot status back to
 the Advisor over cluster-internal HTTP.
 
+**Most clusters do not need it, and this is the most invasive object in the release — so decide
+before you install it.** It is a fallback for node identity, not a cloud-specific requirement.
+The Advisor reads instance type from the `node.kubernetes.io/instance-type` label, and
+spot-versus-on-demand from `eks.amazonaws.com/capacityType`, `cloud.google.com/gke-spot` or
+`kubernetes.azure.com/scalesetpriority` — **all three clouds, straight from labels**. The
+DaemonSet only ever fills fields the labels left empty; a label always wins. So on a managed
+cluster with a working cloud-controller-manager — EKS, GKE and AKS alike — it contributes
+essentially nothing. The one thing it still contributes on a fully-labelled cluster is the **AWS
+account id**, set out below.
+
+**The check that decides it.** Read-only, needs nothing installed, and any cluster admin can run
+it before approving anything:
+
+```bash
+kubectl get nodes -o custom-columns='NODE:.metadata.name,TYPE:.metadata.labels.node\.kubernetes\.io/instance-type,PROVIDER:.spec.providerID'
+```
+
+- **Every node shows a TYPE** → install with `--set introspection.enabled=false`. Nothing is
+  lost, no `hostNetwork` pod ever enters your cluster, and the PodSecurity question below never
+  arises. On AWS, read the account-id paragraph first — that half is a separate reason.
+- **Any node shows `<none>`** → leave it on. Those nodes are exactly what it is for, and
+  switching it off while they are unlabelled **drops them from the report rather than recovering
+  them**. Label them yourself first (the console prints the exact command per node), and only
+  then is disabling it the right move.
+
+**The chart default is `introspection.enabled=true`, on purpose.** Someone installing the chart
+directly, with neither this document nor an agent to steer them, should get full node
+identification rather than a quietly degraded report. Turning it off is a decision you make from
+the check above; it is not one the chart makes for you.
+
+If you do run it, this is exactly what it is:
+
 | Property | Value |
 |---|---|
 | Credentials | None. Not a cloud credential, not a Kubernetes token |
@@ -142,8 +176,9 @@ the Advisor over cluster-internal HTTP.
 | Writes | None |
 | Interval | Every 300 seconds by default (`introspection.intervalSeconds`) |
 
-**Why `hostNetwork`.** On EKS, the IMDSv2 hop limit blocks metadata reads from inside a normal pod
-network namespace. Host networking is what makes the read work at all.
+**Why `hostNetwork`.** This is about reaching a metadata service, not about which cloud you are
+on: AWS's IMDSv2 hop limit — the EKS default — blocks metadata reads from inside a normal pod
+network namespace, and host networking is what makes the read work at all where that applies.
 
 **It also resolves which cloud account each node is in** — a GCP project, an Azure subscription,
 or an AWS account id — because a grant request has to say which account it is for. On GCP and
@@ -153,6 +188,12 @@ there it comes from this same credential-free metadata read instead, over `POST 
 which, like the rest of this endpoint, is unauthenticated. An account that reached us only that
 way is reported, not verified, and your agent is designed to have you confirm it before it is
 printed into a grant request rather than presenting it as already checked.
+
+**That AWS half is the one reason that survives a fully-labelled cluster**, and it is a different
+reason from node identity: labels can be complete on every node and an AWS `providerID` still
+names no account, so IMDS remains the only source of the account a grant request is addressed to.
+Weigh it as its own question — if you are not going to file grant requests from this cluster, it
+buys you nothing either, and the check above stands unchanged.
 
 This is judged per cloud, not per node, and conservatively: a cloud is reported as verified only
 when *every* account seen under it was providerID-derived. If even one node in that cloud
@@ -167,12 +208,12 @@ ready-to-run `kubectl label` command per affected node, so every node is recover
 networking. See [troubleshooting](troubleshooting.md#the-introspection-pods-never-start).
 
 `preflight` carries a `namespace-podsecurity-level` row for exactly this, designed as a
-precondition check the Advisor runs *before* you install rather than a post-hoc diagnosis. **On
+precondition check the Advisor runs *before* you install rather than a diagnosis after the fact. **On
 this chart, it cannot actually run**: reading a namespace's label needs `get` on the
 cluster-scoped `namespaces` resource, and the ClusterRole this chart installs (above) does not
-grant it — widening cluster-wide RBAC to land one diagnostic sentence is a deliberate call NOT
+grant it — widening cluster-wide RBAC to add one diagnostic sentence is a deliberate call NOT
 made, and Kubernetes offers no narrower grant, because a Namespace is a cluster-scoped object.
-So on this chart the row reports "could not check", indistinguishably from a bare laptop with no
+So on this chart the row reports "could not check", the same as it would from a bare laptop with no
 cluster access at all. The post-install degrade above is unaffected: it reports the symptom and
 the per-node fix without reading the namespace, and only leaves PodSecurity unnamed as the cause.
 **The authoritative check for this chart is the one below** — your own `kubectl`, before you
@@ -188,9 +229,13 @@ Your options once you know the answer:
    non-root with a read-only root filesystem and all capabilities dropped).
 2. Label the affected nodes yourself. If you install anyway, the console names every node that
    needs it and prints the exact command for each; your agent can resolve the values from the
-   cloud API using your local credentials and apply them. Only once those nodes are identified
-   is `introspection.enabled=false` worth setting — doing it first drops the nodes from the
+   cloud API using your local credentials and apply them. `introspection.enabled=false` is worth setting
+   only once those nodes are identified — doing it first drops the nodes from the
    report rather than recovering them.
+3. **If the node check at the top of this section already showed a TYPE on every node, none of
+   this applies**: `--set introspection.enabled=false` and the PodSecurity conflict disappears
+   with the DaemonSet, at no cost to the report. That is only true when the check is clean — with
+   any node still unidentified, option 2 is the path and this one loses you those nodes.
 
 **Revoke:** `--set introspection.enabled=false` on the next `helm upgrade`, or uninstall.
 
@@ -198,7 +243,7 @@ Your options once you know the answer:
 
 ## 3. Utilization source (optional)
 
-Right-sizing against measured usage is materially better than right-sizing against declared
+Right-sizing against measured usage is much better than right-sizing against declared
 requests. The Advisor reads a PromQL-compatible store — it discovers one automatically by scanning
 Services, or you can pin one with `metrics.endpoint`.
 
@@ -219,7 +264,7 @@ non-standard Service name, on a remapped port, or requiring a multi-tenant org h
 and the Advisor silently degrades to declared requests — visible only as a muted footnote on the
 report. A store that is reachable but holds no samples degrades the same way. Pin
 `metrics.endpoint`, `metrics.queryPath` and `metrics.org` explicitly if you know your store is
-unusual. Sample presence is reported rather than mere reachability: `utilization.has_data` in
+unusual. The Advisor reports whether the store has samples, not just whether it answered: `utilization.has_data` in
 `/status.json` is false when the store answered and returned no container CPU samples, and
 `utilization.detail` says so — so "found but empty" is distinguishable from "found and usable"
 without reading the report footnote.
@@ -243,7 +288,7 @@ assumptions no mock in this repository can test, and on AWS one of them was wron
 live call returned `400 ValidationException: And expression must have at least 2 operands` and
 the entire read was dead, against a fully green test suite. Fixed, re-run, and cross-checked
 against `aws ce get-cost-and-usage` to six decimal places — including two instance shapes whose
-30-day window straddled a month boundary, where averaging the wrong way would have been off by 3%
+30-day window crossed a month boundary, where averaging the wrong way would have been off by 3%
 and 5%. One assumption the run settled: AWS returns `us-east-1`, not `US East (N. Virginia)`.
 
 The equivalent question for Google Cloud — whether its billing-export schema matches the query we
@@ -264,7 +309,7 @@ publishes no API for what you were actually *charged*. The Cloud Billing catalog
 price, and the billing-account price surface returns a negotiated *rate card* — which for most
 customers equals list, because GCP discounts arrive as committed-use and sustained-use **credits**
 applied to usage rather than as a discounted rate. Reading it would have told a customer with a
-37% CUD that they pay list. The credit-applied amount exists only in the **BigQuery billing
+37% committed-use discount (CUD) that they pay list price. The credit-applied amount exists only in the **BigQuery billing
 export**, so that is what the client reads. `roles/compute.viewer` remains dropped.
 
 Two consequences, stated rather than buried. This is the only pricing grant that reaches **inside
@@ -277,7 +322,7 @@ Azure **narrowed**, and its row no longer names the built-in `Cost Management Re
 was kept deliberately for a while: a custom role was always mechanically possible —
 `Microsoft.CostManagement/query/action` is a real, custom-role-eligible operation — but which
 operations a working cost query needs *besides* it could not be derived from a client that did not
-exist, and a guessed operation list in a command you would run is worse than a built-in role whose
+exist. A guessed operation list in a command you would run is worse than a built-in role whose
 extra surface is disclosed.
 
 The client exists now, and it invokes exactly that one operation. So the ask is a custom role built
@@ -370,13 +415,13 @@ identical either way, because they are derived from the same client code.
 There are two deliveries. The one each per-cloud procedure walks through creates a principal and
 downloads a long-lived key into a Kubernetes Secret. The other — **workload identity, and the one
 we recommend** — puts no credential in your cluster at all. The pod presents the ServiceAccount
-token Kubernetes already issues it, your cloud verifies that against your cluster's OIDC issuer,
+token that Kubernetes already issues it, your cloud verifies that against your cluster's OIDC issuer,
 and hands back a credential that expires in minutes. Nothing to rotate, nothing to recover from an
 etcd backup, and revoking the cloud-side role revokes the Advisor's access immediately rather than
 whenever someone remembers the key exists.
 
 Where your organization enforces GCP's `constraints/iam.disableServiceAccountKeyCreation`, this is
-not merely preferable — it is the only delivery that works, because that policy refuses the
+not just preferable — it is the only delivery that works, because that policy refuses the
 download §5b depends on.
 
 Two chart values turn it on. Annotate the ServiceAccount with your cloud's binding, and set that
@@ -416,11 +461,11 @@ The pod makes one extra call before any read: the token exchange. If you run a d
 egress policy, allow it — an allow-list covering only the service endpoints fails every read
 with an error that looks like a bad grant.
 
-- **AWS** dials `sts.<region>.amazonaws.com` whenever the pod carries a region, which on EKS it
+- **AWS** calls `sts.<region>.amazonaws.com` whenever the pod carries a region, which on EKS it
   always does, and `sts.amazonaws.com` otherwise. Both are listed because which one applies is
   your cluster's choice, not ours: the global host is a us-east-1 service, so a cluster reaching
   AWS through per-region interface VPC endpoints cannot route to it, and some accounts refuse it
-  outright by SCP.
+  outright by a Service Control Policy (SCP).
 - **Azure** dials `login.microsoftonline.com` — the same host as the client-secret flow, so this
   adds no rule you do not already have.
 - **Google Cloud** needs no rule at all: its token comes from the node-local metadata service and
@@ -439,8 +484,8 @@ maintain. Quota submission stays a distinct principal with its own Secret.
 
 The audit enumerates **every region the credential can see** and reads quotas in each. That is the
 point — a quota wall in a region you have not used yet is exactly the one that surprises you — but
-your reviewer should know the read fans out account-wide rather than staying in one region. You can
-narrow it: excluded regions are honoured from your quota selection.
+your reviewer should know the read covers the whole account rather than staying in one region. You can
+narrow it: regions you exclude in your quota selection are skipped.
 
 What the credential returns, and what therefore appears in the report: quota limits, current usage
 counts, and region names. Not instance contents, not tags, not workload data. Multicloud receives
@@ -547,7 +592,7 @@ helm upgrade <release> <chart> --reset-then-reuse-values \
 
 #### What this grant does not permit
 
-Read-only. What this Advisor **does** with it is quota-shaped: limits, usage metrics, and counts of networking and storage resources. What the grant **permits** is wider than that, and you should approve it knowing so — the counts come from EC2's `Describe*` calls, and a `Describe*` response carries the full description of every resource it covers, in every region: each security group's rules, each subnet's CIDR, each route table's routes, each network interface's addresses, each volume's attachment. That is network and storage inventory, not just its size. It still cannot read workloads, object storage, logs, or spend; it cannot create, change or delete anything; and no instance-lifecycle call is reachable with it.
+Read-only. What this Advisor **does** with it is quota-shaped: limits, usage metrics, and counts of networking and storage resources. What the grant **permits** is wider than that, and you should approve it knowing this — the counts come from EC2's `Describe*` calls, and a `Describe*` response carries the full description of every resource it covers, in every region: each security group's rules, each subnet's CIDR, each route table's routes, each network interface's addresses, each volume's attachment. That is network and storage inventory, not just its size. It still cannot read workloads, object storage, logs, or spend; it cannot create, change or delete anything; and no instance-lifecycle call is reachable with it.
 
 **Expiry recommendation:** Review at 90 days. Nothing breaks when it lapses except the picture going blank, so a time-boxed grant costs you nothing — re-grant on demand.
 
@@ -581,7 +626,7 @@ than skipping the capability.
 ### 5b. Google Cloud quota read
 
 **Not `roles/compute.viewer`.** That predefined role carries Compute Engine's entire get/list
-surface — instance metadata included, which is where startup scripts and SSH keys live — where
+surface — instance metadata included, which is where startup scripts and SSH keys live — whereas
 this reader makes three calls. It is replaced below by a custom role built from exactly those
 three permissions, the same move §5c makes on Azure. `roles/cloudquotas.viewer` stays: at project
 scope it is already close to minimal (`cloudquotas.quotas.get`, plus a project `get`/`list` that
@@ -597,7 +642,7 @@ Advisor produces a grant request it runs a preflight check against
 using this same service-account key, so it can warn you up front if the key the procedure below
 assumes cannot be created. Neither role here carries `orgpolicy.policies.get`, and **we are not
 asking you to grant it**: Google's reference for that method accepts the `cloud-platform`,
-`organizationpolicy` and `organizationpolicy.readonly` OAuth scopes, and this client's token is
+`organizationpolicy` and `organizationpolicy.readonly` OAuth scopes. This client's token is
 minted `cloud-platform.read-only` (see *OAuth scope* below, which is a guarantee we would rather
 keep than trade for one probe), so the permission would not make the check succeed. It reports
 "could not check" and the audit continues without it. If you are writing an egress allow-list
@@ -680,7 +725,7 @@ Then delete the service-account key (and ideally the service account), and delet
 
 #### OAuth scope
 
-The service account's token is minted with
+The service account's token is issued with
 `https://www.googleapis.com/auth/cloud-platform.read-only` — the read-only scope, not full
 `cloud-platform`. Even if the service account were granted broader roles, this client's token
 cannot authorize a write.
@@ -714,7 +759,7 @@ this section).
 One of those operations authorizes a call the *preflight* makes rather than the quota read:
 `Microsoft.Resources/subscriptions/providers/read`, which reports whether the `Microsoft.Quota`
 resource provider is registered in your subscription. It was missing from an earlier revision of
-this role, and the reason it survived is worth knowing if you are reviewing the list: every live
+this role, and the reason the omission survived is worth knowing if you are reviewing the list: every live
 read to date used the built-in `Reader` (`*/read`), which covers it, so the gap existed only in
 the narrow role nobody had run yet.
 
@@ -854,7 +899,7 @@ Grant these to a principal **separate** from the read-only one above.
 |---|---|---|
 | **AWS** | `servicequotas:RequestServiceQuotaIncrease` | Submits the increase, region-scoped, absolute desired value |
 | **AWS** | `servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota` | Reads the outcome. This is also how status survives a pod restart — given only region and quota id, the history is re-derivable live, so no request ids are stored anywhere |
-| **Azure** | `Quota Request Operator` role | The adjustable-quota path (`Microsoft.Quota` PATCH) for vCPU families, regional totals, the spot pool and network counts. `Reader` cannot submit. The `Microsoft.Quota` resource provider must be registered on the subscription — unregistered, affected reads fail in a way that looks like a permission problem rather than a registration one. The agent flow's `preflight` tool checks registration state before either grant request is produced, and names it as something you can register yourself (`az provider register --namespace Microsoft.Quota`) rather than a ticket |
+| **Azure** | `Quota Request Operator` role | The adjustable-quota path (`Microsoft.Quota` PATCH) for vCPU families, regional totals, the spot pool and network counts. `Reader` cannot submit. The `Microsoft.Quota` resource provider must be registered on the subscription — if it is not registered, affected reads fail in a way that looks like a permission problem rather than a registration one. The agent flow's `preflight` tool checks registration state before either grant request is produced, and names it as something you can register yourself (`az provider register --namespace Microsoft.Quota`) rather than a ticket |
 | **Azure** | `Support Request Contributor` role | The support-ticket path, for quotas that are not adjustable through the Quota API — VM-count style ceilings and similar |
 | **Google Cloud** | `cloudquotas.quotaPreferences.create` and `cloudquotas.quotaPreferences.get` | Creates the quota preference and reads its outcome. A custom role with just these two is preferable to `roles/cloudquotas.admin`, which is broader than needed |
 
@@ -938,7 +983,7 @@ than discover them.
 | GCP service-account key creation is often org-policy blocked | This blocks the *key* procedure (§5b), not the capability: use workload identity, which needs no key. `preflight` attempts this check before the ask, but its token's read-only scope is not one the org-policy method accepts, so it will normally report "could not check" — confirm it yourself either way |
 | Azure's narrow custom role is drafted, not yet run | The role that replaces subscription-wide `Reader` is fully specified (§5c), but nobody has run `az role definition create` with it against a real subscription — the live reads to date used `Reader` |
 | Google Cloud's narrow custom role is drafted, not yet run | The three-permission role that replaces `roles/compute.viewer` is fully specified (§5b), but nobody has run `gcloud iam roles create` with it against a real project — the live reads to date used `roles/compute.viewer` |
-| Azure restricted regions and Google Cloud region access are undetectable | Only AWS opt-in regions can be detected programmatically. A clean quota report does not prove a region is usable. `preflight` surfaces this explicitly (`detectable: false`) rather than silently agreeing with a clean bill — it does not make the gap detectable, only visible |
+| Azure restricted regions and Google Cloud region access are undetectable | Only AWS opt-in regions can be detected programmatically. A clean quota report does not prove a region is usable. `preflight` surfaces this explicitly (`detectable: false`) rather than silently reporting no problem — it does not make the gap detectable, only visible |
 | API-rate quotas are visibility only | Token-bucket quotas carry no demand attribution and their identifiers are not real quota codes; they are shown, never filed |
 | Throttled reads look like quiet regions | AWS signals throttling inside 400/403 response bodies rather than 429. A degraded region reports unknown limits and produces no recommendation — which reads like "nothing to do". Check the source note on any region reporting unknowns |
 | Cloud quota outcome reporting is uneven | AWS cannot distinguish a closed case from a denial; Google Cloud has no approved/denied state, only granted-versus-preferred; Azure support tickets expose only open or closed. Per-cloud confidence differs, and the report says so |

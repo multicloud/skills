@@ -21,19 +21,19 @@ the quotas that actually govern the fleet the report recommends:
 | Aggregate vCPU pools | Regional total, spot / low-priority pool | The first ceiling any fleet hits |
 | Per-family vCPU quotas | AWS X/F/High-Memory pairs, Google Cloud per-family CPU metrics, Azure family vCPUs | A zero here silently removes the cheapest option |
 | GPU quotas | Per accelerator class, on-demand and spot | Start at zero nearly everywhere |
-| Network object counts | VPCs/VNets, internet gateways, network interfaces, public IPs, security groups, route tables | The first quota an active multi-cluster estate exhausts |
+| Network object counts | VPCs/VNets, internet gateways, network interfaces, public IPs, security groups, route tables | The first quota an active multi-cluster estate (several clusters running at once) exhausts |
 | Storage | SSD/disk capacity ceilings | Read for visibility |
 | API request rate | Token-bucket limits on instance create/terminate churn | Read for visibility only — see [API-rate quotas](#api-rate-quotas-visibility-only) |
 
 For each one it reads the **limit** and, where the cloud exposes it, the **usage**. If a cloud
-does not return a value, it is recorded as unknown — never rounded down to a blocking zero.
+does not return a value, it is recorded as unknown — never treated as a blocking zero.
 
 Everything in this phase is read-only.
 
 ## The questionnaire: what you are asked, and why
 
 The audit needs to know how big the fleet will be. It cannot infer that, and it does not
-pretend to: **a new account has no usage history to infer from.** So it asks, with sound
+pretend to: **a new account has no usage history to infer from.** So it asks, with sensible
 defaults pre-filled, and sizes everything from your answer.
 
 What you are asked:
@@ -54,7 +54,7 @@ What you are **not** asked, because it is how the platform always operates: spot
 on-demand fallback, multiple clusters, and public IPv4 endpoints. Those are assumed and audited
 unconditionally. Only the *size* is asked.
 
-Where a savings report already exists, the sizing also folds in the fleet it actually packed,
+Where a savings report already exists, the sizing also includes the fleet it actually packed,
 and the capacity you already have in use. Your answer is a floor, not a cap.
 
 ### How the fleet estimate becomes a number
@@ -69,7 +69,7 @@ and the capacity you already have in use. Your answer is a floor, not a cap.
 | External IPv4 (Google Cloud) | 1 × peak nodes |
 | Network interfaces (AWS) | 2 × peak nodes |
 
-Each recommendation then asks for the bar at which the quota stops being called marginal — 2×
+Each recommendation then asks for the level at which the quota stops being called marginal (too close to the requirement to be safe) — 2×
 the requirement, on spot pools and on-demand alike — rounded up to the increment that cloud
 accepts. That is deliberately the same number the adequacy check uses: an ask sized below it
 would be reported as still-marginal the moment it was granted, and you would be back in front of
@@ -83,7 +83,7 @@ treating them the same is how a customer's quota requests stop being taken serio
 | Severity | Means | Urgency |
 |---|---|---|
 | **Blocking** | The limit sits below what the fleet **as you described it** needs. Something you asked for cannot run. | Clear it before you move. |
-| **Recommended** | The limit is fine for the fleet you described, but a cost-competitive instance family is stocked in that region and a low limit quietly removes it from the scheduler's choice set. | Worth opening. Nothing breaks today if you skip it. |
+| **Recommended** | The limit is fine for the fleet you described, but a cost-competitive instance family is offered in that region and a low limit quietly removes it from the scheduler's choice set. | Worth opening. Nothing breaks today if you skip it. |
 
 A recommended item is an *opportunity*, not a defect: it widens the set of hardware the
 scheduler may place you on. The generated request text says so explicitly — a "recommended"
@@ -93,13 +93,13 @@ Gaps are ranked blocking first, then by how far the limit sits below the require
 
 ### What never becomes a request
 
-Deliberate silences, so the output is only ever actionable:
+Deliberate silences (cases where no request is drafted), so the output is only ever actionable:
 
 - **Comfortable headroom.** A limit already at 2× the requirement produces nothing.
 - **Hardware the region does not stock.** If the catalog shows no such family or GPU class in a
   region, the row is marked *not offered* and no request is drafted.
 - **Quotas nothing needs.** A limit of 0 the fleet never touches is reported as *not sized*, not
-  as a comfortable green — an honest un-judged, rather than a false pass.
+  as a comfortable green — an honest "not judged", rather than a false pass.
 - **Unreadable limits.** If a cloud did not return a value, the gap cannot be judged, so nothing
   is recommended. **This is a real blind spot** — see [when a region degrades](#when-a-region-degrades).
 - **Azure per-family vCPU quotas, for the opportunity case.** A catalog SKU cannot be mapped
@@ -139,7 +139,7 @@ that class actually stocked in that region:
 
 Two consequences worth knowing before you file:
 
-- **AWS lumps its P family into one quota pair** covering both A100 and H100. Raising it for one
+- **AWS puts its whole P family into one quota pair** covering both A100 and H100. Raising it for one
   class also raises headroom for the other. The generated request says so.
 - **Google Cloud has no requestable on-demand H100 quota.** Only the preemptible (spot) quota can
   be requested; on-demand H100 is a committed-use conversation. The recommendation states this
@@ -155,7 +155,7 @@ path anywhere in the system.
 Each request carries the same three things: the quota, the region, and the absolute new limit.
 The limit is stated in whatever **that** quota counts — vCPUs for a vCPU quota, VPCs for a VPC
 quota, TiB for a storage quota — and as a bare number where the cloud publishes no unit for it
-(AWS reports `"Unit": "None"` for its object-count quotas). Free text is a different story on
+(AWS reports `"Unit": "None"` for its object-count quotas). Free text works differently on
 each cloud:
 
 | Cloud | Mechanism | Your justification text |
@@ -189,7 +189,7 @@ limits among them. Nothing here promises an increase before the outcome is known
 accepts the call and then fails asynchronously with `InvalidSupportPlan` — no ticket is ever
 created.
 
-That failure is detected and reported, never papered over: you get the Azure portal's quota
+That failure is detected and reported, never hidden: you get the Azure portal's quota
 blade plus the exact request text to paste in. Portal quota tickets still work on free plans.
 
 **That branch is unvalidated, and we say so rather than implying otherwise.** Validating it would
@@ -205,7 +205,7 @@ vCPU total, per-family vCPUs, the spot pool, and regional network counts — goe
 Quota API and needs no support plan. Those are also the Azure quotas the engine sizes and
 requests today; everything else Azure exposes is audited for visibility only.
 
-Which side a quota falls on is stated on every Azure request the agent hands you, next to the
+Whether a quota is adjustable is stated on every Azure request the agent hands you, next to the
 call itself — and stated as **our** classification, because Azure publishes no adjustable flag on
 any of its quota APIs. So the Quota API call is still handed over even for a quota we believe it
 cannot serve: Azure's own answer to it is immediate, free, and more authoritative than our guess.
@@ -221,19 +221,19 @@ belief about it.
 
 Your agent holds the queue of what it submitted — the Advisor holds none of this, by design —
 and polls each cloud directly with the exact call the agent's own `plan_quota_requests` handed
-it, using the same honest per-cloud reading below to tell you when something actually lands,
+it. Your agent uses the same honest per-cloud reading below to tell you when something actually lands,
 instead of you remembering to return to a page and press refresh.
 
 ### The status models are lossy, and differently lossy per cloud
 
 This is the honest limitation of tracking, and it is worth knowing before you rely on a
 verdict — the table below is exactly what the Advisor's own status normalizer
-(`advisor/src/quota_clients/status.py`) reports, confidence and all, not a table this document
+(`advisor/src/quota_clients/status.py`) reports, including its confidence levels, not a table this document
 invented on its own:
 
 | Cloud | What it reports | What is lost |
 |---|---|---|
-| **AWS** | Pending · case opened · approved · denied · not approved · **case closed** | A closed case and an explicit refusal are indistinguishable — both are reported as denied. A case can close for reasons that are not a refusal. Check the case itself. |
+| **AWS** | Pending · case opened · approved · denied · not approved · **case closed** | A closed case and an explicit refusal cannot be told apart — both are reported as denied. A case can close for reasons that are not a refusal. Check the case itself. |
 | **Google Cloud** | Granted value versus the value you preferred | **There is no approved/denied field.** Approved means granted ≥ preferred; a smaller non-zero grant reads as still-pending (it is not a final answer) and a zero grant as denied — a reasonable reading, not the cloud's own verdict. |
 | **Azure** — adjustable | Provisioning state: accepted / in progress / succeeded / failed | Clean. Succeeded means the limit moved. |
 | **Azure** — support ticket | **Open or closed only** | The Support API exposes ticket lifecycle, not a machine-readable quota outcome. A closed ticket tells you nothing about whether the quota moved. Check the portal. |
@@ -253,7 +253,7 @@ A clean quota audit does **not** guarantee a region is usable.
 | **Azure** | **No.** Restricted-access regions expose no metadata flag, and quota reads succeed in them anyway. A deployment failure is the only reliable detector. |
 | **Google Cloud** | **No.** There is no region-access-block concept to query; regions your project cannot use are simply absent from the region listing. |
 
-No heuristic is invented to fill those two gaps. They are reported as gaps.
+No guess is invented to fill those two gaps. They are reported as gaps.
 
 ### API-rate quotas: visibility only
 
@@ -262,7 +262,7 @@ get no requirement figure and no generated request. On AWS their real quota code
 documented and must be discovered per account rather than assumed; on Azure and Google Cloud
 they are not reachable through the quota APIs the audit reads at all. Treat them as
 information, and raise them
-through your cloud's own console if burst churn becomes your binding constraint.
+through your cloud's own console if burst churn becomes the limit you actually hit.
 
 ### When a region degrades
 
@@ -273,16 +273,15 @@ identical to a region with nothing to do.**
 Guardrails, so it does not stay silent:
 
 - One failed cloud never drops another cloud's results; the failure is reported per cloud.
-- On AWS, one denied read permission no longer takes down a whole region's readings — limit
+- On AWS, one denied read permission no longer wipes out a whole region's readings — limit
   reads and per-counter usage reads are isolated from each other. (This is a real incident, not
   a hypothetical: a single missing read action once wiped an entire region's limits.)
 - Each affected row carries a note naming the call that failed.
 - If the catalog is unreachable, the "not offered in this region" filter cannot run. The audit
-  then treats every family as offered — never suppressing a real gap — and says explicitly that
+  then treats every family as offered — never hiding a real gap — and says explicitly that
   the filter is off.
 
-Your agent reads those notes and reports degradation explicitly rather than reporting a clean
-bill: each row's note, and the per-cloud read status beside it, travel on the same
+Your agent reads those notes and reports degradation explicitly rather than reporting an all-clear: each row's note, and the per-cloud read status beside it, travel on the same
 `get_quota_report` call the agent already makes to read the audit.
 
 ### GPU comparisons are same-model only
@@ -299,8 +298,7 @@ claims an H100 hour and an A100 hour are interchangeable.
 
 Filing a request needs permissions the read-only audit roles do not carry — read-only viewer
 access cannot submit an increase on any of these clouds. The exact permissions, with a reason
-for each and instructions to revoke, live in [permissions.md](permissions.md), which is
-with the running console's "Unlock more" section as the version-matched source of truth for the exact actions. (Those action lists are generated from the requirement catalog the clients themselves read, and a test fails the build if the document drifts from it — they are not hand-copied.)
+for each and instructions to revoke, live in [permissions.md](permissions.md). That document, together with the running console's "Unlock more" section, is the version-matched source of truth for the exact actions. (Those action lists are generated from the requirement catalog the clients themselves read, and a test fails the build if the document drifts from it — they are not hand-copied.)
 
 The one thing persisted anywhere is your questionnaire answers, in a single Kubernetes
 ConfigMap in the Advisor's own namespace.

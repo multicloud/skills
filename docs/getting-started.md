@@ -4,7 +4,8 @@ The Advisor answers one question about your Kubernetes cluster: **what would the
 somewhere else?**
 
 Not "trim your requests by 15%" — you already have tools for that. It prices the performance-
-normalized compute you run today against every major cloud's spot and on-demand markets, packs
+normalized compute you run today (normalized: a fast core counts for more than a slow one) against
+every major cloud's spot and on-demand markets, packs
 your actual workloads onto the cheapest fleet that fits, and shows you the difference.
 
 It runs inside your cluster, reads only what it needs, and sends nothing about your workloads
@@ -60,17 +61,20 @@ offered.
 Before touching anything, your agent states what it will do, what it will ask permission for, and
 what it will never do. Read it. It is short and it is the whole contract.
 
-That contract is new. It has been written and reviewed but not yet driven end to end by someone
-who did not write it, so take each step with an explicit yes rather than replaying it — and from
-the moment the Advisor answers, it states its own maturity per path, which supersedes anything
-the skill remembers.
+Take each step with an explicit yes rather than waving it through. Your agent is instructed that
+if anything diverges from what it told you — a different error, an object that already exists, a
+check that answers in a way it did not expect — it **stops and reports back rather than
+improvising**. If it does something else, that is worth telling us about.
+
+From the moment the Advisor answers, it states its own maturity per path, and that supersedes
+anything the skill remembers.
 
 If any of it is not acceptable, stop there — you have lost nothing.
 
 ## Step 3 — Get a catalog key
 
 The Advisor prices against the Multicloud catalog, which needs a key. **Today there is no
-self-serve signup.** The key is minted for you out of band by your Multicloud contact and sent
+self-serve signup.** The key is minted (created) for you by your Multicloud contact through a separate channel, and sent
 once; ask for one before you start, and paste it back to your agent when it asks. Your agent
 cannot mint one for you, and there is no page to sign up on yet.
 
@@ -85,7 +89,16 @@ never lands in your shell history.
 
 Your agent checks the things that break installs before it starts: whether you can create the
 cluster-scoped roles it needs, whether your namespace's PodSecurity level permits node
-introspection, and whether the pod will be able to reach the catalog at all.
+introspection, whether the pod will be able to reach the catalog at all, and whether your nodes
+already carry the labels that name their instance type.
+
+That last check settles whether the release includes its introspection DaemonSet, which places a
+pod on every node. Where every node already carries those labels, your agent proposes leaving it
+out and nothing is lost; where some do not, it names those nodes and asks — switching it off
+while they are unlabelled drops them from the report rather than recovering them. On AWS a
+second, separate reason survives even a fully labelled cluster: an AWS `providerID` names no
+account, so this is the only source of the account a grant request is addressed to. [What it
+reads, and how to check for yourself](permissions.md#2-node-identification-no-credentials).
 
 Then it installs, waits for readiness, and connects.
 
@@ -106,8 +119,8 @@ Two rather than one, deliberately: in most organisations those go to different p
 them would make the slower approval hold up the faster, and the quota one — the grant that tells
 you where the provisioning wall is — is usually the quicker yes.
 
-They are independent. If the billing role stalls in review, quota visibility still lands and you
-carry on with a list-price baseline that is clearly labelled as such.
+They are independent. If the billing role stalls in review, quota visibility still arrives and you
+continue with a list-price baseline that is clearly labelled as list price.
 
 If you hold those rights yourself, your agent applies them directly. If your security team owns
 them, you get two complete requests to forward — not six conversations spread over a week.
@@ -117,12 +130,12 @@ See [permissions.md](permissions.md) for exactly what is asked for and why.
 ## Step 6 — Read the report
 
 The report opens with what you spend today, what a low-risk move saves, and what the full
-counterfactual saves. Below that are the levers: right-sizing, other clouds, other regions, spot.
+counterfactual (moving everything) saves. Below that are the levers: right-sizing, other clouds, other regions, spot.
 
 Every lever is honest in one direction. Turning one off can only *lower* the saving, because
 staying where you are is always in scope. There is no arithmetic that inflates the number by
-counting CPU work while ignoring the memory that strands capacity — everything is bin-packed on
-both axes.
+counting CPU work while ignoring the memory that leaves capacity unusable — everything is
+bin-packed on both axes, meaning fitted against CPU and memory together.
 
 Ask your agent to explore it with you:
 
@@ -144,7 +157,7 @@ actually block you and which are merely worth having, and files the increase req
 your cluster.
 
 Then it tracks them. Some clouds settle in seconds; a large GPU increase can take days through a
-support case. Your agent holds the queue and tells you when something lands — instead of you
+support case. Your agent holds the queue and tells you when something is approved — instead of you
 remembering to check a page next Tuesday.
 
 See [quota.md](quota.md) for what gets requested and the realistic timelines.

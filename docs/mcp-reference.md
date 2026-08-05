@@ -46,7 +46,7 @@ deployment, not a sidecar, and it has no Ingress of its own.
 | | |
 |---|---|
 | **Reached over** | The same `kubectl port-forward` tunnel as the web console |
-| **Internet-exposed** | Never. Not merely off by default — the chart *refuses to render* `mcp.enabled` together with anything that publishes the Service: `ingress.enabled`, or a `LoadBalancer`/`NodePort` `service.type` (see the exposure warning below) |
+| **Internet-exposed** | Never. Not just off by default — the chart *refuses to render* `mcp.enabled` together with anything that publishes the Service: `ingress.enabled`, or a `LoadBalancer`/`NodePort` `service.type` (see the exposure warning below) |
 | **Transport** | Streamable HTTP, matching our existing MCP server, mounted on the Advisor's own HTTP port at **`/mcp/`**. Stateless — there is no session id to hold, so a client survives the pod being rescheduled |
 | **Authentication** | None on any Advisor HTTP route — see the warning below |
 | **Host header** | Loopback only. Anything else gets **421 Misdirected Request**, so point your client at `127.0.0.1` or `localhost` — never a hostname alias for them |
@@ -102,12 +102,12 @@ ways to do that, and both publish *everything*:
 | `ingress.enabled=true` | The Ingress routes `/` to the whole Service |
 | `service.type` anything but `ClusterIP` or `ExternalName` | The Service itself, port 8080, directly |
 
-In both cases every route goes out at once — there is no path-level seam that could exclude
+In both cases every route goes out at once — there is no way to route one path differently and exclude
 `/mcp/`, and therefore no "authenticate just the MCP path" setting.
 
 The chart resolves that by making MCP and publication **mutually exclusive at template time**.
 `mcp.enabled` defaults to `true`; combining it with any of the three makes `helm install`/`helm
-upgrade` **fail**, naming which one tripped it and the fix:
+upgrade` **fail**, naming which one caused it and the fix:
 
 ```
 --set mcp.enabled=false
@@ -120,7 +120,7 @@ MCP endpoint reachable from outside the cluster.
 
 `service.type` is checked as an **allowlist**, not a list of forbidden values: while MCP is
 enabled, the chart accepts exactly `ClusterIP` and `ExternalName` (neither publishes an endpoint
-of its own) and refuses everything else. That covers the wrong case, a value carrying stray
+of its own) and refuses everything else. That covers the wrong letter case, a value carrying stray
 whitespace from an interpolated CI or GitOps variable, and any Service type Kubernetes ships in
 future — none of which a list of *bad* values can cover. The check runs against the same
 normalised string `templates/service.yaml` renders, so what the guard inspects is what the API
@@ -139,9 +139,9 @@ the default.
 > Add `--set mcp.enabled=false` (or set it in your values file) and the upgrade proceeds.
 > Full version-boundary note: [What changed in 0.4.0](manual-install.md#what-changed-in-040).
 
-Belt and braces at runtime: the MCP server validates the `Host` header on every request and
+A second safeguard at runtime: the MCP server validates the `Host` header on every request and
 answers **421 Misdirected Request** to anything that is not loopback. Note what that does and
-does not buy you — it is DNS-rebinding protection, so it inspects the `Host` *header*, not who
+does not give you — it is DNS-rebinding protection, so it inspects the `Host` *header*, not who
 you are. Through an Ingress the controller forwards the real hostname and the request genuinely
 gets 421; a client that could reach a `LoadBalancer` directly would simply send
 `Host: localhost:8080` and pass. That asymmetry is exactly why the chart refuses to render the
@@ -158,7 +158,7 @@ an agent pays for every token it reads.
 | Convention | What it means for you |
 |---|---|
 | **Columnar list results** | Every list-shaped result is `{columns: [...], rows: [[...]], row_count: N}` rather than an array of repeated-key objects. Field names are sent once. Roughly 40–60% fewer tokens on large result sets. |
-| **Two identity conventions, not one** | A **build-derived** figure (`get_report`, `get_workloads`, `get_quota_report`, `plan_repack`) is wrapped with `report_identity: {generated_at, levers}` — the build stamp AND the lever state it was computed under, both always present (`levers` is `null` for an unscoped/base view). `get_quota_report` additionally carries `fleet_generated_at` inside `report_identity`: its sizing depends on a SECOND build (the savings context it was packed against), so that stamp gets its own explicit key rather than being folded into `generated_at`, which means the quota collection's own timestamp everywhere else. A **cache-derived live** figure (`get_readiness`) instead carries `fresh_as_of` + `age_seconds`, deliberately a different shape rather than a variant of the same one: `fresh_as_of` advances on every ~30-second re-probe even when nothing about the cluster changed, while `generated_at` is monotonic and changes only when the report itself changed — folding the two into one field would teach you a false invariant. `diagnose` carries BOTH, because it joins both kinds: `fresh_as_of`/`age_seconds` for the readiness cache, and `report_identity.generated_at` for the savings build its `data_gaps`/quota flags came from (`null` when no audit has run yet — the readiness half still works with zero builds). A payload that already *is* provenance (`get_build_status`) needs no wrapper at all. Quote every stamp present alongside any number; never restate a figure without them. |
+| **Two identity conventions, not one** | A **build-derived** figure (`get_report`, `get_workloads`, `get_quota_report`, `plan_repack`) is wrapped with `report_identity: {generated_at, levers}` — the build stamp AND the lever state it was computed under, both always present (`levers` is `null` for an unscoped/base view). `get_quota_report` additionally carries `fleet_generated_at` inside `report_identity`: its sizing depends on a SECOND build (the savings context it was packed against), so that stamp gets its own explicit key rather than being folded into `generated_at`, which means the quota collection's own timestamp everywhere else. A **cache-derived live** figure (`get_readiness`) instead carries `fresh_as_of` + `age_seconds`, deliberately a different shape rather than a variant of the same one: `fresh_as_of` advances on every ~30-second re-probe even when nothing about the cluster changed, while `generated_at` only ever moves forward, and changes only when the report itself changed — folding the two into one field would teach you a rule that is not actually true. `diagnose` carries BOTH, because it joins both kinds: `fresh_as_of`/`age_seconds` for the readiness cache, and `report_identity.generated_at` for the savings build its `data_gaps`/quota flags came from (`null` when no audit has run yet — the readiness half still works with zero builds). A payload that already *is* provenance (`get_build_status`) needs no wrapper at all. Quote every stamp present alongside any number; never restate a figure without them. |
 | **Summary by default** | The full audit report is large. `get_report` returns a summary unless you ask for the full document. |
 | **Defensive parameter handling** | Some clients wrap argument values in a `{"type": ..., "value": ...}` descriptor. The server unwraps these rather than failing, so a quirky client still works. |
 | **Polling, not blocking** | Long builds are polled with `get_build_status`, not waited on inside a tool call. |
@@ -170,8 +170,8 @@ Cheap unless noted, idempotent, no side effects. Safe in a loop — see the fres
 
 | Tool | Purpose | Parameters | Returns | Cost | State |
 |---|---|---|---|---|---|
-| `get_readiness` | Is the Advisor wired correctly, what fidelity is active, what is missing | none | Overall status (`ready` / `partial` / `not_ready`), whether a report is computable, node coverage %, identified vs total nodes, pricing basis (`actual` / `mixed` / `list`), catalog reachable/authenticated, RBAC checks, per-cloud identification counts, tier states, utilization source **and its quality**, quota tier state per cloud, per-cloud **account identity** (`accounts` — the GCP projects / Azure subscriptions / AWS account ids seen — and `account_source`, see below) | Cheap when cached (see below) | Read-only |
-| `get_report` | The savings counterfactual | `detail`: `summary` (default) or `full` | Generated-at stamp, cluster summary, waste triangle, discount basis, per-workload findings, data gaps, deliberately disregarded workloads, the headline fleet plus the low-risk and conservative anchors, the cloud/region picker universe, right-sizing recommendations, quota flags | Always cheap — this tool never triggers or blocks on a build. If no audit has been built yet it returns `available: false` immediately; poll `get_build_status` | Read-only |
+| `get_readiness` | Is the Advisor wired correctly, what fidelity (how completely the fleet can be identified and priced) is active, what is missing | none | Overall status (`ready` / `partial` / `not_ready`), whether a report is computable, node coverage %, identified vs total nodes, pricing basis (`actual` / `mixed` / `list`), catalog reachable/authenticated, RBAC checks, per-cloud identification counts, tier states, utilization source **and its quality**, quota tier state per cloud, per-cloud **account identity** (`accounts` — the GCP projects / Azure subscriptions / AWS account ids seen — and `account_source`, see below) | Cheap when cached (see below) | Read-only |
+| `get_report` | The savings counterfactual — what the same workloads would cost placed the cheapest way | `detail`: `summary` (default) or `full` | Generated-at stamp, cluster summary, waste triangle (the split between capacity you pay for, capacity requested and capacity used), discount basis, per-workload findings, data gaps, deliberately excluded workloads, the headline fleet plus the low-risk and conservative anchors, the cloud/region picker universe, right-sizing recommendations, quota flags | Always cheap — this tool never triggers or blocks on a build. If no audit has been built yet it returns `available: false` immediately; poll `get_build_status` | Read-only |
 | `get_workloads` | Bill-by-workload findings, for scoping conversations | none | Per-workload attributed spend and savings, ranked by migration-weighted savings | Cheap once the report is cached | Read-only |
 | `get_quota_report` | Quota inventory and adequacy verdicts | none | Collected inventory, your saved selection, per-quota recommendations, per-cloud collection status, the `required` / `mandatory_required` split — what the fleet **cannot run without** versus what is merely worth having open — and a `report_identity` naming BOTH builds behind the numbers (the quota collection's own stamp, plus `fleet_generated_at` for the savings context it was sized against) | Always cheap — this tool never triggers or blocks on a collection. If no quota audit has been built yet it returns `available: false` immediately; poll `get_build_status` | Read-only |
 | `get_build_status` | Both build state machines | none | Savings build state (`idle` / `building` / `ready` / `error`) with its generated-at stamp, plus real per-cloud quota-collection progress that increments only as regions actually complete | Cheap. Never starts a build | Read-only |
@@ -181,7 +181,7 @@ assessment — cluster collection, a live catalog probe, metrics discovery, and 
 cloud's quota probe — once and caches it, rather than re-running all of that on every call. The
 cache is invalidated explicitly on the events that actually change readiness (a newly-reporting
 node, `/refresh`, a discount change, a quota rebuild) plus a 30-second TTL backstop for what none
-of those catches — chiefly a credential Secret rotated under the pod. Every response carries
+of those catches — mainly a credential Secret rotated under the pod. Every response carries
 `fresh_as_of` (the ISO-8601 instant the cached assessment was computed) and `age_seconds` (how
 old it is right now), so you can tell a 30-second-old answer from a fresh one instead of assuming.
 This makes `get_readiness` safe in a tight verification loop — it costs one real probe, not one
@@ -200,7 +200,7 @@ one. `"none"` means neither source resolved it. Treat `"introspection"` as a cla
 the human before it appears inside a grant request, never as an already-checked fact — do not
 special-case AWS as trusted just because it is the common case.
 
-`account_source` is computed per cloud, over every node in it, and fails **closed**: a cloud reads
+`account_source` is computed per cloud, over every node in it, and fails **closed** (when in doubt it claims less, not more): a cloud reads
 `"provider_id"` only when every account contributed under that cloud came from a providerID. One
 node reporting its account over `/introspect` pulls the *whole cloud's* label down to
 `"introspection"`, even if every other node in it was verified — under-claiming costs one
@@ -229,12 +229,12 @@ you decide.
 
 | Tool | Purpose | Parameters | Returns | Cost | State |
 |---|---|---|---|---|---|
-| `diagnose` | The flagship. What is wrong, in priority order — call this FIRST | none | Ordered gaps, most-costly-first (a cluster that cannot price anything, then degraded fidelity, then an unconfigured capability, then advisory). Each carries what it costs you in the customer's own terms, the remediation id, the privilege it needs (`"you, right now"` vs your security/billing admin), and `validation` — whether that remediation has actually been proven. Only the Tier-3/Tier-4 rows carry `cloud`/`capability`; the rest are `null` on purpose — no invented IAM dimension. `available` is false when this cluster's nodes could not be listed at all: on that branch every cluster-derived row was never checked, so an empty `gaps` is not a clean bill and `why` says what failed | Cheap — pure join over the cached readiness assessment plus the last report's data gaps and quota flags. It triggers no build and holds no credential of its own, but the readiness assessment it reads probes every cloud a Tier-4 Secret is configured for, so it is only network-free until the first credential lands | Read-only |
+| `diagnose` | The flagship. What is wrong, in priority order — call this FIRST | none | Ordered gaps, most-costly-first (a cluster that cannot price anything, then degraded fidelity, then an unconfigured capability, then advisory). Each carries what it costs you in the customer's own terms, the remediation id, the privilege it needs (`"you, right now"` vs your security/billing admin), and `validation` — whether that remediation has actually been proven. Only the Tier-3/Tier-4 rows carry `cloud`/`capability`; the rest are `null` on purpose — no invented IAM dimension. `available` is false when this cluster's nodes could not be listed at all: on that branch every cluster-derived row was never checked, so an empty `gaps` does not mean everything is fine and `why` says what failed | Cheap — pure join over the cached readiness assessment plus the last report's data gaps and quota flags. It triggers no build and holds no credential of its own, but the readiness assessment it reads probes every cloud a Tier-4 Secret is configured for, so it is only network-free until the first credential lands | Read-only |
 | `get_required_iam` | The exact, live, version-matched access needed | `cloud`, `capabilities[]`, optional `have[]` | One merged least-privilege policy for the whole capability set, with **a reason per action**, plus both maturity fields (`validation` — does the read path work; `grant_validation` — have these exact grant commands been run). Asking for more than one capability returns a UNION `policy_json` for "what would both need?" but `is_view: true` and empty `grant_commands` — it is never installed directly — with `procedures[]` carrying one complete, self-sufficient request per capability instead. A single capability has no separate procedure: `is_view` is `false` and the result already IS the request. Supports a delta form via `have`: "add these actions to the policy you already have". When that delta comes out empty, `nothing_to_grant: true` and `why` say so and BOTH command lists are withheld — there is nothing to grant, and the revocation commands would strip access still needed for what they already hold | Cheap | Read-only |
-| `preflight` | Every foreseeable blocker, checked before any request names it — call this after `diagnose`, before filing anything | optional `clouds[]` (accepts the "gce"/"gcp" synonym; defaults to the clouds this cluster's nodes belong to) | One row per blocker: GCP's key-creation org policy, Azure's `Microsoft.Quota` resource-provider registration, Azure's support-plan tier, region enablement per cloud, this cluster's OIDC issuer, and the Advisor's own namespace PodSecurity level. Read three fields on every row: `detected` (is it present), `detectable` (can we even tell — Azure restricted regions and GCP region enablement have NO programmatic detector, so this is `false` rather than a false-clean `true`), and `self_serviceable` (can the driver fix it themselves, without a ticket). `route` names the safe alternative — usually workload identity, or "not self-serviceable, here is who to ask". `clouds_covered` says which clouds actually got probed; an empty list means every cloud-specific row was SKIPPED, not that they all came back clear | Cheap. Makes read-only cloud calls of its own, for clouds you already gave a Tier-4 credential to — and, like `diagnose`, reads a readiness assessment that probes those same clouds | Read-only |
+| `preflight` | Every foreseeable blocker, checked before any request names it — call this after `diagnose`, before filing anything | optional `clouds[]` (accepts the "gce"/"gcp" synonym; defaults to the clouds this cluster's nodes belong to) | One row per blocker: GCP's key-creation org policy, Azure's `Microsoft.Quota` resource-provider registration, Azure's support-plan tier, region enablement per cloud, this cluster's OIDC issuer, and the Advisor's own namespace PodSecurity level. Read three fields on every row: `detected` (is it present), `detectable` (can we even tell — Azure restricted regions and GCP region enablement have NO programmatic detector, so this is `false` rather than a false-clean `true`), and `self_serviceable` (can the driver — the person running this audit — fix it themselves, without a ticket). `route` names the safe alternative — usually workload identity, or "not self-serviceable, here is who to ask". `clouds_covered` says which clouds actually got probed; an empty list means every cloud-specific row was SKIPPED, not that they all came back clear | Cheap. Makes read-only cloud calls of its own, for clouds you already gave a Tier-4 credential to — and, like `diagnose`, reads a readiness assessment that probes those same clouds | Read-only |
 | `plan_remediation` | Turn a gap into steps | `remediation_id` (exactly as the gap carries it) | Ordered executable steps with the Secret-before-`helm upgrade` ordering baked in, plus a verification assertion to re-run afterwards | Cheap | Read-only |
 | `plan_quota_requests` | Exactly what would be filed, and how | `keys[]` | Per-item drafts: cloud, region, quota id, desired value, justification text, and the **exact API call** each request would make. Zero cloud calls — it reads only the already-cached quota report. `report_identity` names both builds the `desired` figure came from (`generated_at` = the quota collection, `fleet_generated_at` = the savings build it was sized against) — re-check both before a human files the number. Every Azure call also carries a `routing:` line in its `detail` saying whether the `Microsoft.Quota` PATCH is believed to be the right mechanism, with the portal route to use when it is not — labelled as the Advisor's own classification, since Azure publishes no adjustable flag | Cheap | Read-only |
-| `plan_grant_requests` | The grant-request document itself, ready to forward | optional `clouds[]`, optional `capabilities[]` (defaults: this cluster's own clouds, both capabilities) | One Markdown artifact per (cloud, account, capability) — policy, a reason per action, blast radius, data handling, expiry recommendation and revocation, all in one document a driver forwards into a ticket or an email unchanged. Calls `preflight` itself first and **annotates rather than withholds**: every artifact always carries its `markdown`, and what the preflight found for that exact (cloud, capability) travels as `caveats[]` *and* is rendered into the document, so the approver reads the caveat. Each caveat carries its own `state` (`present`, `clear`, `unchecked` — a detector exists but could not run — or `undetectable` — no detector exists), plus `detail`, `route` and `self_serviceable`. A cloud with no resolvable account gets an explicit placeholder account and `account_source: "none"` rather than a blank; no clouds at all returns `available: false` with a `why`, never a bare empty list | Cheap — the only network cost is the `preflight` call it makes internally | Read-only |
+| `plan_grant_requests` | The grant-request document itself, ready to forward | optional `clouds[]`, optional `capabilities[]` (defaults: this cluster's own clouds, both capabilities) | One Markdown artifact per (cloud, account, capability) — policy, a reason per action, blast radius (what else this access could reach), data handling, expiry recommendation and revocation, all in one document a driver forwards into a ticket or an email unchanged. Calls `preflight` itself first and **annotates rather than withholds**: every artifact always carries its `markdown`, and what the preflight found for that exact (cloud, capability) travels as `caveats[]` *and* is rendered into the document, so the approver reads the caveat. Each caveat carries its own `state` (`present`, `clear`, `unchecked` — a detector exists but could not run — or `undetectable` — no detector exists), plus `detail`, `route` and `self_serviceable`. A cloud with no resolvable account gets an explicit placeholder account and `account_source: "none"` rather than a blank; no clouds at all returns `available: false` with a `why`, never a bare empty list | Cheap — the only network cost is the `preflight` call it makes internally | Read-only |
 | `plan_repack` | What-if against the levers | lever state: right-size on/off, clouds on/off plus an optional subset, regions on/off plus an optional subset, spot on/off, and a list of workloads to exclude | The cheapest fleet that packs your workloads under those constraints, plus each lever's marginal dollar impact and the delta versus the current default. Never rebuilds — returns `available: false` if no audit is cached yet. See caveat | Always cheap — in-memory only, never triggers a build | Read-only |
 
 **Why `get_required_iam` is a tool and not a document.** A stale IAM action list is not a
@@ -244,14 +244,14 @@ action list is therefore served by the running Advisor, version-matched to the c
 calls, so it cannot drift from what is actually required. Never hand-merge policies across
 capabilities: a missing action produces a silent wrong answer, and an over-broad ask gets rejected
 and costs you a review cycle. That is also why a multi-capability call never hands you only a
-union policy: `procedures[]` gives you the two separate, complete requests D6 wants, precisely so
+union policy: `procedures[]` gives you the two separate, complete requests, precisely so
 you are never the one merging them.
 
 **Why `preflight` exists at all.** Two requests per cloud account is the designed number; a
-third is a defect. Without it, a GCP org policy that blocks the key download `get_required_iam`'s
-own procedure assumes, an unregistered Azure resource provider, or a support plan that cannot
-open a ticket would all surface only when the driver actually tried the step — which is precisely
-a third trip to whoever approved the first two. `preflight` finds those before anything is asked.
+third is a defect. Without it, three things would surface only when the driver actually tried the step: a GCP org
+policy that blocks the key download that `get_required_iam`'s own procedure assumes, an
+unregistered Azure resource provider, and a support plan that cannot open a ticket. That is
+precisely a third trip to whoever approved the first two. `preflight` finds those before anything is asked.
 Its most important field is not `detected`, it is `detectable`: Azure restricted regions and GCP
 region enablement have no programmatic detector at all, and reporting them as clear would be a
 lie your driver could not tell apart from the truth — so those rows report `detectable: false`
@@ -272,7 +272,7 @@ not a normal step, and the fix is to improve `preflight`'s detection, never to a
 **Why a preflight finding never withholds the document.** `plan_grant_requests` calls
 `preflight` and puts what it found *inside* the request, labelled — it does not hold the request
 back. Both grants are produced and sent simultaneously; nothing waits on anything else. Holding
-one back would recouple exactly the approval latencies the two separate requests exist to
+one back would recouple exactly the approval delays the two separate requests exist to
 decouple, and it would do so on findings the approver in question usually cannot act on: an
 opt-in region that is not enabled has nothing to do with a billing-scope role, and the person who
 approves quota visibility does not own your cluster's OIDC issuer. So the caveat goes to the
@@ -281,7 +281,7 @@ before you summarise it: `clear` means checked and fine, `undetectable` means no
 it at all, and treating the second as the first is the exact mistake `preflight` exists to
 prevent.
 
-**Caveat on `plan_repack`.** It is pure and in-memory over the candidate frontier the last
+**Caveat on `plan_repack`.** It is side-effect-free and in-memory over the candidate frontier (the set of candidate fleets) the last
 completed savings build cached — no cluster access, no catalog I/O, no state changed — so it is
 safe to call as many times as the conversation needs. It **never triggers a build.** If nothing
 is cached yet (no audit has completed, or the cache was invalidated by a pod restart, a discount
@@ -289,7 +289,7 @@ change, or a newly-reporting node) it returns `available: false` and says so rat
 rebuilding — poll `get_build_status` and wait for `ready`, then ask again. This is deliberately
 different from the web console's own `POST /repack`, which *does* rebuild on a cold cache so a
 lever toggle in the browser never dead-ends: a what-if an agent asks mid-conversation is a
-conversation move, not a request to kick off a multi-minute, catalog-hitting audit.
+conversation move, not a request to start a multi-minute, catalog-hitting audit.
 
 ## Act tools — Advisor-local only
 
@@ -306,7 +306,7 @@ reading carefully before you wire them into anything automatic.
 
 Refresh drops the cached report and rebuilds it. It does not have a "just for me" mode: every
 other caller, including anyone with the console open in a browser, loses the cached result at the
-same moment. Scope it explicitly — a savings refresh and a quota refresh are separate cadences and
+same moment. Scope it explicitly — a savings refresh and a quota refresh are on separate schedules and
 refreshing one does not rebuild the other.
 
 Both the savings rebuild and the quota rebuild return immediately and run in the background —
@@ -330,7 +330,7 @@ required precisely so that a malformed call cannot silently flip your pricing ba
 `default` clears the override.
 
 Unlike `refresh`, calling `set_discount` again while a rebuild from the previous call is still
-in flight does **not** piggyback on it — it starts a genuinely new rebuild under the new
+in flight does **not** reuse it — it starts a genuinely new rebuild under the new
 discount instead, on top of whatever was already running. That is deliberate: the build already
 in flight was computing under the *old* discount, so waiting for it would silently keep serving
 the stale rate for however long it takes to finish. The cost is a short window where two audits
@@ -355,12 +355,12 @@ Two behaviours worth knowing beyond the fleet-size answer.
 **The tool recomputes nothing.** It writes the ConfigMap, drops (or supersedes) the cached quota
 report, and hands you back `next: "call refresh(scope='quota') then poll get_build_status()"`. Do
 that; do not assume the next `get_quota_report` is already re-scoped. The narrow-versus-widen fast
-path — where a save that only *narrows* scope (smaller fleet, fewer regions, deselected classes)
-recomputes from the cached inventory immediately with no cloud calls, and only a *widening* save
-falls back to a full re-collection — exists on the console's own `POST /quota/selection` route,
-not on this tool. Driving the tools directly means driving the rebuild yourself.
+path exists on the console's own `POST /quota/selection` route, not on this tool. On that route, a
+save that only *narrows* scope (smaller fleet, fewer regions, deselected classes) recomputes from
+the cached inventory immediately with no cloud calls, and only a *widening* save falls back to a
+full re-collection. Driving the tools directly means driving the rebuild yourself.
 
-**The save never fails loudly** on a cluster-access problem: it degrades to `saved: false` with a
+**A failed save is always quiet** on a cluster-access problem: it degrades to `saved: false` with a
 reason and tells you so. Check the returned status rather than assuming it stuck.
 
 If a quota collection was already in flight when you save, its result is discarded rather than
@@ -426,13 +426,13 @@ The skill handles these for you. Driving the tools yourself means handling them 
 | **A pod restart** | Everything except the quota-selection ConfigMap is gone: the report, the introspection map, and the set of requests submitted this session. Carry your own record of what you filed |
 | **GPU comparisons** | GPU pools are priced same-model only. There is no cross-accelerator performance normalization, so do not compare across GPU models as though there were |
 | **A degraded quota region** | Cloud throttling can arrive as a 400 or 403 with the detail in the response body, not as a 429. A degraded region reports `unknown` limits, is never judged, and emits no recommendation — so it looks exactly like "nothing to do". Read the per-cloud status and the source notes |
-| **Quota outcome status** | Read the per-item `confidence`, never a per-cloud rule of thumb: AWS conflates a closed case with a denial, GCP has no approved/denied signal at all (only granted-versus-preferred), and Azure has **two** models that are not equally lossy — its adjustable `Microsoft.Quota` path returns a clean `provisioningState` and is the one `exact` signal of the set, while its support-ticket path exposes only open/closed. Reporting Azure as uniformly lossy is as wrong as reporting the three clouds as uniformly reliable |
+| **Quota outcome status** | Read the per-item `confidence`, never a per-cloud general rule: AWS reports a closed case and a denial the same way, GCP has no approved/denied signal at all (only granted-versus-preferred), and Azure has **two** models that lose different amounts of the outcome detail — its adjustable `Microsoft.Quota` path returns a clean `provisioningState` and is the one `exact` signal of the set, while its support-ticket path exposes only open/closed. Reporting Azure as uniformly lossy is as wrong as reporting the three clouds as uniformly reliable |
 | **Region enablement** | Opt-in regions are detectable on one cloud and **not programmatically detectable** on the others. Surface that gap rather than implying a clean bill — `preflight`'s `detectable` field is exactly this signal, exposed per row so you never have to infer it yourself |
 | **GCP org policy / Azure resource-provider registration** | `preflight` checks both before any ask, but the GCP org-policy read in particular has not been run against a live account — treat a `detected: true` there as a strong signal, not a certainty, and confirm before routing to workload identity |
 | **`preflight`'s `namespace-podsecurity-level` row** | Needs `get` on the cluster-scoped `namespaces` resource, and whether it gets a real answer depends on which ClusterRole the Advisor was deployed with. The published customer chart deliberately does not grant it, so on that chart this always reports "could not check" — use your own `kubectl` before installing instead of waiting on this row. A ClusterRole that DOES grant namespace read gets a genuine answer instead |
 | **API-rate quotas** | Token-bucket quotas get no floor and no demand attribution, and their catalog ids are synthetic rather than real quota codes. They are visibility only — do not attempt to file them |
-| **PDF export** | Shells out to a headless browser per request with no caching. Fine for a deliverable, not for a loop |
-| **Catalog calls** | The Advisor caps its own catalog concurrency and retries on throttling. Do not fan out your own catalog queries in parallel with a running build |
+| **PDF export** | Starts a separate headless browser process per request, with no caching. Fine for a deliverable, not for a loop |
+| **Catalog calls** | The Advisor caps its own catalog concurrency and retries on throttling. Do not run your own catalog queries in parallel with a running build |
 
 ## Two `preflight` rows to read carefully
 
@@ -441,7 +441,7 @@ Listed here so you can chase them rather than discover them:
 - the GCP org-policy read inside `preflight` (whether
   `constraints/iam.disableServiceAccountKeyCreation` is enforced) has not been run against a
   live account. Treat its `detected` value as a strong signal, not a certainty, until that
-  changes. The Azure resource-provider registration read next to it is on firmer ground —
+  changes. The Azure resource-provider registration read next to it is better established —
   `GET providers/{namespace}` is core, long-stable ARM.
 - `preflight`'s `namespace-podsecurity-level` row needs `get` on the cluster-scoped
   `namespaces` resource, and **whether it can run at all depends on which ClusterRole the

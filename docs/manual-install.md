@@ -1,6 +1,6 @@
 # Installing the Advisor by hand
 
-The agent is an accelerant, never a dependency. Every capability the Advisor has is reachable
+The agent is a shortcut, never a dependency. Every capability the Advisor has is reachable
 with `kubectl`, `helm` and a browser — this document is the whole path, in order, including the
 parts that are currently rough.
 
@@ -16,8 +16,8 @@ report you can export as HTML, JSON or PDF.
 | `kubectl` against the target cluster | Everything below | You |
 | Helm 3.14 or newer | OCI chart distribution needs 3.8; the `helm upgrade` snippets below use `--reset-then-reuse-values`, added in 3.14 | You |
 | Rights to create `ClusterRole` + `ClusterRoleBinding` | The Advisor lists nodes and workloads cluster-wide | Often a separate approval — both objects are cluster-scoped |
-| Rights to create a namespace, `ServiceAccount`, `Deployment`, `Service`, `Secret`, `Role`, `RoleBinding`, `DaemonSet` | The chart's objects | You, in your own namespace |
-| A namespace whose PodSecurity level permits `hostNetwork` | Node introspection (Tier 2) runs a `hostNetwork` DaemonSet | Cluster admin — see [Tier 2](#tier-2--node-introspection) |
+| Rights to create a namespace, `ServiceAccount`, `Deployment`, `Service`, `Secret`, `Role`, `RoleBinding` | The chart's objects | You, in your own namespace |
+| Rights to create a `DaemonSet`, in a namespace whose PodSecurity level permits `hostNetwork` | **Only if you keep node introspection on** (Tier 2), which most clusters do not need. Run [the one check in Step 2](#decide-node-introspection-before-you-install) before you ask anyone for this | Cluster admin — see [Tier 2](#tier-2--node-introspection) |
 | Pod egress to `https://api.multicloud.io` | The only outbound call the Advisor makes | Network / security |
 | A catalog access key | Authenticates that one outbound call | Your Multicloud contact — see [Step 1](#step-1--get-a-catalog-key) |
 
@@ -53,12 +53,12 @@ switches it off outright — see
 
 That query is authenticated with a scoped, revocable key.
 
-**See [signup.md](signup.md)** for the full account, organization and key-minting flow,
+**See [signup.md](signup.md)** for the full account, organization and key-creation flow,
 including how to mint, rename and revoke a key yourself once you have an account. Self-serve
-signup is not open yet — until it is, the key is minted for you out of band by your Multicloud
+signup is not open yet — until it is, the key is created for you separately by your Multicloud
 contact and sent once; store it like any other secret.
 
-Keep the value out of your shell history and out of Helm values, both of which persist it:
+Keep the value out of your shell history and out of Helm values, both of which store it:
 
 ```bash
 kubectl create namespace advisor
@@ -86,6 +86,64 @@ if you want to check what is actually published:
 helm show chart oci://registry-1.docker.io/multicloud/advisor-chart --version <version>
 ```
 
+### Decide node introspection before you install
+
+The chart's most invasive object is on by default, and most clusters do not need it. Decide this
+now rather than after your security reviewer asks.
+
+`introspection.enabled=true` installs a `hostNetwork` DaemonSet that lands on **every** node,
+tainted and control-plane nodes included, and re-reads each node's instance metadata every
+5 minutes for the life of the release. It is a **fallback for node identity, not a cloud-specific
+requirement** — it fills only the fields your node labels do not already carry, and a label always
+wins over it. Instance type comes from `node.kubernetes.io/instance-type`, and spot-vs-on-demand
+from one of four vendor labels covering AWS, Google Cloud and Azure alike, so on a managed cluster
+with a working cloud-controller-manager — EKS, GKE and AKS equally — the DaemonSet contributes
+essentially nothing.
+
+One read-only check settles it. It needs nothing installed and no rights beyond the `get nodes`
+you already used:
+
+```bash
+kubectl get nodes -o custom-columns='NODE:.metadata.name,TYPE:.metadata.labels.node\.kubernetes\.io/instance-type,PROVIDER:.spec.providerID'
+```
+
+| What you see | What it means | What to install |
+|---|---|---|
+| **Every node shows a TYPE** | Your labels already identify the fleet | `--set introspection.enabled=false`. Nothing is lost |
+| **Any node shows `<none>`** | Self-managed, kubeadm, or no cloud-controller-manager — exactly what the DaemonSet is for | Keep it on. Turning it off drops those nodes from the priced fleet entirely |
+
+**On AWS there is a second reason, and it survives even when every label is present.** An AWS
+`providerID` is `aws:///<zone>/<instance-id>` and names no account, while a Google Cloud or Azure
+`providerID` carries the project or the subscription in the `PROVIDER` column above. So on AWS the
+DaemonSet's credential-free metadata read is the only source of the account number that a
+**quota-increase grant request** (Tier 4, `/quota`) is addressed to — and the Advisor still marks
+that account self-reported, never verified, because `POST /introspect` is cluster-internal and
+unauthenticated. If you will not be filing grant requests, this reason does not apply to you
+either.
+
+**One thing the check does not cover.** It proves the instance type is labelled — not the region
+and not the capacity type, both of which a node also needs before the Advisor will price it. In
+practice a cluster that labels the type labels the region too (the same cloud-controller-manager
+writes both), so the one that actually bites is capacity: a node the Advisor can type but cannot
+call spot-or-on-demand stays unpriceable. GKE in particular labels `cloud.google.com/gke-spot` on
+spot nodes and often nothing on the rest. So if you install with introspection off, read the
+console's **Spot unknown** column at
+[Step 4](#step-4--read-the-readiness-console): if it is empty you are done, and if it is not,
+either label those nodes ([Tier 1](#tier-1--node-labels)) or turn introspection back on
+([Tier 2](#tier-2--node-introspection)). Both commands are below.
+
+Install with the answer your check gave. Every node had a TYPE — the common case on EKS, GKE
+and AKS:
+
+```bash
+helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.0 \
+  -n advisor \
+  --set catalog.existingSecret=advisor-catalog \
+  --set introspection.enabled=false
+```
+
+Some node showed `<none>`, or you are on AWS and want the account id for grant requests:
+
 ```bash
 helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.0 \
   -n advisor \
@@ -94,20 +152,20 @@ helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version
 
 The chart version and the image tag always match; the two move together. Objects are named after the release:
 release `audit` gives you `audit-advisor` (Deployment, Service, ServiceAccount, ClusterRole,
-ClusterRoleBinding) and `audit-advisor-introspect` (DaemonSet).
+ClusterRoleBinding), plus `audit-advisor-introspect` (DaemonSet) only when introspection is on.
 
 Useful install-time values:
 
 | Value | Default | Effect |
 |---|---|---|
 | `catalog.existingSecret` | `""` | Name of a Secret holding `CATALOG_API_KEY`. Preferred. |
-| `catalog.apiKey` | `""` | Inline alternative. The render **fails** unless one of these two is set. Avoid — it lands in your shell history and in the Helm release Secret. |
+| `catalog.apiKey` | `""` | Inline alternative. The render **fails** unless one of these two is set. Avoid — it ends up in your shell history and in the Helm release Secret. |
 | `catalog.caBundle.existingConfigMap` | `""` | Behind a TLS-intercepting egress proxy: a ConfigMap holding a **full** CA bundle, mounted and named in `SSL_CERT_FILE`. See [Egress proxies](#egress-proxies-and-tls-interception). |
 | `catalog.caBundle.key` | `ca-bundle.crt` | The key within that ConfigMap. |
 | `discount.mode` / `discount.effectiveDiscount` | `list` / `0` | Set `stated` + a rate (e.g. `0.22`) to price your current bill at your negotiated discount rather than public list. |
 | `cloudAllowlist` | `""` | Comma-separated clouds the report may recommend, e.g. `aws,gce`. Empty means every cloud. |
-| `regionAllowlist` | `""` | Regex passed to the catalog's region filter. Confines every cross-region move. |
-| `introspection.enabled` | `true` | The `hostNetwork` node-introspection DaemonSet. See Tier 2. |
+| `regionAllowlist` | `""` | Regex passed to the catalog's region filter. Limits every cross-region move. |
+| `introspection.enabled` | `true` | The `hostNetwork` node-introspection DaemonSet, on every node. On by default so that a direct chart install identifies nodes fully rather than degrading in silence — but set it `false` if [the check above](#decide-node-introspection-before-you-install) showed every node already labelled. See Tier 2. |
 | `pdf.enabled` | `true` | Server-side PDF export. |
 | `ingress.enabled` | `false` | See Step 3 before you turn this on. Requires `mcp.enabled=false` — the render fails otherwise. |
 | `service.type` | `ClusterIP` | An allowlist while MCP is enabled: only `ClusterIP` and `ExternalName` are accepted. Anything else publishes the whole Service and likewise requires `mcp.enabled=false`. |
@@ -140,7 +198,7 @@ a while.
 
 Four maps stay deliberately open, because their vocabulary belongs to somebody else:
 `serviceAccount.annotations` and `ingress.annotations` (each cloud and each ingress controller
-spells its own), and `resources` / `introspection.resources` (Kubernetes' own, where
+uses its own names), and `resources` / `introspection.resources` (Kubernetes' own, where
 `ephemeral-storage`, `hugepages-*` and extended resources such as `nvidia.com/gpu` are all
 legitimate). Anything you set under those four is passed through untouched.
 
@@ -155,7 +213,7 @@ The RBAC is deliberately short enough to read in full before you approve it:
 | Cluster | jobs, cronjobs | get, list, watch |
 | Cluster | horizontalpodautoscalers, poddisruptionbudgets | get, list, watch |
 | Cluster | `metrics.k8s.io` pods and nodes | get, list |
-| Namespace | one ConfigMap, `audit-advisor-quota-selection` | get, update, patch (plus unpinned `create` in this namespace only) |
+| Namespace | one ConfigMap, `audit-advisor-quota-selection` | get, update, patch (plus `create`, which Kubernetes cannot restrict to a single object name, in this namespace only) |
 
 Absent by design: Secrets, ConfigMap contents beyond that one object, pod logs, exec, attach,
 port-forward, and every write verb outside that single ConfigMap. The pod runs non-root
@@ -163,7 +221,7 @@ port-forward, and every write verb outside that single ConfigMap. The pod runs n
 dropped. The first three are chart defaults under `securityContext` and you can change them;
 the capability drop is not one — `securityContext.capabilities.drop` accepts only `["ALL"]`,
 and the render fails with the reason if you set anything else. Nothing here needs a Linux
-capability, and the drop is what makes the pod admissible under PodSecurity `restricted`.
+capability, and the drop is what makes the pod allowed under PodSecurity `restricted`.
 
 Verify:
 
@@ -196,9 +254,9 @@ an AI agent drives the Advisor. See the [MCP reference](mcp-reference.md).
 > **Publishing the Service and MCP are mutually exclusive, and the chart enforces it.** Both
 > `ingress.enabled=true` and any `service.type` outside `ClusterIP`/`ExternalName` publish the whole
 > Service — port 8080, every route, `/mcp/` along with everything else — and there is no
-> path-level seam that could exclude it. Any of the three therefore requires
+> way to route one path differently and exclude it. Any of the three therefore requires
 > `mcp.enabled=false`; otherwise `helm install`/`helm upgrade` **fails**, naming which one
-> tripped it and the fix.
+> caused it and the fix.
 >
 > `mcp.enabled` must also be a real boolean: `--set-string mcp.enabled=false` is rejected,
 > because the pod reads a quoted `"false"` as *enabled* and would leave the server running
@@ -224,7 +282,7 @@ fresh. That takes a few seconds and is not something to poll.
 
 `GET /status.json` reads a cache. The assessment is computed once and invalidated on the events
 that actually change it (a newly-reporting node, `POST /refresh`, a discount change, a quota
-rebuild), plus a 30-second TTL backstop for what none of those catches — chiefly a credential
+rebuild), plus a 30-second TTL backstop for what none of those catches — mainly a credential
 Secret rotated under the pod. Every response carries `fresh_as_of` and `age_seconds`, so you can
 tell a 30-second-old answer from a fresh one instead of guessing. **This is the endpoint to poll**;
 the console is not.
@@ -238,7 +296,7 @@ the console is not.
 | Not ready | The catalog is unreachable or unauthenticated, nodes are not listable, or no node is identified at all |
 
 A node counts as identified only when **instance type, region and spot-vs-on-demand** are all
-known. All three matter: pricing a spot node as on-demand fabricates roughly threefold savings,
+known. All three matter: pricing a spot node as on-demand invents roughly threefold savings,
 so the Advisor refuses to price a node whose capacity type it cannot resolve.
 
 **Be aware of what "ready" does not promise.** It verifies identification, not that every
@@ -265,7 +323,7 @@ If the Advisor found a store but it answered without container CPU data, the con
 explicitly ("reachable but no container CPU samples") rather than quietly degrading. Read that
 line — "found but empty" and "not found" have different fixes.
 
-The cross-cloud headline never depends on metrics. Only the right-sizing lever does.
+The cross-cloud headline never depends on metrics. Only the right-sizing lever (one of the report's on/off controls — see Step 7) does.
 
 ---
 
@@ -309,19 +367,33 @@ kubectl label node <node> topology.kubernetes.io/region=<region>
 ```
 
 Accepted capacity values are `spot` / `true` and `on-demand` / `on_demand` / `ondemand` /
-`regular`. **Labels win over introspection** — the Advisor only fills gaps, it never overrides a
+`regular` / `false` — the last one because `cloud.google.com/gke-spot=false` is the only way to
+say *on-demand* in that label's own vocabulary, and GKE usually writes nothing at all on a
+non-spot node. **Labels win over introspection** — the Advisor only fills gaps, it never overrides a
 label you set. A wrong label produces a wrong report silently, so set them only where you are
 sure.
 
 ### Tier 2 — node introspection
 
-On by default. One credential-free pod per node reads the node's own instance metadata service
-and reports type, region and capacity type back to the Advisor, filling exactly the gaps Tier 1
-leaves. It mounts no ServiceAccount token, holds no cloud credentials, and writes nothing.
+On by default, and **a fallback for what Tier 1 could not identify — not something any particular
+cloud requires.** If [the check in Step 2](#decide-node-introspection-before-you-install) showed a
+type on every node, you installed with `introspection.enabled=false` and this whole tier is
+already behind you; skip to Tier 3.
 
-It uses `hostNetwork`, because that is what makes metadata reachable under EKS's IMDSv2 hop limit.
-That is also what makes it incompatible with the `baseline` and `restricted` PodSecurity
-standards: in such a namespace the DaemonSet pods fail admission.
+One credential-free pod per node reads the node's own instance metadata service and reports type,
+region and capacity type back to the Advisor, filling exactly the gaps Tier 1 leaves — and only
+those gaps, because a label always wins. It mounts no ServiceAccount token, holds no cloud
+credentials, and writes nothing.
+
+What it does cost you, while it is on: the DaemonSet tolerates every taint, so it lands on
+**every** node including control-plane ones, and each pod re-reads metadata every 5 minutes for as
+long as the release exists.
+
+It uses `hostNetwork`, because that is what keeps the metadata service reachable when the pod
+network cannot reach it — an EKS IMDSv2 hop limit is the common case, and a network policy or a
+metadata proxy can block the same call elsewhere. That is also what makes it incompatible with the
+`baseline` and `restricted` PodSecurity standards: in such a namespace the DaemonSet pods fail
+admission.
 
 That rejection is reported, not silent. The chart tells the pod introspection was enabled, so
 `GET /status.json` distinguishes "enabled and nothing ever arrived" (`introspection.silent`) from
@@ -334,6 +406,20 @@ drops those nodes from the report rather than recovering them:
 helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.0 \
   -n advisor --reset-then-reuse-values --set introspection.enabled=false
 ```
+
+And the other direction — you installed with it off, and the console then showed nodes under
+*No type* or *Spot unknown* that you would rather not label by hand:
+
+```bash
+helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.0 \
+  -n advisor --reset-then-reuse-values --set introspection.enabled=true
+```
+
+That upgrade adds the DaemonSet, so it needs the `DaemonSet` create right and a namespace whose
+PodSecurity level permits `hostNetwork`. Use a real boolean either way: the 0.5.0 schema types
+this value, so `--set-string introspection.enabled=false` is refused outright rather than leaving
+a quoted string behind that plain Helm truthiness would read as *on* — which is precisely the
+restricted-PodSecurity cluster where turning it off was the remedy.
 
 Two timing facts worth knowing:
 
@@ -355,13 +441,13 @@ Azure have not.** That difference is the one that should govern your decision.
 | Google Cloud | Your BigQuery billing export, committed-use credits applied | Two BigQuery roles, on the export project and dataset |
 | Azure | Cost Management `ActualCost`, grouped by meter and location | A one-operation custom role you create |
 
-Every rate Google Cloud or Azure derives is **unverified against a real account**. AWS's is not —
+Every rate Google Cloud or Azure derives is **unverified against a real account**. AWS's rates have been verified against a real account —
 a live read ran and its rates were cross-checked against a hand-run
-`aws ce get-cost-and-usage` to six decimal places. The maturity lives per cell rather than in
+`aws ce get-cost-and-usage` to six decimal places. The maturity is recorded per table cell rather than in
 this paragraph: [permissions.md](permissions.md) prints it beside each cloud's grant.
 
 The chart plumbing works: `actualPricing.clouds` and `serviceAccount.annotations` reach the pod.
-In earlier releases they were accepted by Helm and dropped on the floor — and nothing said so,
+In earlier releases they were accepted by Helm and discarded — and nothing said so,
 which is how this went unnoticed for months. The chart now carries a `values.schema.json` that
 refuses an unknown key outright, so that particular silence cannot recur.
 
@@ -380,7 +466,7 @@ Leave it unset and Google Cloud reports `unavailable` with that reason rather th
 against your own export, and BigQuery bills by bytes scanned. Every query the Advisor sends
 carries `maximumBytesBilled`, so BigQuery refuses one that would scan past the ceiling instead
 of running it and invoicing you. The default is 100 GiB, and a cloud that hits it degrades to
-list price naming this value rather than turning up on your bill:
+list price naming this value rather than appearing on your bill:
 
 ```bash
 --set actualPricing.gcp.maxBytesBilled=214748364800
@@ -395,12 +481,12 @@ you never granted. Set no annotation and there is nothing to compare, so the che
 on a self-managed cluster whose node service account is the one you meant, that is correct — but
 it is then a choice you are making rather than a check you are getting.
 
-Whatever a cloud cannot price falls back to list, and the report says so on its face — data gap
+Whatever a cloud cannot price falls back to list, and the report says so plainly — data gap
 `G8`, carrying the per-cloud reason, so `unsupported` (wait for a release) is never confused with
 `unavailable` (fix a grant).
 
 **Our advice while Google Cloud and Azure stay unverified:** treat their Tier 3 figures as
-indicative, and keep the stated-discount baseline below as the number you take to finance. A rate
+a rough guide, and keep the stated-discount baseline below as the number you take to finance. A rate
 derived from a query no one has ever run against a real bill is not yet evidence.
 
 The stated-discount route, which needs no grant at all:
@@ -481,7 +567,7 @@ security admin.
 The Advisor never writes to a cloud with these credentials. There is one separate, explicitly
 opt-in write path — quota-increase submission from the `/quota` page — which uses different Helm
 values (`quotaRequests.*`), different Secrets and different environment variables, and is off by
-default — its submit and status routes return 404 until you configure write credentials for at
+default. Its submit and status routes return 404 until you configure write credentials for at
 least one cloud. See [quota.md](quota.md).
 
 ---
@@ -514,7 +600,7 @@ not extend it. A ConfigMap containing only your corporate root will make the cat
 and break every other TLS call the pod makes, including the cloud APIs behind Tier 3 and Tier 4.
 Concatenate onto a full bundle, as above.
 
-A ConfigMap rather than a Secret is deliberate: a CA certificate is public by construction — it
+A ConfigMap rather than a Secret is deliberate: a CA certificate is public by design — it
 is precisely what every client needs in order to verify the proxy.
 
 ## Step 6 — Point it at your metrics store
@@ -574,7 +660,7 @@ cluster access.
 | **Regions** | Any region, optionally narrowed by multi-select | Stay in your region |
 | **Spot** | Spot and preemptible SKUs eligible | On-demand only |
 
-Presets: **Conservative** (right-size, stay home on both axes, on-demand — the zero-migration
+Presets: **Conservative** (right-size, stay in your own cloud and region, on-demand — the zero-migration
 floor) · **In-cloud low-risk** (right-size plus a cheaper SKU or region inside your own cloud, no
 spot) · **Cross-cloud, no spot** · **Maximal** (the default — everything on).
 
@@ -583,7 +669,7 @@ Three properties that make the number defensible:
 - **Best-under-constraints, never additive.** Turning a lever off can only lower the saving,
   because staying where you are is always in scope.
 - **Bin-packed on both axes.** Benchmark CPU units *and* memory. Nothing is inflated by counting
-  CPU work while ignoring the RAM that strands the capacity.
+  CPU work while ignoring the RAM that leaves that capacity unusable.
 - **Withheld rather than fabricated.** GPU pods are packed and priced strictly against the same
   accelerator model. If a model has no same-model SKU in scope, the headline is withheld instead
   of guessing — there is no cross-accelerator performance normalization, so do not read the report
@@ -623,7 +709,7 @@ are reading, not the default view.
 The first `/report` after a restart paints a loading shell that polls `GET /build.json` and
 reloads itself when the audit completes. `POST /refresh` forces a rebuild.
 
-**PDF caveat.** Each `/report.pdf` request shells out to a headless Chromium inside the pod, with
+**PDF caveat.** Each `/report.pdf` request starts a separate headless Chromium process inside the pod, with
 no caching. It is fine for a handful of exports and wrong for a loop. If `pdf.enabled=false`, the
 route returns 503 rather than pretending.
 
@@ -636,7 +722,7 @@ helm uninstall audit -n advisor
 ```
 
 That removes the Deployment, Service, ServiceAccount, ClusterRole, ClusterRoleBinding, the
-namespaced Role and RoleBinding, the introspection DaemonSet, any Ingress, and any Secret the
+namespaced Role and RoleBinding, the introspection DaemonSet if you kept it, any Ingress, and any Secret the
 chart itself created.
 
 **It does not remove or revoke these** — they are yours, and deliberately outlive the release:
@@ -668,7 +754,7 @@ Plainly, because finding these out mid-report is worse than reading them now.
 | A quota region shows nothing to do | Throttled regions produce `unknown` limits, and an unknown limit is never judged and produces no recommendation. Read the source note on the region before concluding it is fine |
 | A clean quota bill | AWS opt-in regions are detected. Azure restricted regions and Google Cloud region enablement have no programmatic detector today, so "no findings" cannot mean "nothing is disabled" |
 | The console is slow | `GET /` forces a full re-collect on every load — the cluster, the catalog, metrics, and each configured quota cloud — deliberately, because a human pressing reload expects fresh. Poll `GET /status.json` instead: it reads a 30-second-TTL cache and reports its own `age_seconds` |
-| Catalog queries look throttled | Outbound catalog concurrency is capped, with retry on rate limits. Do not run parallel exports against a build in flight |
+| Catalog queries look throttled | Outbound catalog concurrency is capped, with retry on rate limits. Do not run parallel exports against a build that is still running |
 
 ---
 
@@ -758,7 +844,7 @@ while every mocked test was passing. The marker moved after that was fixed and t
 cross-checked, which is the bar the marker is meant to carry.
 
 On all three clouds the **grant** is a separate question from the client. The commands this
-release hands your approver have not themselves been exercised as written; the AWS validation
+release hands your approver have not themselves been run as written; the AWS validation
 ran through a broad founder identity. See [Tier 3](#tier-3--actual-negotiated-pricing).
 
 **Tier 2 now tells you when it was blocked rather than reading as "off".** A node-introspection
@@ -823,7 +909,7 @@ Advisor — read, plan and act tools plus versioned `guidance://` resources, all
 pod. See the [MCP reference](mcp-reference.md). Because it is on by default, an upgrade turns it
 on for you. Nothing reaches it until something connects, but when something does, the read tools
 return real identifiers — namespaces, workload names, node names — and those go wherever that
-agent runs, which may be a hosted model. That is a new disclosure surface at 0.4.0, separate from
+agent runs, which may be a hosted model. That is a new way for your data to leave the cluster at 0.4.0, separate from
 what the Advisor *sends* on its own. Read
 [what leaves your cluster](what-the-agent-does.md#what-leaves-your-cluster), then either accept it
 or set `mcp.enabled=false`, which leaves 0.4.0 behaving like 0.3.x.

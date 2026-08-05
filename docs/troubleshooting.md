@@ -4,7 +4,7 @@ Organised by **what you see**, not by what caused it. Find your symptom, read wh
 happening, confirm it, fix it.
 
 Some entries end in a known limitation with no fix. Those say so plainly rather than sending you
-round a loop that will not close.
+through steps that can never fix it.
 
 ## Find your symptom
 
@@ -15,13 +15,15 @@ round a loop that will not close.
 | A red catalog check | [The catalog check is red](#the-catalog-check-is-red) |
 | Coverage below 100%, "Partial" | [Coverage is below 100%](#coverage-is-below-100-or-the-badge-says-partial--some-nodes-unpriceable) |
 | Introspection pods pending or rejected | [The introspection pods never start](#the-introspection-pods-never-start) |
+| "violates PodSecurity", `hostNetwork` not allowed | [The introspection pods never start](#the-introspection-pods-never-start) |
+| Wondering whether you need the introspection DaemonSet | [The introspection pods never start](#the-introspection-pods-never-start) |
 | Coverage fell after a restart | [Coverage was 100%, and after a restart it is not](#coverage-was-100-and-after-a-restart-it-is-not) |
 | Right-sizing does nothing | [Right-sizing is unavailable](#right-sizing-is-unavailable-or-the-right-size-lever-changes-nothing) |
 | Green badge, gaps in the report | [Everything reads green, but the report still has gaps](#everything-reads-green-but-the-report-still-has-gaps) |
 | No cheaper GPU option, though one exists | [No cheaper option is offered for your GPU nodes](#no-cheaper-option-is-offered-for-your-gpu-nodes-and-you-can-see-one) |
 | More `G2` gaps than the previous build | [A rebuild produced more gaps than the one before it](#a-rebuild-produced-more-gaps-than-the-one-before-it) |
 | "List price only" after granting a role | [Tier 3 still says "list price only"](#tier-3-still-says-list-price-only-after-you-granted-the-read-only-role) |
-| The number moved | [The number changed between two questions](#the-number-changed-between-two-questions) |
+| The number changed | [The number changed between two questions](#the-number-changed-between-two-questions) |
 | A quoted figure is nowhere on the page | [A figure your agent quoted is not on the page](#a-figure-your-agent-quoted-is-not-on-the-page) |
 | `claude plugin marketplace add` fails | [`claude plugin marketplace add` fails with a git or SSH error](#claude-plugin-marketplace-add-fails-with-a-git-or-ssh-error) |
 | `helm upgrade` fails immediately | [`helm upgrade` aborts before anything is applied](#helm-upgrade-aborts-before-anything-is-applied) |
@@ -32,23 +34,23 @@ round a loop that will not close.
 | A setting vanished after upgrade | [A setting you applied earlier disappeared](#a-setting-you-applied-earlier-disappeared-after-an-upgrade) |
 | The chart will not pull | [The chart will not pull](#the-chart-will-not-pull) |
 | Quota rows read "unknown" | [Quota rows show "unknown"](#quota-rows-show-unknown) |
-| A region looks suspiciously clean | [A region shows nothing to do](#a-region-shows-nothing-to-do--and-you-do-not-believe-it) |
+| A region shows nothing to do, and you doubt it | [A region shows nothing to do](#a-region-shows-nothing-to-do--and-you-do-not-believe-it) |
 | A quota is never recommended | [A quota shows a limit but never gets a recommendation](#a-quota-shows-a-limit-but-never-gets-a-recommendation) |
 | A filed request is missing | [A request you filed has disappeared](#a-request-you-filed-has-disappeared-from-the-list) |
 | The same increase filed twice | [The same increase is now open twice with AWS](#the-same-increase-is-now-open-twice-with-aws) |
 | An Azure ticket fails | [An Azure quota ticket fails to open](#an-azure-quota-ticket-fails-to-open) |
 | An Azure quota request is throttled | [An Azure quota request returns `RequestThrottled`](#an-azure-quota-request-returns-requestthrottled) |
 | Verdicts differ by cloud | [Request verdicts look inconsistent across clouds](#request-verdicts-look-inconsistent-across-clouds) |
-| The tunnel died | [The tunnel drops mid-flow](#the-tunnel-drops-mid-flow) |
+| The tunnel stopped working | [The tunnel drops mid-flow](#the-tunnel-drops-mid-flow) |
 | 503 "no audit available" | [A rebuild returns 503 and the report will not come back](#a-rebuild-returns-503-and-the-report-will-not-come-back) |
-| A truncated result, or a full context | [A tool result came back truncated](#a-tool-result-came-back-truncated-or-your-agent-ran-out-of-room) |
+| A result cut off part-way, or an agent out of room | [A tool result came back truncated](#a-tool-result-came-back-truncated-or-your-agent-ran-out-of-room) |
 | PDF export errors | [PDF export fails](#pdf-export-fails) |
 | Slow or hanging pages | [The console is slow, or the first load hangs](#the-console-is-slow-or-the-first-load-hangs) |
 | Unsure which cluster | [You are not certain which cluster you are looking at](#you-are-not-certain-which-cluster-you-are-looking-at) |
 | An access request instead of an action | [Your agent stopped and handed you an access request](#your-agent-stopped-and-handed-you-an-access-request-instead-of-doing-the-thing) |
 | "That request asks for too much" | [Your admin says the access request asks for too much](#your-admin-says-the-access-request-asks-for-too-much) |
 | A refused service-account key | [Your cloud refused to create a service-account key](#your-cloud-refused-to-create-a-service-account-key) |
-| A cluster value that reads like an order | [Something in your cluster reads like an instruction](#something-in-your-cluster-reads-like-an-instruction-to-the-agent) |
+| A cluster value that reads like an instruction | [Something in your cluster reads like an instruction](#something-in-your-cluster-reads-like-an-instruction-to-the-agent) |
 
 ## The two commands behind every check
 
@@ -90,7 +92,7 @@ Two more endpoints worth knowing:
 
 ### The report shows $0, or no headline where a headline should be
 
-**What is happening.** The Advisor withholds a headline rather than fabricate one. Three
+**What is happening.** The Advisor withholds a headline rather than invent one. Three
 different situations produce a blank or zero result, and they need different fixes:
 
 | Cause | Signature |
@@ -167,12 +169,12 @@ value.
 
   The chart mounts it read-only at `/etc/ssl/advisor-ca` and sets `SSL_CERT_FILE`. That variable
   **replaces** the default trust store rather than adding to it, so a ConfigMap holding only your
-  corporate root fixes the catalog and breaks every other TLS call the pod makes — concatenate
+  corporate root fixes the catalog and breaks every other TLS call the pod makes — join it
   onto a complete bundle, as above. The image's `PIP_CA` build secret does not help here: it is
   for `uv`/`pip` during the build and installs nothing for the running pod.
 - **Rejected key**: replace the Secret, then restart the Deployment so the new value is read. The
   key is read from the environment at startup.
-- Keys are not retrievable after minting. If you have lost it, mint a new one.
+- A key cannot be read back after it is created. If you have lost it, create a new one.
 
 ---
 
@@ -210,7 +212,7 @@ region are known but the pricing model is not — that is the label gap.
 
 1. Confirm the introspection DaemonSet is running: `kubectl -n <namespace> get ds`. If its pods
    are not starting, see the next entry.
-2. Wait out the reporting interval — up to five minutes by default.
+2. Wait for the reporting interval to pass — up to five minutes by default.
 3. If nodes still show `missing_spot`, label them yourself with whichever of the four labels
    matches your provisioner.
 
@@ -219,13 +221,35 @@ region are known but the pricing model is not — that is the label gap.
 absent and the metadata service is unreachable, the node stays unpriceable. Under the agent flow,
 `plan_remediation("label_missing_spot")` returns the same two fixes given above — label the
 affected nodes, or enable the DaemonSet — and `get_readiness()` names each affected node next to
-the capacity-type key that node's own cloud sets; which of `spot` or `on-demand` a node is stays
-yours to supply.
+the capacity-type key that node's own cloud sets. Whether a node is `spot` or `on-demand` is
+still yours to supply.
 
 ### The introspection pods never start
 
-**What is happening.** The DaemonSet runs with `hostNetwork: true`. That is not incidental: on EKS
-the instance metadata service enforces a hop limit that a pod-network request cannot clear, so
+**Before you fix admission, check whether you need these pods at all.** The DaemonSet is a
+fallback for node identity, not a cloud-specific requirement: the Advisor reads instance type
+from `node.kubernetes.io/instance-type` and spot status from the four vendor labels in the entry
+above — all three clouds, straight from labels — and the DaemonSet only ever fills what those
+labels left empty. On a cluster where every node is already labelled, it contributes nothing, and
+pods being rejected at admission is costing you nothing either.
+
+One read-only command decides it:
+
+```bash
+kubectl get nodes -o custom-columns='NODE:.metadata.name,TYPE:.metadata.labels.node\.kubernetes\.io/instance-type,PROVIDER:.spec.providerID'
+```
+
+| The check says | What to do |
+|---|---|
+| **Every node shows a TYPE** | You do not need these pods. `--set introspection.enabled=false` is the whole fix and nothing is lost. On AWS you give up one separate thing — the self-reported account id a grant request is addressed to, which no AWS `providerID` carries; skip that too if you are not filing grant requests from here |
+| **Any node shows `<none>`** | Those nodes are exactly what the DaemonSet is for. Disabling it now **drops them from the report rather than recovering them** — the chart's own comment on `introspection-daemonset.yaml` warns about precisely this. Fix admission, or label those nodes yourself, before turning anything off |
+
+Both statements are true and they are not interchangeable: switching introspection off is the
+clean answer when labels are complete, and the wrong answer when they are not. The rest of this
+entry is for the second case.
+
+**What is happening.** The DaemonSet runs with `hostNetwork: true`. That is not an accident: on EKS
+the instance metadata service enforces a hop limit that a pod-network request cannot get past, so
 without host networking the whole tier is blind.
 
 The `baseline` and `restricted` PodSecurity standards forbid `hostNetwork`. In a namespace
@@ -247,7 +271,7 @@ A `violates PodSecurity` message naming `hostNetwork` confirms it.
 |---|---|
 | Install the Advisor into a namespace at PodSecurity `privileged` | Cleanest. The DaemonSet itself takes no ServiceAccount token, makes no cluster writes, and reads only node-local metadata |
 | Label the nodes yourself | No host networking needed; you supply the identity the metadata service would have. The console prints the exact command per node — see below |
-| `--set introspection.enabled=false` | **Do this last, if at all.** It stops the rejected pods retrying, but on its own it loses identification on every node whose labels are incomplete — it clears the warning by dropping the nodes, not by recovering them. Label them first |
+| `--set introspection.enabled=false` | **The right answer if the check at the top of this entry was clean; the last resort if it was not.** With every node already labelled it stops the rejected pods retrying and costs you nothing. With any node still unidentified it clears the warning by dropping those nodes from the report rather than recovering them. Label them first |
 
 **What the console tells you.** This failure is no longer silent. The Advisor is told by the
 chart that introspection was *enabled*, so "enabled and nothing ever reported" is a state it can
@@ -274,16 +298,16 @@ namespace, which is the **normal** case: the published chart's ClusterRole does 
 on the cluster-scoped `namespaces` resource, and Kubernetes offers no way to scope that read to
 a single namespace. The symptom and the per-node commands do not depend on it — only the naming
 of PodSecurity as the cause does, and a `null` there means "not checked", never "checked and
-clear". The events command above remains the authoritative confirmation.
+clear". The events command above remains the check to trust.
 
 If you are driving the agent flow instead, `preflight` carries a `namespace-podsecurity-level`
 row designed as a *precondition* check, run before the DaemonSet is ever installed rather than a
-post-hoc diagnosis. **Whether it can actually run depends on which ClusterRole the Advisor was
+diagnosis after the fact. **Whether it can actually run depends on which ClusterRole the Advisor was
 deployed with**: reading the namespace's label needs `get` on the cluster-scoped `namespaces`
 resource. The published customer chart (`advisor/helm/advisor`) does not grant it, on purpose, to
-avoid widening cluster-wide RBAC for one probe — so under that chart this row reports "could not
-check", exactly as it would on a laptop with no cluster access at all, and the authoritative check
-is still the `kubectl` command above, run yourself before installing; do not wait on this row to
+avoid widening cluster-wide RBAC for one probe. So under that chart this row reports "could not
+check", exactly as it would on a laptop with no cluster access at all. The check to trust is still
+the `kubectl` command above, run yourself before installing; do not wait on this row to
 tell you the answer. A deployment whose ClusterRole *does* grant namespace read gets a genuine
 answer from this row instead.
 
@@ -363,7 +387,7 @@ Query paths differ by store — a plain Prometheus, Thanos or VictoriaMetrics si
 Also check:
 
 - **Auth.** Set `metrics.token` for Bearer, or `metrics.username`/`metrics.password` for Basic.
-- **Remapped ports.** If your Service fronts the store on a non-standard single port, discovery
+- **Remapped ports.** If your Service exposes the store on a non-standard single port, discovery
   uses that port; if it exposes several, it assumes the store's standard one. Pin the endpoint if
   that guess is wrong.
 - **Workloads with no requests at all.** They are skipped — there is nothing to right-size from.
@@ -417,7 +441,7 @@ GPU pods are packed **against the same accelerator model only**. There is no cro
 performance normalization — nothing in the catalog says what fraction of an H100 an A10G is for
 *your* job, and that fraction is workload-specific in a way no benchmark table settles. So the
 Advisor will move an A100 pool to a cheaper A100 in another cloud or region, and will not move it
-to an L40S, however obviously cheaper the hourly rate.
+to an L40S, even when the hourly rate is obviously cheaper.
 
 Reading the two the same way is the failure this prevents. A number produced by pricing your
 model against a different one is not a saving; it is a performance assumption with a dollar sign
@@ -444,7 +468,7 @@ alone. Treat this as a boundary of the tool.
 ### A rebuild produced more gaps than the one before it
 
 **What is happening.** The catalog is rate-limited, and a build that gets throttled quietly loses
-SKUs rather than failing. The client bounds itself to **4 concurrent queries** and retries a 429
+SKUs rather than failing. The client limits itself to **4 concurrent queries** and retries a 429
 five times with jittered exponential backoff — but a query that exhausts those retries returns
 nothing, and a family with no catalog answer becomes a `G2` gap ("not found in the catalog").
 
@@ -452,7 +476,7 @@ The result is a report that is smaller and worse rather than absent, which is mu
 Nothing goes red: the `catalog_reachable` / `catalog_authenticated` probe is a separate, single
 lightweight call, and it succeeds happily while the bulk queries behind it are being throttled.
 
-The usual trigger is **parallelism you added** — an agent or a script fanning out its own catalog
+The usual trigger is **parallelism you added** — an agent or a script running many of its own catalog
 calls at the same time as a build.
 
 **How to confirm.**
@@ -462,8 +486,8 @@ kubectl -n <namespace> logs deploy/<release>-advisor | grep 'throttled (429)'
 curl -s localhost:8080/report.json | jq '[.data_gaps[] | select(.code == "G2")]'
 ```
 
-A `catalog query throttled (429) after 5 retries` line is the confirmation. `G2` counts that move
-between two builds of the same cluster point at throttling rather than at catalog coverage.
+A `catalog query throttled (429) after 5 retries` line is the confirmation. If the `G2` count changes
+between two builds of the same cluster, that points at throttling rather than at catalog coverage.
 
 **How to fix.** Re-run the build with nothing else querying the catalog — `POST /refresh`, then
 wait it out — and compare `G2`. If the gaps shrink, the first build was throttled and its headline
@@ -492,10 +516,10 @@ lists the clouds you set — that tells you the *plumbing* worked. If it shows a
 
 - *No workload identity.* The ServiceAccount annotation is missing or the cloud-side role trust
   does not name this cluster's OIDC issuer. On AWS and Azure the Advisor deliberately will **not**
-  fall back to ambient node credentials, so an instance role that happens to have billing access
+  fall back to ambient node credentials (whatever identity the node itself already carries), so an instance role that happens to have billing access
   will not silently rescue this. **Google Cloud is the exception, and it is not one that can be
   closed from inside the pod:** the GCE metadata server answers a token request whether or not
-  Workload Identity is configured, returning the node's own service-account token, and nothing in
+  Workload Identity is configured, returning the node's own service-account token. Nothing in
   the response distinguishes the two. So on a GKE cluster without Workload Identity — or a
   self-managed cluster on GCE VMs — a node service account that can reach your billing export
   will read it, and the report will say `billing`. What stands between you and that is only that
@@ -505,8 +529,8 @@ lists the clouds you set — that tells you the *plumbing* worked. If it shows a
   on the export project names the principal.
   **On AKS, check the pod label before anything else** — workload identity
   needs `azure.workload.identity/use: "true"` on the *pod*, not just the annotation on the
-  ServiceAccount, and without it the admission webhook injects neither the environment variables
-  nor the projected token, while the error mentions no label anywhere. The chart renders it
+  ServiceAccount. Without the label, the admission webhook injects neither the environment variables
+  nor the projected token — and the error mentions no label anywhere. The chart renders it
   automatically whenever the Azure annotation is present, so this is a check rather than a step:
 
   ```bash
@@ -518,7 +542,7 @@ lists the clouds you set — that tells you the *plumbing* worked. If it shows a
   your BigQuery billing export. Without it there is nothing to read.
 - *Google Cloud only — the query would cost too much.* BigQuery bills by bytes scanned, so
   every query carries `maximumBytesBilled` (default 100 GiB) and BigQuery refuses one that
-  would scan past it rather than running it and invoicing you. Raise
+  would scan past it rather than running it and billing you. Raise
   `actualPricing.gcp.maxBytesBilled` if that scan is one you want to pay for, or point
   `exportTable` at a narrower export.
 - *Google Cloud only — reading as the wrong identity.* The detail names the service account the
@@ -542,7 +566,7 @@ lists the clouds you set — that tells you the *plumbing* worked. If it shows a
 While a cloud stays `unavailable`, read every figure for it as priced against public list
 rates on both sides. If you already hold a commitment discount, your real spend is below the
 baseline the report assumes, so the reported saving is larger than the one you would actually
-bank.
+get.
 
 You can close most of that gap yourself by declaring your effective rate:
 
@@ -578,7 +602,7 @@ restating a number later in a conversation.
 
 **Known limitation.** `generated_at` **is** the report identity — there is no second, opaque
 identifier, and none is planned. It makes a changed report *visible* to anyone who checks, which
-is what this entry asks you to do; it does not make one *tamper-evident*, because nothing binds
+is what this entry asks you to do; it does not make one *tamper-evident* — able to show that a figure was altered — because nothing binds
 the figure you were handed to the report it came from except the convention of quoting both.
 A build that is superseded mid-flight does discard its own result rather than landing stale over
 a newer one, so the timestamp never goes backwards.
@@ -610,7 +634,7 @@ Every MCP result carries its own `generated_at` for exactly this purpose — `di
 as `report_identity.generated_at`, and `get_report` alongside the payload. A figure whose stated
 source has no matching timestamp was not read from a report.
 
-**How to fix.** Do not reconcile it — discard it and re-ask, requiring the tool result. Nothing in
+**How to fix.** Do not try to justify it — discard the figure and re-ask, requiring the tool result. Nothing in
 the Advisor computes a figure the model is then asked to adjust, so there is no legitimate path by
 which a correct number arrives without a matching report identity behind it.
 
@@ -668,7 +692,7 @@ alternative is a running deployment that silently reports the feature as unavail
 | `mcp.enabled cannot be combined with publishing the Advisor beyond the cluster` | The release publishes the Service — `ingress.enabled=true`, or a `service.type` outside `ClusterIP`/`ExternalName` — while the MCP endpoint is on. New in 0.4.0; see [What changed in 0.4.0](manual-install.md#what-changed-in-040) |
 | `mcp.enabled must be a real boolean` | `--set-string mcp.enabled=false`, or a CI/GitOps variable interpolated with quotes. The pod would read `"false"` as enabled, so the chart refuses it instead of accepting it. Use `--set mcp.enabled=false` |
 
-The publication guard is the only row here that an **unchanged** values file can trip. Every other
+The publication guard is the only row here that can fail on an **unchanged** values file. Every other
 failure needs you to have switched something on; that one arrived enabled by default in 0.4.0 and
 judges settings you already had.
 
@@ -682,7 +706,7 @@ advisor-chart:
 - at '/actualPricing': additional properties 'cloud' not allowed
 ```
 
-Read `/actualPricing` + `cloud` as `actualPricing.cloud` — a singular typo for
+Read `/actualPricing` + `cloud` as `actualPricing.cloud` — a typo: the singular form of
 `actualPricing.clouds`. **Every earlier release accepted that silently and did nothing**, which
 is the whole reason the schema now exists, so an upgrade is the first time a stray key in a
 long-lived values file will speak up. It is telling you that setting was never having an effect.
@@ -728,7 +752,7 @@ ownership of a Secret of that name that arrived some other way.
 
 **This is the guard working, not a problem to force past.** A Secret you did not create in this
 step may be one another release, another team, or an earlier install depends on. Overwriting it
-takes down whatever was reading it, and the failure surfaces somewhere else entirely.
+breaks whatever was reading it, and the failure shows up somewhere else entirely.
 
 **How to confirm.** Look at what is there before deciding anything:
 
@@ -761,7 +785,7 @@ different version and with values you did not set.
 Error: INSTALLATION FAILED: cannot re-use a name that is still in use
 ```
 
-**Do not reach for `helm upgrade` to get past this.** Upgrading over a release whose version and
+**Do not use `helm upgrade` to get past this.** Upgrading over a release whose version and
 values you have not read is how you land the two failures below at once: values from a newer
 chart quietly dropped, and a chart guard rejecting a combination somebody else configured. Find
 out what is there first.
@@ -879,7 +903,7 @@ that can run ahead of what has been pushed.
 ### Quota rows show "unknown"
 
 **What is happening.** The cloud did not return a limit for that row. The Advisor records this as
-`unknown` and **never** coerces it to zero — a fabricated zero would read as a blocking wall that
+`unknown` and **never** turns it into zero — an invented zero would read as a blocking wall that
 does not exist.
 
 Common causes: an API call was denied by a missing permission, the read was throttled and
@@ -914,7 +938,7 @@ opt-in region the account has **not** enabled looks different: those are reporte
 
 **How to fix.** Re-run the audit — `POST /quota/refresh` — and read the notes again. If the same
 rows stay unknown and the notes name an HTTP status, it is a permission gap rather than throttling:
-one denied action can blank an entire region's limits, so verify the grant actually works rather
+one denied action can leave an entire region's limits blank, so verify the grant actually works rather
 than that it was created (see [permissions.md](permissions.md)). If the notes name a connect or read
 timeout, the fix is network reachability, not IAM — and for a region you do not intend to use,
 adding it to the audit's excluded regions is the honest answer.
@@ -937,7 +961,7 @@ curl -s localhost:8080/quota.json | jq '.inventory.errors, .inventory.disabled_r
 ```
 
 `per_cloud_status` reads `ok` per cloud, or carries the collection error. A clean quota page with a
-non-`ok` status is not a clean bill.
+non-`ok` status does not mean there is nothing to do.
 
 **How to fix.** Fix the underlying read before trusting the verdict. Do not treat an empty
 recommendation list as coverage.
@@ -996,7 +1020,7 @@ actually made. Deduplication is always a **live re-read of the cloud**, keyed on
 `<cloud>/<region>/<quota_id>`, and it only happens if something asks for that key.
 
 **This is an AWS symptom specifically.** The three write paths differ, and only one of them can
-stack:
+pile up as duplicates:
 
 | Cloud | Re-filing the same key does |
 |---|---|
@@ -1004,7 +1028,7 @@ stack:
 | **Azure** | Nothing new. Adjustable quotas are a `PATCH` to the same resource, and the support-ticket path uses a ticket name derived from `(region, quota_id)` |
 | **Google Cloud** | Nothing new. The `quotaPreferenceId` is derived from `(region, quota_id)`, so a re-file addresses the same preference rather than adding one |
 
-That determinism is the same mechanism that lets status survive a restart with nothing stored: a
+That predictable naming is the same mechanism that lets status survive a restart with nothing stored: a
 bare key is enough to re-find what was submitted.
 
 **How to confirm.** Ask by key — status is re-polled against the cloud on every call, so this is
@@ -1024,8 +1048,8 @@ aws service-quotas list-requested-service-quota-change-history-by-quota \
 **How to fix.** Close the extra case in the AWS console. Nothing needs undoing on the Advisor
 side — the request is filed with your cloud, not with us, and there is no local record to correct.
 
-Duplicates are usually harmless, but not always free: increases that route to a human reviewer can
-have two open cases for the same limit closed as conflicting rather than merged, which costs you
+Duplicates are usually harmless, but not always free. When an increase routes to a human reviewer,
+two open cases for the same limit can be closed as conflicting rather than merged, which costs you
 the wait all over again.
 
 **How to avoid it.** After any restart, ask for your keys before re-submitting anything — see
@@ -1050,13 +1074,13 @@ path does not, and is used where it applies.
 
 There is no read-only way to learn the support-plan tier ahead of a ticket attempt — the check
 above, by design, only ever happens by trying. Under the agent flow, `preflight`'s
-`azure-support-plan` row reports this honestly as undetectable (rather than a guess or a hidden
-write of its own) and names the portal fallback up front, so you hear about the possibility
+`azure-support-plan` row reports this honestly as undetectable, rather than a guess or a hidden
+write of its own. It names the portal fallback up front, so you hear about the possibility
 before the attempt, not only after it fails. That is not merely our reading of the API: listing
 the `Microsoft.Support` provider's own resource types returns only ticket, service and
 classification surfaces — Azure publishes no plan-tier resource to read.
 
-**Status: unvalidated.** This branch has never been exercised against a live Azure subscription —
+**Status: unvalidated.** This branch has never been run against a live Azure subscription —
 validating it needs a paid support plan, which we do not hold. What has been verified is the
 detection either side of Azure's answer: the asynchronous failure is classified rather than
 swallowed, and the caller degrades to the portal link plus the generated request text instead of
@@ -1067,7 +1091,7 @@ been opened in a browser signed in to a live subscription.
 
 The adjustable `Microsoft.Quota` path is **also** short of a live end-to-end run, and for a
 different reason — Task 29's attempt never got past the throttle described below. Do not
-describe either Azure write path in the register you can use for AWS, where a real increase was
+describe either Azure write path with the confidence you can use for AWS, where a real increase was
 submitted, polled and confirmed on 2026-08-03. What Azure has is a validated *read* path and a
 `Microsoft.Quota` poll matcher fixed against a verbatim live payload.
 
@@ -1080,19 +1104,19 @@ general ARM budget is fine; the quota-write budget is not.
 
 **What to do: wait, and do not retry inside the window.** Measured on 2026-08-03, a subscription
 that kept retrying inside its hour saw `retry-after` escalate from `3600` to `86400` — a 24-hour
-lockout — at the moment the original hour lapsed. Whether the retries caused that or a daily cap
+lockout — at the moment the original hour ended. Whether the retries caused that or a daily cap
 took over cannot be told apart from outside, and the safe reading is the same either way: one
 attempt, then wait the stated interval. A quota increase is not urgent enough to be worth a day
 of lockout.
 
 **If you are driving this through the agent**, note the same caution applies to automated
 retries, not just to your own — see `quota_clients.request_with_retry`, which honours a
-`Retry-After` literally and without a ceiling.
+`Retry-After` literally and with no upper limit.
 
 ### Request verdicts look inconsistent across clouds
 
-**What is happening.** Each cloud exposes a different, and individually lossy, view of what
-happened to a request. The Advisor reports what each cloud actually says rather than flattening
+**What is happening.** Each cloud exposes a different view of what
+happened to a request, and each view is lossy — it leaves something out. The Advisor reports what each cloud actually says rather than flattening
 them into a single confident verdict.
 
 | Cloud | What you can actually know |
@@ -1112,7 +1136,7 @@ happened".
 ### The tunnel drops mid-flow
 
 **What is happening.** `kubectl port-forward` is a single connection, and it breaks — on a pod
-restart, a network blip, or a laptop sleep. Nothing on the Advisor side is lost that was not
+restart, a short network interruption, or a laptop sleep. Nothing on the Advisor side is lost that was not
 already in memory.
 
 **How to fix.** Reopen the tunnel and re-check state rather than assuming where you were:
@@ -1130,7 +1154,7 @@ Secret write, verify the end state — `helm -n <namespace> get values <release>
 If you are working across several clusters at once, give each its own local port. Two tunnels on
 the same port do not error usefully; they just point somewhere you did not intend.
 
-**Resume by asserting, not by repeating.** A remediation that was halfway through when the
+**Resume by checking the end state, not by repeating the step.** A remediation that was halfway through when the
 connection died is recoverable without guessing how far it got. Every remediation plan ends in a
 verification assertion naming the tool to call and the condition to look for — `plan_remediation`
 returns it as `verification: {tool, assertion}`, for instance *"the affected cloud's `missing_spot`
@@ -1153,7 +1177,8 @@ Two quite different situations produce it. The first is ordinary — nothing has
 in this pod's life, which after a restart is the normal state for a minute or two. The second is
 a build that failed, and then `detail` carries the reason.
 
-There is also a race worth knowing about, because it looks like flapping rather than an error: a
+There is also a race worth knowing about, because it looks like flapping — a state switching back
+and forth — rather than an error: a
 change that invalidates the cache (a newly-reporting node, a discount change, `POST /refresh`)
 bumps a build generation, and a build already in flight discards its own result rather than
 landing stale over the newer one. A caller that was waiting on the superseded build gets the 503
@@ -1199,8 +1224,8 @@ The MCP surface is shaped to avoid this, and it only works if the caller uses it
 `recommendations`. It is not a lossy rewrite, so nothing about the headline or the gaps is missing
 from it.
 
-**How to fix.** Ask for `summary` and drill in with `get_workloads` only when a workload-level
-question is actually on the table. If you are reading over HTTP rather than MCP, `jq` the field
+**How to fix.** Ask for `summary` and drill in with `get_workloads` only when you actually have a
+workload-level question. If you are reading over HTTP rather than MCP, `jq` the field
 you want instead of piping the whole document anywhere:
 
 ```bash
@@ -1212,7 +1237,7 @@ mid-array is one whose totals no longer add up, and nothing in the fragment says
 
 ### PDF export fails
 
-**What is happening.** `/report.pdf` renders by shelling out to a headless Chromium inside the pod,
+**What is happening.** `/report.pdf` renders by running a headless Chromium inside the pod,
 once per request. It returns 503 with the reason in the response body.
 
 | Detail says | Cause |
@@ -1247,10 +1272,10 @@ once, when you actually want the artifact.
 
 The **status page** (`GET /`) re-runs everything on every load: a full cluster collection, a live
 catalog probe, metrics discovery and probe, and a probe per configured cloud. That is deliberate —
-a human pressing reload expects fresh — but reloading it repeatedly is genuinely expensive.
+a human pressing reload expects fresh data — but reloading it repeatedly is genuinely expensive.
 
 `GET /status.json` is the cheap one. It returns the same assessment from a cache invalidated on
-the events that change it, with a 30-second TTL backstop, and every response carries `fresh_as_of`
+the events that change it, with a 30-second TTL as an upper limit, and every response carries `fresh_as_of`
 and `age_seconds`. Every diagnosis in this document that says to check `status.json` is checking
 that cache, not paying for a re-probe.
 
@@ -1332,7 +1357,7 @@ Over MCP, `preflight` returns one row per foreseeable blocker, each carrying a `
 `unchecked` and `undetectable` are deliberately not collapsed into `clear`. Neither means "fine".
 
 **How to fix.** Read `route` on the blocking row before escalating anything — it says whether this
-is yours to fix. `self_serviceable: true` means the driver can clear it with rights they plausibly
+is yours to fix. `self_serviceable: true` means the person running the flow can clear it with rights they plausibly
 already hold, and routing that to an admin costs a cycle for nothing. Region enablement and
 PodSecurity are both usually in that bucket.
 
@@ -1342,14 +1367,14 @@ That is a bug in the preflight, and it is the reason the two-request shape exist
 ### Your admin says the access request asks for too much
 
 **What is happening.** Worth checking rather than assuming, because both failure directions are
-real: an over-broad ask gets rejected and costs you a review cycle, and a too-narrow one gets
+real: an over-broad request gets rejected and costs you a review cycle, and a too-narrow one gets
 approved and then does not work — which costs you a cycle *and* a debugging session, and has
 happened here before.
 
 The request is a union of exactly the actions the client code calls, merged by the Advisor. Your
 agent must never hand-merge two policies, and the merged object is deliberately shaped to make
-that hard to fudge: a merge across two capabilities is a **view**, carrying the union policy for
-review but **no** `grant_commands`, because one union document beside two create-policy commands
+that hard to do: a merge across two capabilities is a **view**, carrying the union policy for
+review but **no** `grant_commands`. The reason: one union document beside two create-policy commands
 that each name a different file is how an over-grant gets applied by accident.
 
 **How to confirm.** Ask for the same document your admin is looking at, per capability:
@@ -1375,7 +1400,7 @@ asked for.
 
 **What is happening.** A Google Cloud organization policy,
 `constraints/iam.disableServiceAccountKeyCreation`, is enforced on the project. Key downloads are
-refused outright. This is a common and entirely reasonable posture, and it is checked before any
+refused outright. This is a common and entirely reasonable policy, and it is checked before any
 request names a key, so you should hear about it before you try rather than after.
 
 **How to confirm.** The `preflight` row is
@@ -1437,7 +1462,7 @@ Read them. That is the check that does not depend on a model behaving.
 ## Still stuck
 
 Collect these before asking for help. They contain no workload names. **Two of them can carry
-things you should redact:** `status.json` includes your discovered metrics Service URL, which is
+things you should remove before sending:** `status.json` includes your discovered metrics Service URL, which is
 namespace-qualified, and `helm get values` prints any credential you set inline rather than via
 `existingSecret` (`catalog.apiKey`, `metrics.token`, `metrics.username`, `metrics.password`).
 The last command below filters those; check the output before you send it.
