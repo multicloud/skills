@@ -72,6 +72,25 @@ Synced from the authoring home in the Multicloud platform repo — edit it there
 complete path by hand, and it is kept working on purpose — it is the proof that the agent is a
 convenience rather than a dependency.
 
+## Releasing
+
+**Bump `version` in the plugin's `plugin.json`, or the change reaches nobody who already has it.**
+`claude plugin update` compares versions, not content: an unchanged version reports *"already at
+the latest version"* and installs nothing. Pushing a fix without a bump looks like a successful
+release from every angle except the only one that matters. It happened three times in one day
+before anyone noticed, so it is checked rather than remembered:
+
+```bash
+scripts/check-release.sh      # fails if a plugin changed since its last tag without a bump
+claude plugin tag plugins/<name>
+git push --tags
+```
+
+Updates are pull-based and manual at the customer's end too. Someone who added this marketplace
+earlier keeps serving themselves an older copy until they run `claude plugin marketplace update
+multicloud`, and `claude plugin update` needs a session restart to take effect. Neither is
+something a push can force, which is worth remembering before concluding that a fix is live.
+
 ## The audit trail
 
 [`audit.py`](plugins/multicloud-advisor/skills/multicloud-advisor/scripts/audit.py) writes the
