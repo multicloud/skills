@@ -51,7 +51,6 @@ It is deliberately short enough to audit in under a minute. Read it yourself:
 | core (`""`) | `nodes` | get, list, watch | Instance type, region, capacity type and allocatable capacity — the fleet you are paying for | Yes |
 | core (`""`) | `pods` | get, list, watch | Declared CPU/memory/GPU requests and which node each pod runs on — the demand to be packed | Yes |
 | core (`""`) | `services` | get, list, watch | Locates an in-cluster metrics store (Prometheus, Thanos, Mimir, VictoriaMetrics, OpenObserve) by name and port | Yes |
-| core (`""`) | `persistentvolumeclaims`, `persistentvolumes` | get, list, watch | Reserved for storage attribution | **No** — see note |
 | `apps` | `deployments`, `statefulsets`, `daemonsets`, `replicasets` | get, list, watch | Groups pods into the workload that owns them, so the bill is attributed per workload rather than per pod | Yes |
 | `batch` | `jobs`, `cronjobs` | get, list, watch | Prices CronJobs by duty cycle (run frequency × measured run duration) instead of as if they ran continuously | Yes |
 | `autoscaling` | `horizontalpodautoscalers` | get, list, watch | Flags HPA-managed workloads so right-sizing defers to the autoscaler rather than fighting it | Yes |
@@ -59,11 +58,18 @@ It is deliberately short enough to audit in under a minute. Read it yourself:
 | `metrics.k8s.io` | `pods` | get, list | Reads metrics-server as a weak fallback when no PromQL store is available | Yes |
 | `metrics.k8s.io` | `nodes` | get, list | Reserved | **No** — see note |
 
-**Note on the "No" rows.** Three grants in the shipped chart are not used by the current
-code: `persistentvolumeclaims`/`persistentvolumes`, `poddisruptionbudgets`, and
-`metrics.k8s.io/nodes`. They are read-only and low-risk, but if your reviewer works to a strict
-least-privilege standard you can delete those three rules from the ClusterRole with **no loss of
-function today**. If a later version needs them, the chart will ask again.
+**Note on the "No" rows.** Two grants in the shipped chart are not used by the current code:
+`poddisruptionbudgets` and `metrics.k8s.io/nodes`. They are read-only and low-risk, but if your
+reviewer works to a strict least-privilege standard you can remove them with **no loss of
+function today**. Only `poddisruptionbudgets` is a rule of its own, so deleting it is a
+three-line edit; `metrics.k8s.io/nodes` shares a rule with `metrics.k8s.io/pods`, which *is*
+used, so drop the one resource from that rule's list rather than the rule. If a later version
+needs either, the chart will ask again.
+
+`persistentvolumeclaims` and `persistentvolumes` used to sit here as a third unused grant. The
+chart no longer asks for either: nothing read them through the API — the report's
+stateful-workload signal comes off each pod template's own `volumes[]`, which the `pods` grant
+already covers — so the ask was dropped rather than left standing as a "reserved" one.
 
 ### The one write, and its blast radius
 
@@ -212,8 +218,11 @@ precondition check the Advisor runs *before* you install rather than a diagnosis
 this chart, it cannot actually run**: reading a namespace's label needs `get` on the
 cluster-scoped `namespaces` resource, and the ClusterRole this chart installs (above) does not
 grant it — widening cluster-wide RBAC to add one diagnostic sentence is a deliberate call NOT
-made, and Kubernetes offers no narrower grant, because a Namespace is a cluster-scoped object.
-So on this chart the row reports "could not check", the same as it would from a bare laptop with no
+made. The grant *could* be narrowed — a ClusterRole can pin `get` to a single Namespace object
+by `resourceNames` (a namespaced `Role` is what cannot grant it, Namespace being cluster-scoped)
+— so this is a judgement rather than a limitation, and the judgement is that one diagnostic
+label does not justify another cluster-wide rule.
+So the row reports "could not check", the same as it would from a bare laptop with no
 cluster access at all. The post-install degrade above is unaffected: it reports the symptom and
 the per-node fix without reading the namespace, and only leaves PodSecurity unnamed as the cause.
 **The authoritative check for this chart is the one below** — your own `kubectl`, before you
@@ -406,6 +415,38 @@ the fleet the report proposes, so a provisioning wall shows up on paper instead 
   prefixes (`QUOTA_*` versus `QUOTA_REQUESTS_*`).
 - Missing or partial credentials degrade that cloud to "not configured". They never crash the pod.
 
+### Keep secret values out of the command line
+
+Everything you type on a command line lands in that process's `argv`, where `ps` shows it to every
+local user, `/proc/<pid>/cmdline` is world-readable on Linux, and any execve auditing (auditd,
+Falco, an EDR agent) records it verbatim. That rules out `helm --set <secret>=…`, and it rules out
+`kubectl --from-literal=<secret>=…` for the same reason. Hand the value to `kubectl` on **stdin**
+instead — a pipe is published nowhere: `ps` cannot show it, and no `/proc` entry renders it:
+
+```bash
+read -rs AWS_SECRET_ACCESS_KEY   # paste the value; it is not echoed
+printf %s "$AWS_SECRET_ACCESS_KEY" | kubectl -n advisor create secret generic <name> \
+  --from-file=AWS_SECRET_ACCESS_KEY=/dev/stdin
+unset AWS_SECRET_ACCESS_KEY
+```
+
+`read -rs` keeps it out of your shell history as well, and `printf %s` matters: a trailing newline
+becomes part of the credential, and the call then fails an authentication check that names nothing
+useful.
+
+**This applies to secrets, not to identifiers, and the difference is worth keeping.** A tenant id,
+a client id, a subscription id and a GCP project id name a principal — they do not authenticate as
+one, and they are already in your own audit logs. `AWS_ACCESS_KEY_ID` sits just inside that line
+too: it is the public half of the pair and AWS records it on every call CloudTrail logs. All of
+those stay on `--from-literal`, where they are readable in the command you just ran. Only the
+halves that actually authenticate need stdin: `AWS_SECRET_ACCESS_KEY`, `AZURE_CLIENT_SECRET`,
+your catalog key — and `GCE_SA_KEY_JSON`, which is a file on disk already and so is passed as
+`--from-file=GCE_SA_KEY_JSON=<path>` with nothing secret in `argv` either way.
+
+One stdin read per command, so a Secret holding several keys mixes the two forms: one
+`--from-literal` per identifier, and the single `/dev/stdin` read for the secret. That is what the
+per-cloud commands below do.
+
 ### Workload identity: no key at all
 
 Everything in §5 describes **which permissions** to grant. This section is about **how the
@@ -578,12 +619,17 @@ helm upgrade <release> <chart> --reset-then-reuse-values \
   --set quota.aws.workloadIdentity=true
 ```
 
-*Or a static key pair in a Secret:*
+*Or a static credential in a Secret, created so that no secret value reaches the command line —
+see [Keep secret values out of the command line](#keep-secret-values-out-of-the-command-line):*
 
 ```bash
-kubectl create secret generic advisor-quota-aws \
+read -rs AWS_SECRET_ACCESS_KEY   # paste the secret access key; it is not echoed
+printf %s "$AWS_SECRET_ACCESS_KEY" | kubectl create secret generic advisor-quota-aws \
   --from-literal=AWS_ACCESS_KEY_ID=<KEY_ID> \
-  --from-literal=AWS_SECRET_ACCESS_KEY=<SECRET>
+  --from-file=AWS_SECRET_ACCESS_KEY=/dev/stdin
+unset AWS_SECRET_ACCESS_KEY
+# The key id is an identifier AWS logs on every call, so it stays on --from-literal; only the
+# secret half is read from stdin, where no `ps`, /proc/<pid>/cmdline or execve audit can see it.
 
 helm upgrade <release> <chart> --reset-then-reuse-values \
   --set quota.aws.enabled=true \
@@ -691,11 +737,15 @@ helm upgrade <release> <chart> --reset-then-reuse-values \
   --set quota.gce.workloadIdentity=true
 ```
 
-*Or a static key pair in a Secret:*
+*Or a static credential in a Secret, created so that no secret value reaches the command line —
+see [Keep secret values out of the command line](#keep-secret-values-out-of-the-command-line):*
 
 ```bash
 kubectl create secret generic advisor-quota-gce \
   --from-file=GCE_SA_KEY_JSON=<path/to/key.json>
+# --from-file passes a path, so the key itself never reaches argv. Delete the downloaded file
+# once the Secret exists -- it is a second copy to lose:
+rm <path/to/key.json>
 
 helm upgrade <release> <chart> --reset-then-reuse-values \
   --set quota.gce.enabled=true \
@@ -810,14 +860,19 @@ helm upgrade <release> <chart> --reset-then-reuse-values \
   --set quota.azure.subscriptionId=<SUB>
 ```
 
-*Or a static key pair in a Secret:*
+*Or a static credential in a Secret, created so that no secret value reaches the command line —
+see [Keep secret values out of the command line](#keep-secret-values-out-of-the-command-line):*
 
 ```bash
-kubectl create secret generic advisor-quota-azure \
+read -rs AZURE_CLIENT_SECRET   # paste the client secret; it is not echoed
+printf %s "$AZURE_CLIENT_SECRET" | kubectl create secret generic advisor-quota-azure \
   --from-literal=AZURE_TENANT_ID=<TENANT> \
   --from-literal=AZURE_CLIENT_ID=<CLIENT_ID> \
-  --from-literal=AZURE_CLIENT_SECRET=<SECRET> \
-  --from-literal=AZURE_SUBSCRIPTION_ID=<SUB>
+  --from-literal=AZURE_SUBSCRIPTION_ID=<SUB> \
+  --from-file=AZURE_CLIENT_SECRET=/dev/stdin
+unset AZURE_CLIENT_SECRET
+# Tenant, client and subscription ids are identifiers, not credentials, and stay on
+# --from-literal. Only the client secret is read from stdin, so it never enters argv.
 
 helm upgrade <release> <chart> --reset-then-reuse-values \
   --set quota.azure.enabled=true \
@@ -932,6 +987,10 @@ clean bill) and names the portal fallback up front, before any attempt.
 | Quota **read** credential, per cloud | Kubernetes Secret, `existingSecret`-only, opt-in | You create the Secret; the chart never inlines one | Revoke the cloud role, delete the Secret |
 | Quota **write** credential, per cloud | Kubernetes Secret, `existingSecret`-only, opt-in, **never the same Secret as the read one** | You create the Secret | Revoke the cloud role, delete the Secret |
 | **Your** cloud credentials, under the agent flow | Your machine only | Never enter the cluster | Ordinary revocation of your own access |
+
+However you create these Secrets, no secret value belongs on a command line — see
+[Keep secret values out of the command line](#keep-secret-values-out-of-the-command-line), which
+also draws the line between the values that need that care and the identifiers that do not.
 
 ---
 

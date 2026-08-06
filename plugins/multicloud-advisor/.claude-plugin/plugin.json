@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "multicloud-advisor",
-  "description": "Install the Multicloud Advisor into a Kubernetes cluster and connect to it over MCP. The skill knows only what has to happen before the pod answers — consent, one cluster, the catalog key, three preflight checks, the install and the tunnel. Everything after that is served live by the Advisor you just installed, so no permission list, quota code or region list is packaged here to go stale.",
-  "version": "0.2.1",
+  "description": "Audit a Kubernetes cluster's cloud spend end to end: install the read-only Multicloud Advisor, then drive it over MCP through diagnosis, cloud-access grants, the savings counterfactual, the quota increases that make the cheaper fleet actually provisionable, and a report the customer is shown rather than sent a link to. The skill carries the shape of the run; every permission list, quota code and region list is served live by the Advisor you just installed, so nothing packaged here can go stale.",
+  "version": "0.3.0",
   "author": {
     "name": "Multicloud",
     "url": "https://multicloud.io"

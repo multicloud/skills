@@ -429,7 +429,7 @@ The skill handles these for you. Driving the tools yourself means handling them 
 | **Quota outcome status** | Read the per-item `confidence`, never a per-cloud general rule: AWS reports a closed case and a denial the same way, GCP has no approved/denied signal at all (only granted-versus-preferred), and Azure has **two** models that lose different amounts of the outcome detail — its adjustable `Microsoft.Quota` path returns a clean `provisioningState` and is the one `exact` signal of the set, while its support-ticket path exposes only open/closed. Reporting Azure as uniformly lossy is as wrong as reporting the three clouds as uniformly reliable |
 | **Region enablement** | Opt-in regions are detectable on one cloud and **not programmatically detectable** on the others. Surface that gap rather than implying a clean bill — `preflight`'s `detectable` field is exactly this signal, exposed per row so you never have to infer it yourself |
 | **GCP org policy / Azure resource-provider registration** | `preflight` checks both before any ask, but the GCP org-policy read in particular has not been run against a live account — treat a `detected: true` there as a strong signal, not a certainty, and confirm before routing to workload identity |
-| **`preflight`'s `namespace-podsecurity-level` row** | Needs `get` on the cluster-scoped `namespaces` resource, and whether it gets a real answer depends on which ClusterRole the Advisor was deployed with. The published customer chart deliberately does not grant it, so on that chart this always reports "could not check" — use your own `kubectl` before installing instead of waiting on this row. A ClusterRole that DOES grant namespace read gets a genuine answer instead |
+| **`preflight`'s `namespace-podsecurity-level` row** | Needs `get` on the cluster-scoped `namespaces` resource, which no chart shipped for the Advisor grants — deliberately, so this row always reports "could not check". Use your own `kubectl` before installing instead of waiting on it. Only a ClusterRole an operator widened by hand gets a genuine answer here |
 | **API-rate quotas** | Token-bucket quotas get no floor and no demand attribution, and their catalog ids are synthetic rather than real quota codes. They are visibility only — do not attempt to file them |
 | **PDF export** | Starts a separate headless browser process per request, with no caching. Fine for a deliverable, not for a loop |
 | **Catalog calls** | The Advisor caps its own catalog concurrency and retries on throttling. Do not run your own catalog queries in parallel with a running build |
@@ -444,15 +444,12 @@ Listed here so you can chase them rather than discover them:
   changes. The Azure resource-provider registration read next to it is better established —
   `GET providers/{namespace}` is core, long-stable ARM.
 - `preflight`'s `namespace-podsecurity-level` row needs `get` on the cluster-scoped
-  `namespaces` resource, and **whether it can run at all depends on which ClusterRole the
-  Advisor was deployed with** — this is not settled implementation, it is a real difference
-  between the two ClusterRoles this repo ships. The published customer chart
-  (`advisor/helm/advisor`) does not grant it — a deliberate choice, not an oversight (widening
-  cluster-wide RBAC to land one probe was rejected) — so on that chart this row always reports
-  "could not check", identically to a machine with no cluster access at all, and the
-  authoritative precondition check is your own `kubectl`, before you install — see
-  [troubleshooting.md](troubleshooting.md#the-introspection-pods-never-start). A deployment
-  whose ClusterRole already grants namespace read gets a genuine answer from this row instead.
+  `namespaces` resource, and **no chart shipped for the Advisor grants it** — a deliberate
+  choice, not an oversight (widening cluster-wide RBAC to land one probe was rejected). So this
+  row always reports "could not check", identically to a machine with no cluster access at all,
+  and the authoritative precondition check is your own `kubectl`, before you install — see
+  [troubleshooting.md](troubleshooting.md#the-introspection-pods-never-start). Only a
+  ClusterRole widened by hand, after install, gets a genuine answer from this row instead.
 
 The live `tools/list` and the running server's own tool descriptions are authoritative over this
 page.

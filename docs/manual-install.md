@@ -136,7 +136,7 @@ Install with the answer your check gave. Every node had a TYPE — the common ca
 and AKS:
 
 ```bash
-helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor \
   --set catalog.existingSecret=advisor-catalog \
   --set introspection.enabled=false
@@ -145,7 +145,7 @@ helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version
 Some node showed `<none>`, or you are on AWS and want the account id for grant requests:
 
 ```bash
-helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm install audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor \
   --set catalog.existingSecret=advisor-catalog
 ```
@@ -174,11 +174,11 @@ Useful install-time values:
 That table is a selection. The full, commented list is the chart's own `values.yaml`:
 
 ```bash
-helm show values oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1
+helm show values oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3
 ```
 
 What now *enforces* it is `values.schema.json`, which ships inside the chart — read it with
-`helm pull oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 --untar`.
+`helm pull oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 --untar`.
 
 **A misspelled value now fails the install instead of being ignored.** Every earlier release
 accepted any key you cared to type and dropped the ones it did not recognise, so setting
@@ -208,7 +208,7 @@ The RBAC is deliberately short enough to read in full before you approve it:
 
 | Scope | Resources | Verbs |
 |---|---|---|
-| Cluster | nodes, pods, services, persistentvolumeclaims, persistentvolumes | get, list, watch |
+| Cluster | nodes, pods, services | get, list, watch |
 | Cluster | deployments, statefulsets, daemonsets, replicasets | get, list, watch |
 | Cluster | jobs, cronjobs | get, list, watch |
 | Cluster | horizontalpodautoscalers, poddisruptionbudgets | get, list, watch |
@@ -403,7 +403,7 @@ listed nodes — and only once they are identified, turn introspection off. Turn
 drops those nodes from the report rather than recovering them:
 
 ```bash
-helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor --reset-then-reuse-values --set introspection.enabled=false
 ```
 
@@ -411,7 +411,7 @@ And the other direction — you installed with it off, and the console then show
 *No type* or *Spot unknown* that you would rather not label by hand:
 
 ```bash
-helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor --reset-then-reuse-values --set introspection.enabled=true
 ```
 
@@ -492,7 +492,7 @@ derived from a query no one has ever run against a real bill is not yet evidence
 The stated-discount route, which needs no grant at all:
 
 ```bash
-helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor --reset-then-reuse-values \
   --set discount.mode=stated --set discount.effectiveDiscount=0.22
 ```
@@ -517,7 +517,7 @@ under GCP's `constraints/iam.disableServiceAccountKeyCreation`, which refuses th
 other path needs.
 
 ```bash
-helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor --reset-then-reuse-values \
   --set 'serviceAccount.annotations.eks\.amazonaws\.com/role-arn=arn:aws:iam::<ACCOUNT>:role/<ROLE>' \
   --set quota.aws.enabled=true --set quota.aws.workloadIdentity=true
@@ -545,13 +545,25 @@ values. Create the Secret first, then enable the cloud:
 | Google Cloud | `GCE_SA_KEY_JSON` (the raw service-account key file) |
 
 ```bash
-kubectl -n advisor create secret generic advisor-quota-aws \
-  --from-literal=AWS_ACCESS_KEY_ID=<KEY_ID> --from-literal=AWS_SECRET_ACCESS_KEY=<SECRET>
+read -rs AWS_SECRET_ACCESS_KEY   # paste the secret access key; it is not echoed
+printf %s "$AWS_SECRET_ACCESS_KEY" | kubectl -n advisor create secret generic advisor-quota-aws \
+  --from-literal=AWS_ACCESS_KEY_ID=<KEY_ID> --from-file=AWS_SECRET_ACCESS_KEY=/dev/stdin
+unset AWS_SECRET_ACCESS_KEY
 
-helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor --reset-then-reuse-values \
   --set quota.aws.enabled=true --set quota.aws.existingSecret=advisor-quota-aws
 ```
+
+Same shape as the catalog key in Step 1, and for the same reason: the secret arrives on stdin and
+never enters the command's `argv`, where `ps`, `/proc/<pid>/cmdline` and execve auditing would all
+pick it up — see [permissions.md § Keep secret values out of the command
+line](permissions.md#keep-secret-values-out-of-the-command-line). The key **id** stays on
+`--from-literal`: it identifies the caller in your own CloudTrail logs rather than authenticating
+as one. Per cloud, that leaves exactly one value needing stdin — `AZURE_CLIENT_SECRET`, with
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_SUBSCRIPTION_ID` staying literals as the
+identifiers they are; and none at all for Google Cloud, where
+`--from-file=GCE_SA_KEY_JSON=<path/to/key.json>` passes a path.
 
 The same shape applies per cloud (`quota.azure.*`, `quota.gce.*`), and each cloud is independent:
 missing or partial credentials degrade that cloud to "not configured" and never block the pod
@@ -622,7 +634,7 @@ history. Matching is substring-based over the Service name and its `app` labels,
 a name you chose yourself will not be found. Pin it explicitly:
 
 ```bash
-helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.1 \
+helm upgrade audit oci://registry-1.docker.io/multicloud/advisor-chart --version 0.5.3 \
   -n advisor --reset-then-reuse-values \
   --set metrics.endpoint=http://prometheus-server.monitoring.svc:9090 \
   --set metrics.queryPath=/api/v1/query

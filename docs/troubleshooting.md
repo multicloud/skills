@@ -6,6 +6,16 @@ happening, confirm it, fix it.
 Some entries end in a known limitation with no fix. Those say so plainly rather than sending you
 through steps that can never fix it.
 
+**A note on the `kubectl` commands below.** Where a command has to reach the Advisor *server*
+pod, it selects on `-l app.kubernetes.io/name=advisor,component=server` rather than on
+`deploy/<release>-advisor`. The release also runs the introspection DaemonSet, whose pods carry
+the same `app.kubernetes.io/name` label, and `kubectl logs`/`exec`/`port-forward` against a
+`deploy/` reference resolves through the Deployment's selector — which still matches those pods,
+because a Deployment's selector is immutable and cannot be narrowed on an existing install. The
+`component=server` label is what tells them apart. It is added by the chart version that ships
+this document; on a release installed before that, name the server pod explicitly instead
+(`kubectl -n <namespace> get pods` and pick the one without `-introspect-` in its name).
+
 ## Find your symptom
 
 | You see | Go to |
@@ -299,21 +309,22 @@ Advisor actually reads. Running them recovers every node without host networking
 
 `podsecurity_level` is `null` rather than a level whenever the Advisor could not read its own
 namespace, which is the **normal** case: the published chart's ClusterRole does not grant `get`
-on the cluster-scoped `namespaces` resource, and Kubernetes offers no way to scope that read to
-a single namespace. The symptom and the per-node commands do not depend on it — only the naming
+on the cluster-scoped `namespaces` resource. It could have been narrowed rather than skipped — a
+ClusterRole can pin `get` to a single Namespace object by `resourceNames` — but one diagnostic
+label was not judged worth another cluster-wide rule, so the read is simply not taken (a
+namespaced `Role` is not an option either way: Namespace is a cluster-scoped object).
+The symptom and the per-node commands do not depend on it — only the naming
 of PodSecurity as the cause does, and a `null` there means "not checked", never "checked and
 clear". The events command above remains the check to trust.
 
 If you are driving the agent flow instead, `preflight` carries a `namespace-podsecurity-level`
 row designed as a *precondition* check, run before the DaemonSet is ever installed rather than a
-diagnosis after the fact. **Whether it can actually run depends on which ClusterRole the Advisor was
-deployed with**: reading the namespace's label needs `get` on the cluster-scoped `namespaces`
-resource. The published customer chart (`advisor/helm/advisor`) does not grant it, on purpose, to
-avoid widening cluster-wide RBAC for one probe. So under that chart this row reports "could not
-check", exactly as it would on a laptop with no cluster access at all. The check to trust is still
-the `kubectl` command above, run yourself before installing; do not wait on this row to
-tell you the answer. A deployment whose ClusterRole *does* grant namespace read gets a genuine
-answer from this row instead.
+diagnosis after the fact. **In practice it cannot run**: reading the namespace's label needs
+`get` on the cluster-scoped `namespaces` resource, and no chart shipped for the Advisor grants
+it — on purpose, to avoid widening cluster-wide RBAC for one probe. So this row reports "could
+not check", exactly as it would on a laptop with no cluster access at all. The check to trust is
+still the `kubectl` command above, run yourself before installing; do not wait on this row to
+tell you the answer. Only a ClusterRole you widened yourself would get a genuine answer from it.
 
 ### Coverage was 100%, and after a restart it is not
 
@@ -486,7 +497,8 @@ calls at the same time as a build.
 **How to confirm.**
 
 ```bash
-kubectl -n <namespace> logs deploy/<release>-advisor | grep 'throttled (429)'
+kubectl -n <namespace> logs -l app.kubernetes.io/name=advisor,component=server --tail=-1 \
+  | grep 'throttled (429)'
 curl -s localhost:8080/report.json | jq '[.data_gaps[] | select(.code == "G2")]'
 ```
 
@@ -538,7 +550,7 @@ lists the clouds you set — that tells you the *plumbing* worked. If it shows a
   automatically whenever the Azure annotation is present, so this is a check rather than a step:
 
   ```bash
-  kubectl -n advisor get pod -l app.kubernetes.io/name=advisor \
+  kubectl -n advisor get pod -l app.kubernetes.io/name=advisor,component=server \
     -o jsonpath='{.items[0].metadata.labels}'
   ```
 - *Google Cloud only — no export table.* Google publishes no API for what you were actually
@@ -773,7 +785,7 @@ a `meta.helm.sh/release-name` annotation tells you which release believes it own
 | Situation | Do this |
 |---|---|
 | It is yours, and current | Reference it instead of creating one: `--set catalog.existingSecret=<name>` (or `quota.<cloud>.existingSecret`) |
-| It is yours, and stale | `kubectl create secret generic <name> --from-literal=... --dry-run=client -o yaml \| kubectl apply -f -` to update it in place |
+| It is yours, and stale | `printf %s "$VALUE" \| kubectl create secret generic <name> --from-file=<KEY>=/dev/stdin --dry-run=client -o yaml \| kubectl apply -f -` to update it in place. Stdin, not `--from-literal`, so the secret never enters `argv` — [why, and which values need it](permissions.md#keep-secret-values-out-of-the-command-line) |
 | It belongs to something else | Choose a different name. Do not delete it |
 | Unsure | Stop. `kubectl get secret <name> -o yaml` and find out who reads it first |
 
@@ -845,7 +857,9 @@ For `configured: false`, check the Secret's **key names** against what the chart
 
 ```bash
 kubectl -n <namespace> get secret <your-secret> -o jsonpath='{.data}' | jq 'keys'
-kubectl -n <namespace> exec deploy/<release>-advisor -- env | grep '^QUOTA_' | cut -d= -f1
+kubectl -n <namespace> exec "$(kubectl -n <namespace> get pod \
+  -l app.kubernetes.io/name=advisor,component=server -o name | head -1)" \
+  -- env | grep '^QUOTA_' | cut -d= -f1
 ```
 
 The expected keys are `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`; `AZURE_TENANT_ID` +
@@ -1254,7 +1268,7 @@ once per request. It returns 503 with the reason in the response body.
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' localhost:8080/report.pdf
 curl -s localhost:8080/report.pdf | head -c 400
-kubectl -n <namespace> describe pod -l app.kubernetes.io/name=advisor | grep -A3 'Last State'
+kubectl -n <namespace> describe pod -l app.kubernetes.io/name=advisor,component=server | grep -A3 'Last State'
 ```
 
 An `OOMKilled` last state points at the memory limit; the render briefly wants several hundred
@@ -1513,7 +1527,10 @@ two it is, name the step it stopped on, and tell you what exists so far.
 **How to fix.** The quickest route needs no configuration change at all: ask it to print the exact
 commands and run them yourself, then paste the output back. That is safe here by design — no
 command in this flow contains a secret. Your catalog key is read from a file with `--from-file`, so
-it never appears in a command line, an environment variable, or the agent's context.
+it never appears in a command line, an environment variable, or the agent's context — and the same
+holds for any cloud credential you add later, which is why those commands read the secret half from
+stdin rather than `--from-literal`
+([why](permissions.md#keep-secret-values-out-of-the-command-line)).
 
 If you would rather grant a permission so it can carry on unattended, one thing is worth knowing,
 because it is easy to get backwards. **These rules match the start of the command text, so scope
@@ -1552,7 +1569,7 @@ curl -s localhost:8080/status.json                       # tiers, coverage, prob
 curl -s localhost:8080/build.json                        # build state and error
 curl -s localhost:8080/report.json | jq '.generated_at, .data_gaps'
 curl -s localhost:8080/quota.json | jq '.per_cloud_status, .inventory.errors'
-kubectl -n <namespace> logs deploy/<release>-advisor --tail=200
+kubectl -n <namespace> logs -l app.kubernetes.io/name=advisor,component=server --tail=200
 helm -n <namespace> get values <release>
 ```
 
