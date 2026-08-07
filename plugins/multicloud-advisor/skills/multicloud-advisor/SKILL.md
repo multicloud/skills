@@ -90,6 +90,12 @@ SIGNUP_URL  = https://multicloud.io/account   # only meaningful once SIGNUP_OPEN
 signup is built but not reachable. Flipping it is a one-line edit to this file, not a code change
 anywhere.
 
+**Signing up and re-minting are not the same act, and only the first one is gated.**
+`https://multicloud.io/account` is live now, and it is where someone who *already has an account*
+replaces a key that has been revoked or superseded. Send them there when a key they hold is
+rejected (Step 1). Do **not** send someone there who has never had a key — they have nothing to
+sign in with, and that is what `SIGNUP_OPEN = false` means.
+
 ## When reality diverges from this file
 
 **Stop and report. Do not improvise a way around it.**
@@ -221,12 +227,40 @@ Discovering at Step 5 that they have no key — after the pinning, the detection
 — wastes all of it and can cost them days. A requirement you could have named up front and did
 not is a defect, the same way a foreseeable escalation is.
 
-So ask now: **do you already have a catalog key?**
+**Look on disk before you ask.** Asking "do you already have a catalog key?" of someone who has
+one sitting in `~/.multicloud-catalog-key` is the sound of a script running, not of someone paying
+attention — and the answer is one command away. That command also *tests* the key, which is the
+part they cannot answer for you: people believe they have a working key far more often than they
+have one.
+
+```bash
+if [ -s ~/.multicloud-catalog-key ]; then { printf 'X-API-Key: '; cat ~/.multicloud-catalog-key; } | curl -sS -o /dev/null --max-time 15 -H @- -w "key present, $(wc -c < ~/.multicloud-catalog-key | tr -d ' ') bytes, trailing-newline=$(tail -c1 ~/.multicloud-catalog-key | wc -l | tr -d ' '); catalog HTTP %{http_code}\n" 'https://api.multicloud.io/api/v1/catalog/servers?per_page=1'; else echo 'no key file at ~/.multicloud-catalog-key'; fi
+```
+
+The key reaches `curl` down a pipe and `-H @-` reads the header off stdin, so it never enters
+`argv` and never enters your context — you see a status code, not a secret. **Do not "simplify"
+this to `-H "X-API-Key: $(cat …)"`.** That puts the key back on a command line, where `ps`,
+`/proc/<pid>/cmdline` and any execve auditing on the box can read it, which is the exact exposure
+the file exists to avoid.
+
+Then say the one thing the result warrants, and nothing else:
+
+| Result | Say | Then |
+|---|---|---|
+| `catalog HTTP 200` | *"You already have a working catalog key — I checked."* | Move on. Do not ask for it, do not re-verify it, do not narrate the check. |
+| `trailing-newline=1` (whatever the status) | *"Your key file ends in a newline. This probe strips it, but the cluster secret keeps it — so it passes here and fails after install."* | Have them rewrite the file with the `printf %s` command below. Fix it now; found later it looks like a bad key, not a stray byte. |
+| `catalog HTTP 401` or `403` | *"You have a key on disk, but the catalog rejects it — revoked, expired or superseded. Mint a fresh one at <https://multicloud.io/account> and rewrite the file."* | Give them the `printf %s` command below, then re-run the probe. **Do not carry a dead key into Step 5.** It installs perfectly well and then produces a report with no prices in it. |
+| `catalog HTTP 000` | *"I can't reach the catalog from here at all — that's the network, not your key."* | Egress, DNS or a proxy. Their key is **untested**, not bad. Say which of the two you mean. |
+| `catalog HTTP 5xx` | *"The catalog is erroring on our side, not yours."* | Their key is untested. Carry on with Steps 2–4 and re-probe before Step 5. |
+| `no key file at ~/.multicloud-catalog-key` | Now ask: **do you already have a catalog key?** | The two branches below. |
+
+Only when there is no file, ask — and branch on the answer:
 
 - **No** → tell them to ask their Multicloud contact for one *now*, so the request is in flight
-  while you work. Say plainly that you cannot issue one, and **do not offer a URL** — a
-  plausible-looking one is worse than the wait. Then carry on with Steps 2–4 anyway. They are all
-  read-only, they create nothing, and their answers are worth having when the key arrives.
+  while you work. Say plainly that you cannot issue one, and **do not offer a URL** — signup is
+  not self-serve, so a plausible-looking link is worse than the wait. Then carry on with Steps 2–4
+  anyway. They are all read-only, they create nothing, and their answers are worth having when the
+  key arrives.
 - **Yes** → have them put it in a file now, and keep it out of this conversation:
 
   ```bash
@@ -242,15 +276,12 @@ So ask now: **do you already have a catalog key?**
   say that you are a hosted model, so it transits to your provider along with everything else in
   the conversation, and that the file route avoids that entirely. Offer the file first.
 
-Then confirm it landed **without reading it** — a byte count, never the value:
+Then **re-run the probe above** rather than a bare `wc -c`. A byte count proves a paste landed; it
+does not prove the key works, and those fail at opposite ends of the run. **0 bytes is an empty
+file** — a failed paste, not a short key.
 
-```bash
-wc -c < ~/.multicloud-catalog-key
-```
-
-A plausible length is enough. **0 means an empty file**, which is a failed paste and not a short
-key. Nothing is written to their cluster yet; Step 5 does that, and only after the preflight has
-said the install can succeed at all.
+Nothing is written to their cluster yet; Step 5 does that, and only after the preflight has said
+the install can succeed at all.
 
 Then add the trail: you will keep a per-run log of every command, its exit code and its output.
 **It lives on their machine and never comes back to us — their trail, not our telemetry.**
@@ -515,15 +546,21 @@ kubectl --context <ctx> get nodes -o custom-columns='NODE:.metadata.name,TYPE:.m
 
 ## Step 5 — Write the catalog key into the cluster
 
-You asked for the key back in Step 1 and confirmed its length. **This step writes it**, and it is
-here rather than earlier for one reason: a `no` from the preflight is a stop-and-guide, and you
-must not have put their credential into a cluster they cannot install into. Nothing before this
-point has created anything.
+You found or obtained the key back in Step 1 and **probed it against the catalog**. This step
+writes it, and it is here rather than earlier for one reason: a `no` from the preflight is a
+stop-and-guide, and you must not have put their credential into a cluster they cannot install
+into. Nothing before this point has created anything.
 
-If the key never arrived, this is where you wait — not where you first ask. Under
-`SIGNUP_OPEN = false` (today) there is no self-serve signup and no page to point at, so the only
-move is their Multicloud contact. Under `SIGNUP_OPEN = true`, hand over `SIGNUP_URL`; they
-self-register and mint it themselves. You never mint it either way.
+**If Step 1's probe did not return `200`, do not write the Secret yet — re-probe.** A key that
+the catalog rejects installs perfectly and then yields a report with no prices in it, hours later
+and nowhere near the cause. If it was `5xx` or `000` back then, that may simply have cleared.
+
+If the key never arrived at all, this is where you wait — not where you first ask. Under
+`SIGNUP_OPEN = false` (today) there is no self-serve signup for someone who has never had a key,
+so the only move is their Multicloud contact. (Someone whose *existing* key was rejected is a
+different case and re-mints at `https://multicloud.io/account` — see "One constant".) Under
+`SIGNUP_OPEN = true`, hand over `SIGNUP_URL`; they self-register and mint it themselves. You never
+mint it either way.
 
 **The key must never appear as a command-line argument** — not on `helm --set`, and not on
 `kubectl --from-literal` either. Both put it in the process's `argv`, where `ps` shows it to every

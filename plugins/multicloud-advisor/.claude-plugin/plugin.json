@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "multicloud-advisor",
   "description": "Audit a Kubernetes cluster's cloud spend end to end: install the read-only Multicloud Advisor, then drive it over MCP through diagnosis, cloud-access grants, the savings counterfactual, the quota increases that make the cheaper fleet actually provisionable, and a report the customer is shown rather than sent a link to. The skill carries the shape of the run; every permission list, quota code and region list is served live by the Advisor you just installed, so nothing packaged here can go stale.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Multicloud",
     "url": "https://multicloud.io"
