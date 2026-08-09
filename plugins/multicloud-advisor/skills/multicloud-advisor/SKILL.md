@@ -27,6 +27,11 @@ Advisor computes which quotas will block the fleet, and *you* file the increases
 own machine under their own identity — work that otherwise costs a person a day of portal
 clicking.
 
+Clouds cap how many increase requests may be open at once, so a long plan does not all get
+filed in one sitting. `plan_quota_requests` reports the budget, what fits and what waits — say
+that arithmetic to the human and let them choose the order before you file. Never file a batch
+blind, and never quote a cap from memory: ask the tool.
+
 The step numbers below run to 9 and the phases run to 7. They are not the same scale and never
 line up: **Steps 1–9 are all inside phases 1–2.** Finishing Step 9 means you are two phases into
 seven.
