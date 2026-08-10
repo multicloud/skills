@@ -752,6 +752,11 @@ to continue — go to `guidance://phase/3-diagnose` and work forward through pha
 - The savings figure has been delivered **with its drivers and its degradations**, not alone.
 - Quota is settled: the increases are filed and tracked, or the human has been told plainly that
   quota analysis is off and why. **Phase 6 is not optional, and it is not theirs to remember.**
+  "Tracked" means a written ledger, not a memory of this conversation — the pre-filing limits are
+  gone from the cloud the moment the increases land, and with them the only proof the phase did
+  anything. **Say the outstanding count in the handover.** Nothing notifies anyone when a quota
+  request settles, so a pending one the customer does not know about surfaces as a failed
+  provision weeks later.
 - They have **seen their report** — not been handed a URL.
 
 **Wait before you judge the first result.** Node identification runs on a loop with a five-minute
