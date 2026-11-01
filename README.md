@@ -117,7 +117,15 @@ python3 plugins/multicloud-advisor/skills/multicloud-advisor/scripts/verify_audi
 
 ## License
 
-Proprietary — see [LICENSE](LICENSE). This repository is **public so you can read it before you
-run it**, not open source. You are licensed to run these Materials against infrastructure you
-own or administer; redistribution and derivative works are not permitted. Anything the Materials
-produce on your machine, including the audit log, is yours.
+Each plugin carries its own `LICENSE` file:
+
+| Plugin | License |
+|---|---|
+| `multicloud-advisor` | Proprietary, see [LICENSE](LICENSE) |
+| `multicloud-connect-aws` | Apache-2.0, see [plugins/multicloud-connect-aws/LICENSE](plugins/multicloud-connect-aws/LICENSE) |
+
+Everything else in this repository is proprietary ([LICENSE](LICENSE)). It is **public so you can
+read it before you run it**, not open source. You are licensed to run these Materials against
+infrastructure you own or administer; redistribution and derivative works are not permitted.
+Anything the Materials produce on your machine, including the audit log, is yours. The Apache-2.0
+license of `multicloud-connect-aws` grants no right to the Multicloud name or marks.

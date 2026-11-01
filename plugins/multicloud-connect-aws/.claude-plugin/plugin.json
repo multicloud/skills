@@ -9,7 +9,7 @@
   },
   "homepage": "https://multicloud.io",
   "repository": "https://github.com/multicloud/skills",
-  "license": "LicenseRef-Proprietary",
+  "license": "Apache-2.0",
   "keywords": [
     "aws",
     "iam",
