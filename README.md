@@ -46,6 +46,7 @@ yourself, including the one that watching the pod's egress cannot tell you.
 | Skill | Status | Does |
 |---|---|---|
 | `multicloud-advisor` | Available | Installs the Advisor and connects your agent to it |
+| `multicloud-connect-aws` | Available | Connects your AWS account to Multicloud through `mctl`, and checks it is ready |
 | `skipper-onboard` | Name reserved | Onboarding onto Skipper |
 | `skipper-deploy` | Name reserved | Deploying with Skipper |
 
