@@ -19,8 +19,8 @@ missing permissions.
 2. **Never handle the connect code.** Do not run `mctl cloud-account token` (it prints the code;
    that command is for people who apply by hand). `mctl cloud-account apply` gets the code and
    gives it to Terraform without showing it. Never read `~/.config/multicloud/credentials`, never
-   run `mctl cloud-account show --json` piped into other tools to look for secrets, never print
-   environment variables.
+   print environment variables (`env`, `printenv`, `set`), and never run `tofu`/`terraform`
+   `output`, `show` or `state` in the connection folder: `mctl` runs Terraform for you.
 3. **Ask before every apply.** Show what the plan creates, ask one yes/no question, and run
    `apply --yes` only after a clear yes. A yes covers one apply.
 4. **One connection per AWS account.** Run `mctl cloud-account list` before `create`. If the
@@ -35,7 +35,7 @@ Run these and report what is missing, with the install line:
 | Check | If missing |
 |---|---|
 | `mctl --version` | `pipx install multicloud-cli` (or `uv tool install multicloud-cli`) |
-| `tofu version` or `terraform version` (1.5 or later) | OpenTofu: https://opentofu.org/docs/intro/install/ |
+| `tofu version` or `terraform version` (1.5 or later; `mctl` uses `tofu` when both exist) | OpenTofu: https://opentofu.org/docs/intro/install/. An older version: stop and ask the user to upgrade. |
 | `aws sts get-caller-identity` | The user logs in to AWS their usual way (for example `aws sso login --profile <p>`). If they use a profile, use `AWS_PROFILE=<p>` in later commands. |
 
 Tell the user the AWS account ID that `aws sts get-caller-identity` shows. It must equal the
@@ -61,22 +61,24 @@ Run `mctl cloud-account list`.
 
 - The AWS account is listed: note its number (first column). Find its folder (the one with
   `multicloud.tf` whose `account_row_id` is that number). Ask the user if you cannot find it.
-  Status `verified`: go to step 5 (the user may only want the check). Other status: go to step 4.
+  Status `verified`: run `mctl cloud-account verify <n> --wait` and go to step 5 (the user may
+  only want the check). Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
-  may use (it starts machines only there). Name the regions again in the apply question. Make a new, empty folder (for example `multicloud-aws-<account>`), go into it, and run:
+  may use (it starts machines only there). Name the regions again in the apply question. `create`
+  writes `multicloud.tf` into the current directory, and a shell can lose its directory between
+  commands, so make the folder and create in one command:
 
   ```bash
-  mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...]
+  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...]
   ```
 
-  It prints `Cloud account <n> created ...` and writes `multicloud.tf`. Note `<n>`.
+  It prints `Cloud account <n> created ...` and writes `multicloud.tf`. Note `<n>` and the
+  absolute path of the folder (`<dir>`). Pass `--dir <dir>` to every `apply` below.
 
 ## Step 4: Plan, ask, apply
 
-In the connection folder:
-
 ```bash
-mctl cloud-account apply <n> --plan-only
+mctl cloud-account apply <n> --dir <dir> --plan-only
 ```
 
 Read the plan and tell the user, in a few lines, what it creates in their AWS account:
@@ -90,14 +92,15 @@ connect code). Both are expected.
 Then ask: "Apply this to AWS account <id>?" Only after a clear yes:
 
 ```bash
-mctl cloud-account apply <n> --yes
+mctl cloud-account apply <n> --dir <dir> --yes
 ```
 
 This issues the connect code, runs the apply, and waits for the check (up to 15 minutes by
 default). Do not interrupt it. If your command tool has a time limit below 20 minutes, add
 `--timeout 300`: when the wait ends first, it exits 2, and you continue with
-`mctl cloud-account verify <n> --wait --timeout 300` (repeat up to three times). A new verify
-needs no new question; a new apply does.
+`mctl cloud-account verify <n> --wait --timeout 300`. Repeat it while it exits 2, up to 30
+minutes in total, then report "still pending". A new verify needs no new question; a new apply
+does.
 
 ## Step 5: Report the result
 
@@ -108,7 +111,7 @@ The last lines of `apply` (or of `mctl cloud-account verify <n> --wait`) say:
 | `Ready: AWS account <id> is connected (policy version <v>).` (exit 0) | The account is ready. | Done. |
 | `Missing permissions:` and a list (exit 1) | The exact permissions. Usually someone changed the role policy, or an SCP (service control policy) blocks an action. | Offer to apply again (step 4, with a new question). If it fails again with the same list, an SCP is likely: the user's AWS administrator must allow those actions. |
 | `Still pending after ...` (exit 2) | AWS has not finished the IAM change. | Run `mctl cloud-account verify <n> --wait` again later. |
-| `ACCOUNT_HELD` | Another Multicloud team connected this AWS account. | Stop. The user contacts Multicloud support. |
+| `ACCOUNT_HELD` (in an `Error:` line, or in the API answer the apply prints) | Another Multicloud team connected this AWS account. | Stop. The user contacts Multicloud support. |
 | `ROLE_ARN_MISMATCH` | The AWS login was in another account. | Back to step 1. |
 | `CONNECT_TOKEN_GONE` | The code expired or was used. | Run step 4 again; apply gets a new code. |
 | Any other error | Quote the error line. | Do not retry more than once without the user. |
@@ -118,6 +121,8 @@ last check) if the user asks.
 
 ## Disconnect
 
-Only on an explicit request. Tell the user that `tofu destroy` (or `terraform destroy`) in the
-connection folder deletes the role, after which Multicloud cannot use the account, and that they
-should also tell Multicloud support so it stops its machines there. Ask before you run it.
+Only on an explicit request. First the user tells Multicloud support, so that Multicloud stops its
+machines in the account (a self-service disconnect is planned); a `destroy` before that can leave
+machines running and billed that Multicloud can no longer reach. When support confirms, tell the
+user that `tofu destroy` (or `terraform destroy`) in the connection folder deletes the role, after
+which Multicloud cannot use the account. Ask before you run it.
