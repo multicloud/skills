@@ -38,11 +38,6 @@ Run these and report what is missing, with the install line:
 | `tofu version` or `terraform version` (1.5 or later; `mctl` uses `tofu` when both exist) | OpenTofu: https://opentofu.org/docs/intro/install/. An older version: stop and ask the user to upgrade. |
 | `aws sts get-caller-identity` | The user logs in to AWS their usual way (for example `aws sso login --profile <p>`). If they use a profile, use `AWS_PROFILE=<p>` in later commands. |
 
-Run `aws configure get region` (with the same `AWS_PROFILE`). If it prints nothing and
-`AWS_REGION` is not set, use `AWS_REGION=<first region the user named>` in every later command:
-`multicloud.tf` has no provider block, and without a region the plan stops with
-`Error: invalid AWS Region`. Multicloud still uses only the regions passed to `create`.
-
 Tell the user the AWS account ID that `aws sts get-caller-identity` shows. It must equal the
 account they want to connect. If it differs, stop and ask them to log in to the correct account.
 The login must be able to create IAM roles and policies.
@@ -85,6 +80,13 @@ Run `mctl cloud-account list`.
   absolute path of the folder (`<dir>`). Pass `--dir <dir>` to every `apply` below.
 
 ## Step 4: Plan, ask, apply
+
+First make sure Terraform has an AWS region: `multicloud.tf` has no provider block, and without a
+region the plan stops with `Error: invalid AWS Region`. If `AWS_REGION` and `AWS_DEFAULT_REGION`
+are not set and `aws configure get region` (with the same `AWS_PROFILE`) prints nothing, put
+`AWS_REGION=<first region passed to create>` before each `apply` command below. This region only
+tells Terraform where to send its calls (the role is global in IAM); Multicloud still uses only the
+regions of the connection.
 
 ```bash
 mctl cloud-account apply <n> --dir <dir> --plan-only
