@@ -21,9 +21,11 @@ missing permissions.
    gives it to Terraform without showing it. Never read `~/.config/multicloud/credentials`, never
    print environment variables (`env`, `printenv`, `set`), and never run `tofu`/`terraform`
    `output`, `show` or `state` in the connection folder: `mctl` runs Terraform for you.
-   The same holds for AWS secrets: never ask for an AWS access key, never read
-   `~/.aws/credentials` or `~/.aws/sso/cache`, and never run `aws configure export-credentials` or
-   `aws configure get aws_secret_access_key`. The user types AWS keys into `aws configure` themselves.
+   The same holds for AWS secrets: never ask for, read, print or export AWS credential material.
+   For example: never read `~/.aws/credentials` or `~/.aws/sso/cache`, and never run
+   `aws configure export-credentials`, `aws configure get aws_secret_access_key` (or
+   `aws_session_token`) or `aws sts get-session-token`. The user types AWS keys into
+   `aws configure` themselves.
 3. **Ask before every apply.** Show what the plan creates, ask one yes/no question, and run
    `apply --yes` only after a clear yes. A yes covers one apply.
 4. **One connection per AWS account.** Run `mctl cloud-account list` before `create`. If the
@@ -54,9 +56,11 @@ default region. `AWS_PROFILE=<name>` selects it. Then go through these steps, on
 1. **No `aws` command.** The user installs the AWS CLI:
    https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html (macOS:
    `brew install awscli`).
-2. **Find the profile.** Run `aws configure list-profiles`. For each profile (at most 10), run
-   `aws sts get-caller-identity --profile <p> --query Account --output text`, and show the user a
-   table: profile, AWS account ID. A profile that fails with a token or SSO error is signed out.
+2. **Find the profile.** Run `aws configure list-profiles`. If the user names one, check only that
+   one. Otherwise check each (at most 10) with
+   `AWS_PAGER= aws sts get-caller-identity --profile <p> --query Account --output text </dev/null`
+   (no input, so an MFA prompt fails instead of waiting), and show the user a table: profile, AWS
+   account ID. A profile that fails (token, SSO, MFA or other error) is signed out.
    The user picks the profile of the account to connect. If it is signed out, the user runs
    `aws sso login --profile <p>` in their own terminal (it opens the browser) and tells you when
    done.
@@ -70,20 +74,23 @@ default region. `AWS_PROFILE=<name>` selects it. Then go through these steps, on
    - **SSO region:** the region of IAM Identity Center, on the same page.
    - **Registration scopes:** keep the default.
    - The browser opens. They sign in, then select the AWS account and a role that can create IAM
-     roles, for example `AdministratorAccess`.
+     roles and policies: for example `AdministratorAccess`, or a narrower role from their AWS
+     administrator.
    - **Default client region:** the first region they will give to Multicloud.
    - **Output format:** keep the default.
-   - **Profile name:** for example `multicloud`.
+   - **Profile name:** a name that `aws configure list-profiles` does not show yet (an existing
+     name is overwritten), for example `multicloud`.
 
    No single sign-on in their company (an IAM user with an access key):
    `aws configure --profile multicloud`. They type the key themselves, never in the chat.
    No AWS login at all, or no role that can create IAM roles: their AWS administrator must give
    them one. Stop until they have it.
-4. **Check.** Run `AWS_PROFILE=<p> aws sts get-caller-identity` and go back to step 1. Put
+4. **Check.** Run `AWS_PROFILE=<p> aws sts get-caller-identity`. Another account, or an error: go
+   back to item 2 of this list. The correct account: continue with **Step 2** below. Put
    `AWS_PROFILE=<p>` before every later `aws` and `mctl` command.
 5. **Region.** Run `AWS_PROFILE=<p> aws configure get region`. If it prints nothing, offer
    `aws configure set region <first region> --profile <p>` (ask first: it changes their AWS
-   config). If they say no, step 4 sets `AWS_REGION` for the apply.
+   config). If they say no, **Step 4: Plan, ask, apply** sets `AWS_REGION` for the apply.
 
 ## Step 2: Check the Multicloud sign-in
 
