@@ -28,6 +28,20 @@
         "aks"
       ],
       "strict": true
+    },
+    {
+      "name": "multicloud-connect-aws",
+      "source": "./plugins/multicloud-connect-aws",
+      "description": "Connect your AWS account to Multicloud: your agent runs mctl and OpenTofu/Terraform with your own AWS login, asks before it applies, and reports Ready or the missing permissions. It never sees your API key or the connect code.",
+      "category": "infrastructure",
+      "tags": [
+        "aws",
+        "iam",
+        "terraform",
+        "opentofu",
+        "onboarding"
+      ],
+      "strict": true
     }
   ]
 }
