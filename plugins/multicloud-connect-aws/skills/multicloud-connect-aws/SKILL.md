@@ -81,6 +81,13 @@ Run `mctl cloud-account list`.
 
 ## Step 4: Plan, ask, apply
 
+First make sure Terraform has an AWS region: `multicloud.tf` has no provider block, and without a
+region the plan stops with `Error: invalid AWS Region`. If `AWS_REGION` and `AWS_DEFAULT_REGION`
+are not set and `aws configure get region` (with the same `AWS_PROFILE`) prints nothing, put
+`AWS_REGION=<first region passed to create>` before each `apply` command below. This region only
+tells Terraform where to send its calls (the role is global in IAM); Multicloud still uses only the
+regions of the connection.
+
 ```bash
 mctl cloud-account apply <n> --dir <dir> --plan-only
 ```
