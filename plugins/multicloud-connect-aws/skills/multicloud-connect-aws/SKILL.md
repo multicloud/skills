@@ -21,6 +21,11 @@ missing permissions.
    gives it to Terraform without showing it. Never read `~/.config/multicloud/credentials`, never
    print environment variables (`env`, `printenv`, `set`), and never run `tofu`/`terraform`
    `output`, `show` or `state` in the connection folder: `mctl` runs Terraform for you.
+   The same holds for AWS secrets: never ask for, read, print or export AWS credential material.
+   For example: never read `~/.aws/credentials` or `~/.aws/sso/cache`, and never run
+   `aws configure export-credentials`, `aws configure get aws_secret_access_key` (or
+   `aws_session_token`) or `aws sts get-session-token`. The user types AWS keys into
+   `aws configure` themselves.
 3. **Ask before every apply.** Show what the plan creates, ask one yes/no question, and run
    `apply --yes` only after a clear yes. A yes covers one apply.
 4. **One connection per AWS account.** Run `mctl cloud-account list` before `create`. If the
@@ -36,11 +41,56 @@ Run these and report what is missing, with the install line:
 |---|---|
 | `mctl --version` | `pipx install multicloud-cli` (or `uv tool install multicloud-cli`) |
 | `tofu version` or `terraform version` (1.5 or later; `mctl` uses `tofu` when both exist) | OpenTofu: https://opentofu.org/docs/intro/install/. An older version: stop and ask the user to upgrade. |
-| `aws sts get-caller-identity` | The user logs in to AWS their usual way (for example `aws sso login --profile <p>`). If they use a profile, use `AWS_PROFILE=<p>` in later commands. |
+| `aws sts get-caller-identity` | Fails, shows another account, or the user does not know their AWS profile: follow **AWS sign-in help** below. If they use a profile, use `AWS_PROFILE=<p>` in later commands. |
 
 Tell the user the AWS account ID that `aws sts get-caller-identity` shows. It must equal the
 account they want to connect. If it differs, stop and ask them to log in to the correct account.
 The login must be able to create IAM roles and policies.
+
+## AWS sign-in help
+
+Many users do not know AWS CLI profiles. Explain in plain words: a **profile** is a named AWS
+sign-in in `~/.aws/config`. It holds the AWS account, the role, the sign-in method and an optional
+default region. `AWS_PROFILE=<name>` selects it. Then go through these steps, one at a time.
+
+1. **No `aws` command.** The user installs the AWS CLI:
+   https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html (macOS:
+   `brew install awscli`).
+2. **Find the profile.** Run `aws configure list-profiles`. If the user names one, check only that
+   one. Otherwise check each (at most 10) with
+   `AWS_PAGER= aws sts get-caller-identity --profile <p> --query Account --output text </dev/null`
+   (no input, so an MFA prompt fails instead of waiting), and show the user a table: profile, AWS
+   account ID. A profile that fails (token, SSO, MFA or other error) is signed out.
+   The user picks the profile of the account to connect. If it is signed out, the user runs
+   `aws sso login --profile <p>` in their own terminal (it opens the browser) and tells you when
+   done.
+3. **No profile for that account.** The user makes one in their own terminal: the command asks
+   questions that you cannot answer for them. Recommend single sign-on: `aws configure sso`. Tell
+   them what it asks:
+   - **SSO session name:** any name, for example their company name.
+   - **SSO start URL:** the "AWS access portal URL", for example
+     `https://my-company.awsapps.com/start`. Their AWS administrator has it. It is also in the
+     IAM Identity Center console, under **Settings**.
+   - **SSO region:** the region of IAM Identity Center, on the same page.
+   - **Registration scopes:** keep the default.
+   - The browser opens. They sign in, then select the AWS account and a role that can create IAM
+     roles and policies: for example `AdministratorAccess`, or a narrower role from their AWS
+     administrator.
+   - **Default client region:** the first region they will give to Multicloud.
+   - **Output format:** keep the default.
+   - **Profile name:** a name that `aws configure list-profiles` does not show yet (an existing
+     name is overwritten), for example `multicloud`.
+
+   No single sign-on in their company (an IAM user with an access key):
+   `aws configure --profile multicloud`. They type the key themselves, never in the chat.
+   No AWS login at all, or no role that can create IAM roles: their AWS administrator must give
+   them one. Stop until they have it.
+4. **Check.** Run `AWS_PROFILE=<p> aws sts get-caller-identity`. Another account, or an error: go
+   back to item 2 of this list. The correct account: continue with **Step 2** below. Put
+   `AWS_PROFILE=<p>` before every later `aws` and `mctl` command.
+5. **Region.** Run `AWS_PROFILE=<p> aws configure get region`. If it prints nothing, offer
+   `aws configure set region <first region> --profile <p>` (ask first: it changes their AWS
+   config). If they say no, **Step 4: Plan, ask, apply** sets `AWS_REGION` for the apply.
 
 ## Step 2: Check the Multicloud sign-in
 
@@ -49,15 +99,18 @@ Run `mctl auth status`.
 - `The sign-in works.` (signed in with the company account) or `The key works.` (API key): continue.
 - Not signed in, or the API refused it: ask the user to sign in themselves, in their own
   terminal, then tell you when done:
-  `mctl auth login --org <team-id>`. It opens the browser; they sign in as on multicloud.io.
-  With no browser (SSH, a container): `mctl auth login --org <team-id> --no-browser`.
+  `mctl auth login`. It opens the browser; they sign in as on multicloud.io.
+  With no browser (SSH, a container): `mctl auth login --no-browser`.
   Or with an API key instead of the company account: on multicloud.io, Account → API keys →
   New key, select **Infrastructure** (if there is no Infrastructure box, Multicloud support
-  creates the key), then `mctl auth login --org <team-id> --api-key`. It asks for the key and
+  creates the key), then `mctl auth login --org <org-id> --api-key`. It asks for the key and
   hides it.
   Then run `mctl auth status` again.
 
-If the user does not know the team ID, they ask Multicloud support. Do not guess it.
+`mctl auth status` prints `Organizations:` with the organization IDs of the sign-in. With one
+organization, no `--org` is needed. With several, ask the user which one, and add `--org <org-id>`
+to every `mctl` command. Do not guess it. For an API key, the user knows the organization ID from
+the console (or asks Multicloud support).
 
 ## Step 3: Find or create the connection
 
@@ -122,8 +175,8 @@ The last lines of `apply` (or of `mctl cloud-account verify <n> --wait`) say:
 | `Ready: AWS account <id> is connected (policy version <v>).` (exit 0) | The account is ready. | Done. |
 | `Missing permissions:` and a list (exit 1) | The exact permissions. Usually someone changed the role policy, or an SCP (service control policy) blocks an action. | Offer to apply again (step 4, with a new question). If it fails again with the same list, an SCP is likely: the user's AWS administrator must allow those actions. |
 | `Still pending after ...` (exit 5) | AWS has not finished the IAM change. | Run `mctl cloud-account verify <n> --wait` again later. |
-| An `Error:` line and exit 3 (a `list`, `create` or `apply` refused with 403) | The sign-in may not connect cloud accounts: only the team owner, or an **Infrastructure** API key, can. | The team owner signs in, or the user stores an Infrastructure key (step 2). |
-| `ACCOUNT_HELD` (in an `Error:` line, or in the API answer the apply prints) | Another Multicloud team connected this AWS account. | Stop. The user contacts Multicloud support. |
+| An `Error:` line and exit 3 (a `list`, `create` or `apply` refused with 403) | The sign-in may not connect cloud accounts: only the organization owner, or an **Infrastructure** API key, can. | The organization owner signs in, or the user stores an Infrastructure key (step 2). |
+| `ACCOUNT_HELD` (in an `Error:` line, or in the API answer the apply prints) | Another Multicloud organization connected this AWS account. | Stop. The user contacts Multicloud support. |
 | `ROLE_ARN_MISMATCH` | The AWS login was in another account. | Back to step 1. |
 | `CONNECT_TOKEN_GONE` | The code expired or was used. | Run step 4 again; apply gets a new code. |
 | Any other error | Quote the error line. | Do not retry more than once without the user. |
