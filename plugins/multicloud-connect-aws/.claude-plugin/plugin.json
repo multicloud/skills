@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "multicloud-connect-aws",
   "description": "Connect your AWS account to Multicloud from your own machine: the agent drives the mctl CLI and OpenTofu/Terraform with your own AWS login, asks you before it changes anything, and reports Ready or the exact missing permissions. It never sees your Multicloud API key or the one-time connect code.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Multicloud",
     "url": "https://multicloud.io"

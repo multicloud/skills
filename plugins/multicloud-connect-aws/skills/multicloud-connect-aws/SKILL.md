@@ -121,12 +121,21 @@ Run `mctl cloud-account list`.
   Status `verified`: run `mctl cloud-account verify <n> --wait` and go to step 5 (the user may
   only want the check). Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
-  may use (it starts machines only there). Name the regions again in the apply question. `create`
-  writes `multicloud.tf` into the current directory, and a shell can lose its directory between
-  commands, so make the folder and create in one command:
+  may use (it starts machines only there). Name the regions again in the apply question.
+- Ask also: "Turn on the AWS opt-in regions in this account?" (default yes). Opt-in regions (for
+  example `af-south-1`) are off in a new AWS account. With yes, Multicloud turns them on (only
+  the named regions, when the user named some). That takes minutes to hours, and Multicloud never
+  turns a region off again.
+  - Yes: pass `--opt-in-regions`. No: pass `--no-opt-in-regions`. Always pass one of them: your
+    shell has no terminal, and without a flag `mctl` takes yes.
+  - The flags need `mctl` 0.4.0 or newer. If `mctl cloud-account create --help` does not list
+    them, tell the user that this `mctl` cannot record the choice, and ask them to upgrade
+    (`pipx upgrade multicloud-cli`). Do not run `create` without the flag after a "no".
+- `create` writes `multicloud.tf` into the current directory, and a shell can lose its directory
+  between commands, so make the folder and create in one command:
 
   ```bash
-  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...]
+  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...] <--opt-in-regions | --no-opt-in-regions>
   ```
 
   It prints `Cloud account <n> created ...` and writes `multicloud.tf`. Note `<n>` and the
@@ -168,11 +177,17 @@ does.
 
 ## Step 5: Report the result
 
-The last lines of `apply` (or of `mctl cloud-account verify <n> --wait`) say:
+The last lines of `apply` (or of `mctl cloud-account verify <n> --wait`) say what follows. Several
+rows can match at once: after `Ready:`, read every `regions` line too and report each one.
 
 | Output | Tell the user | Next |
 |---|---|---|
 | `Ready: AWS account <id> is connected (policy version <v>).` (exit 0) | The account is ready. | Done. |
+| `regions ENABLING  <regions>` and `Turning on N opt-in regions takes minutes to hours. Verify again to add them to Multicloud.` | AWS is turning those regions on. Multicloud uses them only after a new verify. | Tell the user to run `mctl cloud-account verify <n>` later (or offer to, when they ask), for example in an hour. |
+| `regions SKIPPED   <regions> (you chose to leave them off)` | Those opt-in regions stay off by the user's choice. | Nothing. To change the choice: `mctl cloud-account verify <n> --opt-in-regions` (ask first). |
+| `regions SKIPPED   <regions> (not in the allowed regions)` | Those opt-in regions are outside the regions of the connection, so Multicloud may not turn them on. | Nothing. To use one, the connection needs that region in `regions` (a new apply, with a new question). |
+| `regions WARNING   The role has policy version ...` | The role is older than module 1.2.0, so Multicloud cannot turn on regions. The account still works. | Offer to change the module version in `multicloud.tf` to 1.2.0 and apply again (step 4, with a new question). |
+| `regions WARNING   AWS denied account:...` | An SCP (service control policy) or the role policy blocks the region calls. The account still works. | If the module is 1.2.0 or later, an SCP is likely: the user's AWS administrator must allow `account:ListRegions` and `account:EnableRegion`, or turn the regions on in the AWS console. |
 | `Missing permissions:` and a list (exit 1) | The exact permissions. Usually someone changed the role policy, or an SCP (service control policy) blocks an action. | Offer to apply again (step 4, with a new question). If it fails again with the same list, an SCP is likely: the user's AWS administrator must allow those actions. |
 | `Still pending after ...` (exit 5) | AWS has not finished the IAM change. | Run `mctl cloud-account verify <n> --wait` again later. |
 | An `Error:` line and exit 3 (a `list`, `create` or `apply` refused with 403) | The sign-in may not connect cloud accounts: only the organization owner, or an **Infrastructure** API key, can. | The organization owner signs in, or the user stores an Infrastructure key (step 2). |
