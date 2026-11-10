@@ -121,12 +121,17 @@ Run `mctl cloud-account list`.
   Status `verified`: run `mctl cloud-account verify <n> --wait` and go to step 5 (the user may
   only want the check). Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
-  may use (it starts machines only there). Name the regions again in the apply question. `create`
+  may use (it starts machines only there). Ask also: "Turn on the AWS opt-in regions in this
+  account?" (default yes). Opt-in regions (for example `af-south-1`) are off in a new AWS account;
+  with yes, Multicloud turns them on (only the named regions, when the user named some), and that
+  takes minutes to hours. Pass `--opt-in-regions` or `--no-opt-in-regions` to `create`: without a
+  flag and without a terminal, `mctl` takes yes. The flag needs `mctl` 0.4.0 or newer: if
+  `mctl cloud-account create --help` does not list it, leave it out. Name the regions again in the apply question. `create`
   writes `multicloud.tf` into the current directory, and a shell can lose its directory between
   commands, so make the folder and create in one command:
 
   ```bash
-  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...]
+  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...] --opt-in-regions
   ```
 
   It prints `Cloud account <n> created ...` and writes `multicloud.tf`. Note `<n>` and the
@@ -173,6 +178,9 @@ The last lines of `apply` (or of `mctl cloud-account verify <n> --wait`) say:
 | Output | Tell the user | Next |
 |---|---|---|
 | `Ready: AWS account <id> is connected (policy version <v>).` (exit 0) | The account is ready. | Done. |
+| `regions ENABLING  <regions>` and `Turning on N opt-in regions takes minutes to hours. Verify again to add them to Multicloud.` | AWS is turning those regions on. Multicloud uses them only after a new verify. | Tell the user to run `mctl cloud-account verify <n>` later (or offer to, when they ask), for example in an hour. |
+| `regions SKIPPED   <regions> (...)` | Those opt-in regions stay off, by the user's choice or because they are outside the allowed regions. | Nothing. To change the choice: `mctl cloud-account verify <n> --opt-in-regions` (ask first). |
+| `regions WARNING   ...` | Multicloud could not turn on regions: an old policy (module before 1.2.0) or an SCP that denies `account:EnableRegion`. The account still works. | Quote the warning. For an old policy, offer to change the module version to 1.2.0 and apply again (step 4, with a new question). |
 | `Missing permissions:` and a list (exit 1) | The exact permissions. Usually someone changed the role policy, or an SCP (service control policy) blocks an action. | Offer to apply again (step 4, with a new question). If it fails again with the same list, an SCP is likely: the user's AWS administrator must allow those actions. |
 | `Still pending after ...` (exit 5) | AWS has not finished the IAM change. | Run `mctl cloud-account verify <n> --wait` again later. |
 | An `Error:` line and exit 3 (a `list`, `create` or `apply` refused with 403) | The sign-in may not connect cloud accounts: only the organization owner, or an **Infrastructure** API key, can. | The organization owner signs in, or the user stores an Infrastructure key (step 2). |
