@@ -26,7 +26,10 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
 3. **Ask before each change** that creates, costs or deletes something. State the cost for a pool.
 4. **Live state wins.** The ledger says where you stopped; `mctl` says what is true. Never repeat a
    step that live state shows done (a second quota request, a second cloud account, a second pool).
-5. **Use the focused skill for each step.** Do not improvise commands. When a skill and your memory
+5. **Check before you suggest.** Before you tell the user to install, restart or run anything,
+   check on this computer whether it is already there and in the right state (the focused skill
+   names the check). Suggest only what is missing, and say what you found first.
+6. **Use the focused skill for each step.** Do not improvise commands. When a skill and your memory
    disagree, the skill wins; when a tool's live answer and a skill disagree, the live answer wins.
 
 ## The focused skills

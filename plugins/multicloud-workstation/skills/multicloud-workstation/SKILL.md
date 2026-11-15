@@ -18,7 +18,12 @@ in `flows/workstation.json` next to this file. Follow them in the order of this 
    user pastes a key, tell them to revoke it (Account › API keys) and make a new one.
    `mctl auth login` (browser sign-in) needs no key: prefer it.
 3. **Never store a key in a lasting setting** (`setx`, `~/.bashrc`, `~/.zshrc`, a `.env` file).
-4. **Ask before you install.** Name the tools and the commands in one question. A yes covers that
+4. **Check before you suggest.** Before you suggest any install, restart, sign-in or command,
+   run its read-only check on this computer and suggest only what is missing or wrong. Examples:
+   `Get-WindowsOptionalFeature` and `wsl.exe -l -v` (WSL), `mctl --version`, `aws --version`,
+   `tofu version`, `kubectl version --client`. Say what you found ("Ubuntu is not installed",
+   "mctl 0.x is installed") before you suggest the next step.
+5. **Ask before you install.** Name the tools and the commands in one question. A yes covers that
    list.
 
 ## How to read the flow file
