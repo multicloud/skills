@@ -13,7 +13,16 @@ branch `claude/multicloud-onboarding`. Results go to
    irm https://claude.ai/install.ps1 | iex
    ```
 
-   Open a new PowerShell window and check `claude --version`. Sign in with
+   `irm` is PowerShell only. If you get "'irm' is not recognized", the window
+   is Command Prompt (cmd.exe): either start `powershell` and run the line
+   above, or use the cmd installer:
+
+   ```bat
+   curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd
+   ```
+
+   All later steps assume a PowerShell window (Start, type "PowerShell"; the
+   prompt starts with `PS`). Open a new PowerShell window and check `claude --version`. Sign in with
    `claude` once if asked.
 
 2. Install Git for Windows if `git --version` fails (`winget install Git.Git`).
