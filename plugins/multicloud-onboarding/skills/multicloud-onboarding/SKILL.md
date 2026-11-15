@@ -79,7 +79,8 @@ say why in one line. Do not continue in the same session.
 
 The ledger is `multicloud-onboarding-state.json` in `~/multicloud-onboarding/` (on Windows: the
 home folder inside WSL, never under `/mnt/c`). Make the folder with mode 700 and the file with
-mode 600. If the user keeps it elsewhere, ask for the path once and store it in the file itself.
+mode 600. Keep mode 600 on every update: write a new version with `umask 077` and run
+`chmod 600` on the file after the move (a rewrite through a temp file gets mode 644 otherwise). If the user keeps it elsewhere, ask for the path once and store it in the file itself.
 
 - File exists: read it, tell the user in two lines what is done and what is next, then go to
   **Step 3: Check live state**.
