@@ -29,7 +29,7 @@ Each stage has `steps`. Each step has `h` (title), `d` (what to do), `in` (value
 | `who_kind` | You |
 |---|---|
 | `agent` | Run it. It changes nothing outside the working folder. |
-| `ask` | Show the command and ask; run it after a yes. |
+| `ask` | Show the command and ask; run it after a yes. On Windows, the agent can run PowerShell itself (checks, install, restart); each change waits for a yes, and an admin install needs the user to approve the Windows admin prompt (UAC). |
 | `browser` | Guide the user click by click, or drive the browser if you have browser tools. The user types passwords and codes. |
 | `user` | The user does it alone (a secret, an admin right, a reboot). Tell them what to do, wait for "done". |
 | `page` | A line for the printed page only. Skip it. |
@@ -56,10 +56,17 @@ On a Windows host shell:
   `Get-CimInstance Win32_OptionalFeature -Filter "Name='Microsoft-Windows-Subsystem-Linux'"`
   (InstallState 2 = enabled) and the registered distros under
   `HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss` (empty = none).
-- No Ubuntu with VERSION 2: do stage `windows` (the user installs WSL in
-  PowerShell as administrator and restarts Windows; you cannot do this). Tell the user to restart
-  Windows, then open Ubuntu once, then restart Claude Code (`claude --continue`) so the Multicloud
-  skills load. A company policy that blocks WSL: stop with `status=blocked who=it`.
+- No Ubuntu with VERSION 2: do stage `windows`. You can run PowerShell yourself, but every change
+  waits for the user's yes: first the read-only checks (`Get-WindowsOptionalFeature` for
+  `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux`), then the install. The install
+  needs administrator rights: start an elevated PowerShell (`Start-Process powershell -Verb RunAs`)
+  and let the user approve the Windows admin prompt (UAC) on their screen; never type or pass the
+  user's password. Why a restart: `wsl --install` turns on Windows features (the Linux subsystem and
+  Virtual Machine Platform) that run the WSL2 Linux kernel, and Windows loads them only at boot.
+  Ask before the restart, save the ledger first, then tell the user: after the restart, open Ubuntu
+  once and set a Linux user name and password, then restart Claude Code (`claude --continue`) so the
+  Multicloud skills load. A restart ends this session, so the next session resumes from the ledger.
+  A company policy that blocks WSL: stop with `status=blocked who=it`.
 - Run every later command as `wsl.exe -d Ubuntu -- bash -lc '<command>'`. For more than one line,
   write the lines to a script inside WSL (`~/multicloud-onboarding/run/<step>.sh`, by a heredoc in
   the same wrapper) and run `wsl.exe -d Ubuntu -- bash -l ~/multicloud-onboarding/run/<step>.sh`.
