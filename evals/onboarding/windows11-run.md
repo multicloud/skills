@@ -46,4 +46,7 @@ Restart Windows. Then open Ubuntu once and set a Linux user name and password. T
 
 - `evals/onboarding/windows11-checklist.md`: cmd.exe vs PowerShell note (`c8bcb94`).
 - This file (`evals/onboarding/windows11-run.md`): the run log.
-- Not yet changed: the skill text items 1 and 3 above. They will be committed one per commit after Yaron confirms the fix.
+- Skill fix for item 4 (restart Windows, then restart Claude Code, and the restart rule after plugin installs): `ee9666e` in the original history, now `71d650d` after the author fix. Orchestrator and `multicloud-workstation` Step 1.
+- Skill fix for item 3 (WSL check treats usage text as "no distro" and names the two PowerShell checks): committed on this branch with the same restart and author update. Orchestrator and `multicloud-workstation` Step 1.
+- Item 1 (checklist says Windows 11): not yet changed.
+- Author of the unpushed commits: GitHub blocked pushes that publish `yaron.rosenbaum@gmail.com` (GH007). The commits were reset to `Claude <noreply@anthropic.com>`, the author of earlier commits on this branch, before pushing `c8bcb94..3dea5a1`.
