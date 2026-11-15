@@ -42,6 +42,20 @@
         "onboarding"
       ],
       "strict": true
+    },
+    {
+      "name": "multicloud-quota",
+      "source": "./plugins/multicloud-quota",
+      "description": "Plan and request AWS quota increases for your Multicloud workloads: the agent asks what you want to run, reads limits, open requests and past denials, proposes an ordered list and files only what you approve.",
+      "category": "infrastructure",
+      "tags": [
+        "aws",
+        "quota",
+        "gpu",
+        "spot",
+        "onboarding"
+      ],
+      "strict": true
     }
   ]
 }

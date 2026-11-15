@@ -47,6 +47,7 @@ yourself, including the one that watching the pod's egress cannot tell you.
 |---|---|---|
 | `multicloud-advisor` | Available | Installs the Advisor and connects your agent to it |
 | `multicloud-connect-aws` | Available | Connects your AWS account to Multicloud through `mctl`, and checks it is ready |
+| `multicloud-quota` | Available after the quota API release | Plans AWS quota increases with you (what to run, which regions, which order) and files the ones you approve |
 | `skipper-onboard` | Name reserved | Onboarding onto Skipper |
 | `skipper-deploy` | Name reserved | Deploying with Skipper |
 
@@ -123,6 +124,7 @@ Each plugin carries its own `LICENSE` file:
 |---|---|
 | `multicloud-advisor` | Proprietary, see [LICENSE](LICENSE) |
 | `multicloud-connect-aws` | Apache-2.0, see [plugins/multicloud-connect-aws/LICENSE](plugins/multicloud-connect-aws/LICENSE) |
+| `multicloud-quota` | Apache-2.0, see [plugins/multicloud-quota/LICENSE](plugins/multicloud-quota/LICENSE) |
 
 Everything else in this repository is proprietary ([LICENSE](LICENSE)). It is **public so you can
 read it before you run it**, not open source. You are licensed to run these Materials against
