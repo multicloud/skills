@@ -51,8 +51,9 @@ Run `uname -s` alone (no `||` and no `/dev/null`: Windows PowerShell 5.1 rejects
 
 On a Windows host shell:
 - Run `wsl.exe -l -v`. No `Ubuntu` with VERSION 2: do stage `windows` (the user installs WSL in
-  PowerShell as administrator and restarts Windows; you cannot do this). A company policy that
-  blocks WSL: stop with `status=blocked who=it`.
+  PowerShell as administrator and restarts Windows; you cannot do this). Tell the user to restart
+  Windows, then open Ubuntu once, then restart Claude Code (`claude --continue`) so the Multicloud
+  skills load. A company policy that blocks WSL: stop with `status=blocked who=it`.
 - Run every later command as `wsl.exe -d Ubuntu -- bash -lc '<command>'`. For more than one line,
   write the lines to a script inside WSL (`~/multicloud-onboarding/run/<step>.sh`, by a heredoc in
   the same wrapper) and run `wsl.exe -d Ubuntu -- bash -l ~/multicloud-onboarding/run/<step>.sh`.

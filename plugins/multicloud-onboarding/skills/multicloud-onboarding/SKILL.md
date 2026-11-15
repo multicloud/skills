@@ -63,8 +63,15 @@ every result line into the ledger before you start the next skill.
 
 **Windows without WSL first.** On a Windows host shell where `wsl.exe -l -v` shows no Ubuntu with
 VERSION 2, run only the `windows` stage of `multicloud-workstation` first: the ledger lives inside
-WSL, and the WSL install ends with a Windows restart. Tell the user: "After the restart, open
-Ubuntu once, then say: continue my Multicloud onboarding." Then stop.
+WSL, and the WSL install ends with a Windows restart. Tell the user, in this order: (1) "Restart
+Windows now." (2) "After it restarts, open Ubuntu once and set a Linux user name and password."
+(3) "Then quit Claude Code and start it again with `claude --continue` in PowerShell, so the
+Multicloud skills load. The skills are only loaded at the start of a session." (4) "Then say:
+continue my Multicloud onboarding." Then stop.
+
+**Restart rule for every step.** Whenever a step installs or updates a plugin, or changes skill
+files, tell the user to restart Claude Code (`claude --continue`) before the next skill runs, and
+say why in one line. Do not continue in the same session.
 
 The ledger is `multicloud-onboarding-state.json` in `~/multicloud-onboarding/` (on Windows: the
 home folder inside WSL, never under `/mnt/c`). Make the folder with mode 700 and the file with
