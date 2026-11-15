@@ -70,3 +70,13 @@ Gaps the GREEN runs found, fixed in the next commit:
 
 Not changed (judged acceptable): the flow's `8` vCPU request (fits one g6.2xlarge or g5.2xlarge, the
 PoC size; the minimum is 4), and `us-east-1` in flow examples (the skills say to put in the real region).
+
+## Routing eval, 2026-11-15
+
+`python3 evals/onboarding/route_eval.py --project <scratch> --runs 2 --model claude-opus-5-5`
+(all repo skills visible at once, plus the user-level skills of the test machine).
+
+Score 48/48: each of the 21 skill prompts started the expected skill in both runs (the Advisor
+prompt started the installed `multicloud-advisor` plugin). The 3 near-miss prompts (EC2 networking, a
+plain GitHub Actions workflow, k3s on a Raspberry Pi) started no Multicloud skill. The
+descriptions were therefore not changed. Raw picks: `route-results.json`.
