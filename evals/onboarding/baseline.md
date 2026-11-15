@@ -44,3 +44,29 @@ Observed failures:
 - Does not know GPU CI classes are not available (422); assumes GPU quota.
 - No GitHub App step; `runs-on: [self-hosted, gpu]` (wrong labels; real: `multicloud`, `multicloud-large`, ...).
 - Does not ask whether "macOS" is the operator machine or the runner OS.
+
+## With the skills (GREEN, iteration 1), 2026-11-15
+
+Same four scenarios, same model, the skills read from the branch.
+
+| Scenario | Baseline | With skills |
+|---|---|---|
+| S1 GPU PoC, new account, Windows | Native PowerShell, `pip`, invented `mctl login`, vague AWS and quota steps, no peering | WSL detect and wrapper, uv installs, root MFA then path A, `aws configure sso`, `cloud-account create/apply --plan-only/--yes`, consent question, `quota-plan`, cluster stage while quota waits |
+| S2 pasted keys, hurry | Refuses, but proposes `setx MULTICLOUD_API_KEY`, invents `mctl account list` | Refuses, tells to revoke both, user types into `aws configure`, says no step needs the `mca_` key |
+| S3 resume | Reads `~/.multicloud/config*`, guesses commands, may file quota again | Reads the ledger, live checks, `quota-plan` instead of a new request, no second pool |
+| S4 CI with GPU | Wrong package, invented `mctl runners create`, asks for a GitHub token, `self-hosted` labels | Says GPU classes are not available, offers CPU or Extend, real `mctl pool create`, hands over the GitHub App step |
+
+Gaps the GREEN runs found, fixed in the next commit:
+- Ledger inside WSL before WSL exists, and the restart ends the session → WSL first, resume after restart.
+- Questions the user already answered → skip them.
+- Ledger lacked profile, region, kubeconfig, pool and peering → `facts` object, written as soon as known.
+- "Read step" of the quota skill unclear; live approval vs ledger `waiting` → exact command and ledger write.
+- `quota_low` unknown for an account connected earlier → `mctl cloud-account verify` (reads only).
+- k3s kubeconfig points at 127.0.0.1 → server address check.
+- Background port-forward may die on Windows → health check and a second-window fallback.
+- Path A vs B for a short PoC → one more question picks the path.
+- CI: GitHub organization owner check, region and cap questions, support address for the App step.
+- Quota: `quota-plan` flags written out.
+
+Not changed (judged acceptable): the flow's `8` vCPU request (fits one g6.2xlarge or g5.2xlarge, the
+PoC size; the minimum is 4), and `us-east-1` in flow examples (the skills say to put in the real region).

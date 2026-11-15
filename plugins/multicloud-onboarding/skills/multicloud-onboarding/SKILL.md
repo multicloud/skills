@@ -15,6 +15,10 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
    AWS key, Multicloud API key (`mca_…`), connect code, peering bundle or model API key. If the user
    pastes one, tell them to revoke it and make a new one. The user types secrets into their own
    terminal or browser. Never store a key in an environment setting that lasts (`setx`, `~/.zshrc`).
+   A pasted secret stays in this chat's history: revoking it is the only fix, so say that first,
+   even when the user is in a hurry. No step of this flow needs a Multicloud API key: `mctl auth
+   login` signs in through the browser. The key is only for an optional MCP connection, which the
+   user configures themselves.
 2. **Browser.** You may guide the AWS console and multicloud.io, and drive the browser if you have
    browser tools. Stop before any page that shows a secret once (AWS "Create access key", the
    multicloud.io new API key): the user does that page alone. Never type into a password or MFA
@@ -55,6 +59,11 @@ every result line into the ledger before you start the next skill.
 
 ## Step 1: Find or start the ledger
 
+**Windows without WSL first.** On a Windows host shell where `wsl.exe -l -v` shows no Ubuntu with
+VERSION 2, run only the `windows` stage of `multicloud-workstation` first: the ledger lives inside
+WSL, and the WSL install ends with a Windows restart. Tell the user: "After the restart, open
+Ubuntu once, then say: continue my Multicloud onboarding." Then stop.
+
 The ledger is `multicloud-onboarding-state.json` in `~/multicloud-onboarding/` (on Windows: the
 home folder inside WSL, never under `/mnt/c`). Make the folder with mode 700 and the file with
 mode 600. If the user keeps it elsewhere, ask for the path once and store it in the file itself.
@@ -70,12 +79,24 @@ Format (IDs and states only, nothing secret):
   "version": 1,
   "answers": {"door": "extend", "cloud": "aws", "aws_account": "new", "os": "windows",
               "cluster": "kubectl-works", "workload": "gpu-llm"},
+  "facts": {"org_id": "acme", "aws_profile": "poc", "aws_account_id": "123456789012",
+            "region": "us-east-1", "cloud_account_id": 7,
+            "connection_dir": "/home/ana/multicloud-aws", "kubeconfig": "/home/ana/.kube/config-poc",
+            "kube_context": "default", "pool": "poc-gpu", "peering_id": 31},
   "results": {"multicloud-connect-aws": "MULTICLOUD-RESULT skill=multicloud-connect-aws status=done cloud_account_id=7 connection_dir=/home/ana/multicloud-aws"},
   "updated": "2026-11-15T14:02:00Z"
 }
 ```
 
+`facts` holds every ID and name a later step needs: copy each `key=value` of a result line into it,
+and add a fact as soon as you learn it (the profile name, the kubeconfig path, a pool or peering
+you created), not only at the end of a skill. A pool or peering created before a session broke
+off is then known on resume.
+
 ## Step 2: Ask (one question at a time, each with an "other" answer)
+
+Skip a question that the user's message already answers ("brand-new AWS account", "Windows
+laptop", "my k3s cluster"), and write that answer to the ledger. Ask only what is left.
 
 1. **Door.** "What do you want to do first?" Extend (cloud nodes, also GPUs, for your own Kubernetes
    cluster) · CI runners for GitHub Actions · a savings report for a cluster (Advisor) · other.
@@ -90,8 +111,9 @@ Format (IDs and states only, nothing secret):
    (the administrator must give a kubeconfig file and cluster-admin rights: continue, and stop
    before the cluster stage) · No cluster (Extend needs one: offer CI runners, else stop).
 6. Extend only: **Workload.** One LLM on one GPU (the GPU PoC) · CPU work · other.
-7. CI only: **GitHub organization** name, and which runner sizes (CPU only today: GPU runner classes
-   are not available yet).
+7. CI only: **GitHub organization** name, and which runner sizes. If the user asks for GPU runners,
+   say first that GPU runner classes are not available yet, and ask one question: CPU runners now
+   (recommended), or a cloud GPU for their own Kubernetes cluster (the Extend door).
 
 Write the answers to the ledger.
 
@@ -106,8 +128,14 @@ mctl cloud-account list
 mctl pool list
 ```
 
-For Extend, if a pool exists: `mctl peering list <pool>`. For a pending quota: run the read step of
-`multicloud-quota` (it files nothing). Correct the ledger where live state differs, and say so.
+For Extend, if a pool exists: `mctl peering list <pool>`. For quota: run Step 2 of
+`multicloud-quota` (`mctl cloud-account quota-plan <cloud_account_id> --region <region>`; it files
+nothing).
+
+**Live state wins over the ledger.** Correct the ledger where they differ, and say so in one line.
+Example: the ledger says `quota=waiting`, and `quota-plan` shows the on-demand G and VT limit at 4
+or more in the region: write `MULTICLOUD-RESULT skill=multicloud-quota status=done quota=enough
+region=<r> requests=<id> filed_by=<as before>` and continue with the next skill.
 
 ## Step 4: Run the skills in order
 
@@ -116,8 +144,14 @@ Skip a skill whose result in the ledger is `done` and whose live state agrees.
 | Door | Order |
 |---|---|
 | Extend, GPU LLM | workstation → aws-account-setup (if Q3 is new, or no working AWS CLI sign-in) → connect-aws → quota (goal: one on-demand L4 or A10G GPU) → extend (profile `gpu-llm`) |
-| Extend, CPU | workstation → aws-account-setup (if needed) → connect-aws → quota (only if connect-aws handed back `quota_low`) → extend (profile `cpu-burst`) |
+| Extend, CPU | workstation → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → extend (profile `cpu-burst`) |
 | CI runners | workstation (no kubectl, no helm) → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → ci-pool |
+
+The account is already connected and verified (live state), but no connect-aws result is in the
+ledger: skip connect-aws and aws-account-setup, and learn `quota_low` from
+`mctl cloud-account verify <cloud_account_id>` (it reads the quotas and files nothing). In that
+case `multicloud-workstation` needs only `mctl` for CI, and `mctl`, `kubectl`, `helm`, `jq` for
+Extend; `aws` and `tofu` only for a step that uses them.
 
 Pass each skill what it needs from earlier results: `run_prefix`, `aws_profile`, `aws_account_id`,
 the region, `cloud_account_id`, `connection_dir`, the profile, the GitHub organization.

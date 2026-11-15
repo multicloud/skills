@@ -40,6 +40,8 @@ Else ask which path (one question):
 | **A: IAM Identity Center** (recommended for a team) | Several people, single sign-on, no long-lived key | A user with `AdministratorAccess`, and the AWS access portal URL |
 | **B: IAM user with an access key** (faster) | One person, a short PoC | User `poc-admin` with `AdministratorAccess`, and one CLI access key to delete after the PoC |
 
+Recommend by the answer to one more question, "Is this account only for a short test by you
+alone?": yes → path B (fewer steps; delete the key at the end); no, or the account stays → path A.
 Path A turns on AWS Organizations for the account. Say so in the question: an account that must
 stay outside an organization takes path B.
 

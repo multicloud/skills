@@ -136,7 +136,8 @@ Run `mctl cloud-account list`.
     them, tell the user that this `mctl` cannot record the choice, and ask them to upgrade
     (`pipx upgrade multicloud-cli`). Do not run `create` without the flag after a "no".
 - Ask also: "Allow Multicloud to request higher AWS quotas in this account later, after you approve
-  each request?" (default no). Only an organization owner can allow it. Yes: pass
+  each request?" (default no). Yes lets skill `multicloud-quota` file the requests you approve; no
+  means you file them yourself with your own AWS sign-in. Only an organization owner can allow it. Yes: pass
   `--allow-quota-requests`; no: pass `--no-allow-quota-requests`. Always pass one: without a
   terminal, `mctl` takes no. The user can change it later with
   `mctl cloud-account allow-quota-requests <n>`.

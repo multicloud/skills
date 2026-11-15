@@ -16,7 +16,10 @@ You need (ask the user, or take it from the onboarding ledger):
 - a **connected, verified AWS cloud account** and its cloud-account ID (`mctl cloud-account list`,
   first column). None: use skill `multicloud-connect-aws`.
 - the **GitHub organization** the runners serve. The user must be an owner of it for the GitHub App
-  step.
+  step: ask them to open `https://github.com/organizations/<org>/settings/apps`. If GitHub shows the
+  page, they are an owner. If not, a GitHub owner of the organization must open the link later.
+- the **region list** and the **cost cap** for all runners together (USD per hour). Ask both; the
+  flow's `us-east-1` and `$2` are examples.
 - the **runner sizes**: `small`, `medium`, `large`, `xlarge`. Each has a `-no-spot` twin (never
   interrupted) and a `-spot-only` twin (waits for spot).
 - **macOS, Linux or Windows** means the user's own computer. The runners are always Linux
@@ -50,7 +53,9 @@ an API key with the Infrastructure scope). `ACCOUNT_NOT_READY` → verify the ac
 ## Step 2: Connect GitHub (stage `github-app`)
 
 Today the customer tools (`mctl`, the MCP server, the console) have no command for this step.
-The Multicloud contact starts it and sends the user a one-time link (step `contact`). Tell the user
+The Multicloud contact starts it and sends the user a one-time link (step `contact`). A customer
+with no named contact writes to support@multicloud.io with the pool name and the GitHub
+organization. Tell the user
 exactly what the step says, especially: **do not change the App name** on the GitHub form (an
 edited name makes the App unusable). Hand back `status=blocked who=multicloud-contact
 github_app=handed_over`, and continue with Step 3 when the user says the App is installed.

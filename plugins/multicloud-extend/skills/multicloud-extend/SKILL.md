@@ -50,7 +50,10 @@ Run the steps in order and report each result in one line:
 - `kubeconfig`: the user names the kubeconfig path. On Windows, copy a Windows file into WSL first
   (`cp /mnt/c/Users/<u>/Downloads/<file> ~/.kube/config-poc && chmod 600 ~/.kube/config-poc`).
   Use `export KUBECONFIG=…` in every later command. `kubectl auth can-i '*' '*' --all-namespaces`
-  must print `yes`.
+  must print `yes`. A k3s kubeconfig copied from the server (`/etc/rancher/k3s/k3s.yaml`) points at
+  `https://127.0.0.1:6443`: ask the user for the server's address and change the `server:` line in
+  the copy (ask first), or run from a machine on the same network. `kubectl get nodes` times out:
+  the cluster is not reachable from this computer (VPN, firewall); ask the cluster administrator.
 - `version`: Server Version 1.30 or later, and one `validatingadmissionpolicies` line.
 - `cidrs`: pod CIDR and service CIDR. k3s: `10.42.0.0/16` and `10.43.0.0/16` unless the server
   flags say otherwise; ask the user to confirm. Not found: ask the cluster administrator.
@@ -68,7 +71,8 @@ quota waits).
   $1.50 per hour).
 - `cpu-burst`: stage `pool-cpu`, pool `burst`.
 
-Put the cloud-account ID and the region into the commands. Then poll `wait-ready`: run
+Put the cloud-account ID and the region into the commands: the flow shows `us-east-1` as an
+example; use the region of the quota (GPU) or the region the user chose. Then poll `wait-ready`: run
 `mctl pool show <pool>` once a minute until `Status: ready`, at most 20 minutes; then stop and give
 the output to the user for their Multicloud contact. Errors: `ACCOUNT_NOT_READY` (409) → verify
 the account (skill `multicloud-connect-aws`); a 422 names the bad field.
@@ -91,8 +95,11 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 
 - `gpu-llm` (stage `run-gpu-llm`): `offload-namespace`, `model-api-key`, `save-manifest` (write
   `assets/vllm-gpu.yaml` unchanged to `vllm-gpu.yaml` in the working folder), `deploy-vllm` (wait
-  up to 30 minutes: a new GPU worker and a 15 GB model download), `port-forward` (run the
-  `c_agent` form: it keeps running in the background), `first-query` (the `c_agent` form). Done
+  up to 30 minutes: a new GPU worker and a 15 GB model download), `port-forward` (the `c_agent`
+  form runs it in the background), `first-query` (the `c_agent` form). Before the query, check
+  that the port-forward lives: `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/health`
+  must print `200` (on Windows a background process can end with the `wsl.exe` call). Not `200`:
+  ask the user to run the `c` form in a second Ubuntu or terminal window and keep it open. Done
   when the model answers. Show the user the answer and the curl form from the page so they can try
   their own prompt.
 - `cpu-burst` (stage `run-cpu-burst`): `offload-namespace`, `burst-pod` with the pool slug. Done
@@ -105,7 +112,8 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 - Clean up only when the user asks: stage `cleanup`, in the order of the flow (for `cpu-burst`, skip
   the vLLM lines and use pool `burst`). Ask once for the whole list and say that the pool delete
   cannot be undone. Stop the background port-forward first:
-  `kill "$(cat ~/multicloud-onboarding/port-forward.pid)"`. Then `check-nothing-left`.
+  `kill "$(cat ~/multicloud-onboarding/port-forward.pid)"`. Then `check-nothing-left` (its `aws`
+  command needs the AWS profile of the connection: put `AWS_PROFILE=<profile>` before it).
 - The AWS connection stays unless the user asks to remove it (step `aws-connection`, skill
   `multicloud-connect-aws`, section Disconnect). If the onboarding used an IAM user access key
   (path B), remind the user to delete it.

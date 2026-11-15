@@ -55,8 +55,8 @@ and have capacity, and say why. Do not pick a region only because it is the defa
 ## Step 2: Read the data
 
 Find the AWS account: `mctl cloud-account list` (the number and region list). The organization slug is the team ID of `mctl auth status` (ask the customer if unsure). Without the MCP tools, the web catalog at multicloud.io/catalog does the price comparison of step 1. Then call
-`get_quota_plan_data` (or `mctl cloud-account quota-plan <id> --region <r> ...`) for the
-candidate regions. It files nothing. For each quota it gives:
+`get_quota_plan_data` (or `mctl cloud-account quota-plan <id> --region <r> [--region <r2> ...]`, at
+most 10 regions; `--code <c>` reads one more quota code) for the candidate regions. It files nothing. For each quota it gives:
 
 - `current_limit`, or an `error` (a quota you could not read is not a quota that is big enough);
 - `open_request`: a request already waiting. Do not file another for the same quota;
