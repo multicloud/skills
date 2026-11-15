@@ -733,8 +733,8 @@ const STAGES = [
      "Pod CIDR",
      "Service CIDR"
     ],
-    "c": "# kubeadm clusters\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
-    "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. Other clusters: ask your cluster administrator."
+    "c": "# any cluster: Kubernetes 1.33 or later\nkubectl get servicecidrs -o custom-columns=NAME:.metadata.name,CIDRS:.spec.cidrs\nkubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDRS:.spec.podCIDRs\n# kubeadm clusters: the whole pod range\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
+    "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
    },
    {
     "h": "Find your CNI",
