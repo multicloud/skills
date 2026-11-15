@@ -50,7 +50,13 @@ Run `uname -s` alone (no `||` and no `/dev/null`: Windows PowerShell 5.1 rejects
 `run_prefix=wsl` means: wrap every command as `wsl.exe -d Ubuntu -- bash -lc '<command>'`.
 
 On a Windows host shell:
-- Run `wsl.exe -l -v`. No `Ubuntu` with VERSION 2: do stage `windows` (the user installs WSL in
+- Check for an Ubuntu WSL2 distro. Run `wsl.exe -l -v`. If it prints a distro list, use it. If it
+  prints usage text (`Usage: wsl.exe`), the WSL Store app is missing (the old inbox binary runs
+  instead), so treat it as "no distro". Confirm in PowerShell: the optional feature
+  `Get-CimInstance Win32_OptionalFeature -Filter "Name='Microsoft-Windows-Subsystem-Linux'"`
+  (InstallState 2 = enabled) and the registered distros under
+  `HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss` (empty = none).
+- No Ubuntu with VERSION 2: do stage `windows` (the user installs WSL in
   PowerShell as administrator and restarts Windows; you cannot do this). Tell the user to restart
   Windows, then open Ubuntu once, then restart Claude Code (`claude --continue`) so the Multicloud
   skills load. A company policy that blocks WSL: stop with `status=blocked who=it`.

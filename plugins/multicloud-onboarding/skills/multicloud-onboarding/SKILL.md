@@ -61,8 +61,9 @@ every result line into the ledger before you start the next skill.
 
 ## Step 1: Find or start the ledger
 
-**Windows without WSL first.** On a Windows host shell where `wsl.exe -l -v` shows no Ubuntu with
-VERSION 2, run only the `windows` stage of `multicloud-workstation` first: the ledger lives inside
+**Windows without WSL first.** On a Windows host shell where there is no Ubuntu WSL2 distro (see the
+check in `multicloud-workstation`, Step 1; `wsl.exe -l -v` printing usage text counts as "none"),
+run only the `windows` stage of `multicloud-workstation` first: the ledger lives inside
 WSL, and the WSL install ends with a Windows restart. Tell the user, in this order: (1) "Restart
 Windows now." (2) "After it restarts, open Ubuntu once and set a Linux user name and password."
 (3) "Then quit Claude Code and start it again with `claude --continue` in PowerShell, so the
