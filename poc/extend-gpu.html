@@ -776,7 +776,7 @@ const STAGES = [
      "Max servers: 2",
      "Max cost per hour: $1.50"
     ],
-    "c": "cat > poc-gpu.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"], \"accelerator_names\": [\"L4\", \"A10G\"],\n              \"max_risk\": 0, \"min_storage_gb\": 100}}\nEOF\nmctl extend create poc-gpu --cloud-account <cloud-account-id> --max-servers 2 \\\n  --max-cost-per-hour 1.5 --from-file poc-gpu.json"
+    "c": "cat > poc-gpu.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"], \"accelerator_names\": [\"L4\", \"A10G\"],\n              \"max_risk\": 0, \"min_storage_gb\": 100,\n              \"max_memory_gb\": 16}}\nEOF\nmctl extend create poc-gpu --cloud-account <cloud-account-id> --max-servers 2 \\\n  --max-cost-per-hour 1.5 --from-file poc-gpu.json"
    },
    {
     "h": "Wait until the pool is ready",

@@ -67,8 +67,11 @@ quota waits).
 
 ## Step 2: Create the pool
 
-- `gpu-llm`: stage `pool-gpu`, pool `poc-gpu` (L4 or A10G only, on-demand, 100 GB disk, 2 servers,
-  $1.50 per hour).
+- `gpu-llm`: stage `pool-gpu`, pool `poc-gpu` (L4 or A10G only, on-demand, 100 GB disk, 16 GB nodes, 2 servers,
+  $1.50 per hour). Keep `max_memory_gb: 16`: without it the node ceiling is 4 × `min_memory_gb`
+  rounded down to a size tier (8 GB, 7168 MB after overhead), and the vLLM pod (12 Gi) never gets
+  a node. The scheduler then logs `Workload requires 12288MB but the node ceiling only allows
+  7168MB after overhead`. Fix on a live pool: `mctl pool update <pool> --set max_memory_gb=16`.
 - `cpu-burst`: stage `pool-cpu`, pool `burst`.
 
 Put the cloud-account ID and the region into the commands: the flow shows `us-east-1` as an
