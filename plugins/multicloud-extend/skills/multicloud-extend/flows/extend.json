@@ -40,6 +40,14 @@
      "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
     },
     {
+     "id": "pod-proxy",
+     "who_kind": "agent",
+     "h": "Check that the API server reaches pods",
+     "who": "You, in a terminal",
+     "d": "It must print ok (or OK). A 502 means the API server cannot reach pod addresses (OrbStack Kubernetes does this): kubectl logs, exec and port-forward to the pool then fail. Use another cluster, for example kind or k3s.",
+     "c": "P=$(kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{.items[0].metadata.name}')\nkubectl get --raw \"/api/v1/namespaces/kube-system/pods/$P:8080/proxy/health\""
+    },
+    {
      "id": "cni",
      "who_kind": "agent",
      "h": "Find your CNI",
@@ -308,11 +316,11 @@
      "who_kind": "ask",
      "h": "Remove the PoC from your cluster and Multicloud",
      "who": "You confirm each delete",
-     "d": "Stop the port-forward first (Ctrl+C). Replace <peering-id>. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
+     "d": "Stop the port-forward first (Ctrl+C). Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
      "in": [
       "Confirm delete"
      ],
-     "c": "kubectl -n my-team delete -f vllm-gpu.yaml\nkubectl -n my-team delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete -f multicloud-peering.yaml\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-team\nmctl pool delete poc-gpu --yes"
+     "c": "kubectl -n my-team delete -f vllm-gpu.yaml\nkubectl -n my-team delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-team\nmctl pool delete poc-gpu --yes"
     },
     {
      "id": "check-nothing-left",

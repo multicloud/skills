@@ -58,6 +58,8 @@ Run the steps in order and report each result in one line:
 - `cidrs`: pod CIDR and service CIDR. k3s: `10.42.0.0/16` and `10.43.0.0/16` unless the server
   flags say otherwise; ask the user to confirm. Not found: ask the cluster administrator.
 - `cni`: the network plugin name.
+- `pod-proxy`: the API server must reach a pod (`ok`). A 502 (OrbStack Kubernetes) breaks `logs`,
+  `exec` and `port-forward` to the pool: stop and ask for another cluster (kind, k3s).
 - `free-cpu`: about 115m of free CPU requests on one node; a node at 95% or more is full.
 - `egress` (ask: it starts one short pod): docker hub 401, ghcr 401, cloudflare 200 are good.
 
