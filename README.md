@@ -75,7 +75,8 @@ which door you want and what you have, and continues another day where it stoppe
 
 Another agent: tell it to read and follow
 <https://raw.githubusercontent.com/multicloud/skills/main/plugins/multicloud-onboarding/skills/multicloud-onboarding/SKILL.md>.
-It fetches the other skills it needs from the same repository.
+It fetches the other skills it needs from the same repository, at the release tags the
+orchestrator names (or `main` before the first release).
 
 The same steps for a person without an agent: [poc/extend-gpu.html](poc/extend-gpu.html). The page
 is built from the skills' `flows/*.json` files, so the page and the skills give the same commands:

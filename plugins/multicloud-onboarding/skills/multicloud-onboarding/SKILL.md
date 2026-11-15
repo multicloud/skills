@@ -44,7 +44,9 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
 **Find a skill.** If your agent has the skill installed, use it by name. Otherwise read its
 `SKILL.md` from this repository at the release tag in the table at the end, from
 `https://raw.githubusercontent.com/multicloud/skills/<tag>/plugins/<skill>/skills/<skill>/SKILL.md`,
-and its flow file from the same folder. Never copy its text into this conversation as your own
+and the files it names from the same folder (`flows/*.json`, and `assets/vllm-gpu.yaml` for
+`multicloud-extend`). If the tag answers 404 (not released yet), use `main` instead of the tag and
+tell the user so. Never copy its text into this conversation as your own
 plan; follow it as written.
 
 Every focused skill ends with one line:
