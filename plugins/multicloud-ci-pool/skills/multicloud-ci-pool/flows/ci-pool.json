@@ -33,7 +33,7 @@
      "who_kind": "agent",
      "h": "Check the pool",
      "who": "You, in a terminal",
-     "d": "The pool shows its status and the GitHub App step.",
+     "d": "The pool shows its status, classes and GitHub organization. It does not show the GitHub App state: your Multicloud contact sends the GitHub App link (next stage).",
      "c": "mctl pool show ci"
     }
    ]
@@ -70,7 +70,7 @@
      "who_kind": "page",
      "h": "Choose a runner size",
      "who": "You",
-     "d": "runs-on: multicloud is medium. Other labels: multicloud-small, multicloud-large, multicloud-xlarge. Add -no-spot for on-demand only (no interruption), or -spot-only to wait for spot."
+     "d": "A label works only for a size in the pool's classes. A pool made with --classes medium serves multicloud, multicloud-medium, multicloud-medium-no-spot and multicloud-medium-spot-only. Other sizes: add them first (mctl pool update ci --classes medium,large). Labels per size: multicloud-small, multicloud-large, multicloud-xlarge. Add -no-spot for on-demand only (no interruption), or -spot-only to wait for spot."
     }
    ]
   },

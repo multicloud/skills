@@ -83,8 +83,11 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
    from `Peering <id> created`, and the whole `Install command:` line.
 2. `install-connector` (ask, name the context): the install command with `<POD_CIDR>` and
    `<SERVICE_CIDR>` replaced by the values of Step 1. Change nothing else.
-3. `save-bundle`: run the loop with the peering ID, as one script. After it: `test -s
-   multicloud-peering.yaml && echo saved`. Empty, or status FAILED: revoke
+3. `save-bundle`: run the loop with the pool name and the peering ID, as one script. It stops at
+   the first response that holds the bundle, at any status other than `PENDING`, and on `mctl`
+   exit 3 or 4. After it: `test -s
+   multicloud-peering.yaml && echo saved`. Status `SUSPENDED`: the pool hibernates or wakes;
+   `mctl pool wake <pool> --wait`, then run the loop again. Empty, or status FAILED: revoke
    (`mctl peering revoke <pool> <peering-id> --yes`, ask first) and create a new peering.
 4. `apply-bundle` (ask): the preflight Job name ends with the **consumer cluster ID** (`c-` and 8
    hex characters, from the `clusterID` value of the install command), not the peering ID.

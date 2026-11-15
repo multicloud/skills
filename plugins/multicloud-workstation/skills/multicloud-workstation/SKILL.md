@@ -38,14 +38,16 @@ A `win` block runs inside Ubuntu (WSL2), never in PowerShell.
 
 ## Step 1: Find the system
 
-Run `uname -s 2>/dev/null || echo windows`.
+Run `uname -s` alone (no `||` and no `/dev/null`: Windows PowerShell 5.1 rejects both).
 
 | Result | System | `run_prefix` |
 |---|---|---|
-| `Darwin` | macOS | none |
-| `Linux`, and `uname -r` contains `microsoft` | Windows, you are already inside WSL | none |
-| `Linux` | Linux | none |
-| `windows`, `MINGW…`, `MSYS…`, `CYGWIN…` | Windows host shell | `wsl.exe -d Ubuntu -- bash -lc` |
+| `Darwin` | macOS | `none` |
+| `Linux`, and `uname -r` contains `microsoft` | Windows, you are already inside WSL | `none` |
+| `Linux` | Linux | `none` |
+| `MINGW…`, `MSYS…`, `CYGWIN…`, or an error such as "not recognized" (PowerShell, cmd) | Windows host shell | `wsl` |
+
+`run_prefix=wsl` means: wrap every command as `wsl.exe -d Ubuntu -- bash -lc '<command>'`.
 
 On a Windows host shell:
 - Run `wsl.exe -l -v`. No `Ubuntu` with VERSION 2: do stage `windows` (the user installs WSL in
@@ -74,7 +76,7 @@ Check first, install only what is missing:
 |---|---|
 | `mctl --version` | any; the newest is best (`uv tool upgrade multicloud-cli`) |
 | `aws --version` | starts with `aws-cli/2` |
-| `tofu version` or `terraform version` | 1.5 or later |
+| `tofu version` or `terraform version` | 1.10 or later (the AWS module 2.0.0 needs it) |
 | `kubectl version --client` | Extend only |
 | `helm version` | 3.14 or later, Extend only |
 | `jq --version` | Extend only |

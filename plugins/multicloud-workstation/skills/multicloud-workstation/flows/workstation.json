@@ -131,8 +131,8 @@
      "d": "mctl needs Python 3.10 or later. The uv tool installs Python for you. Open a new terminal after the install.",
      "os": {
       "mac": "brew install uv        # Homebrew: https://brew.sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
-      "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
-      "win": "# In the Ubuntu window\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version"
+      "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
+      "win": "# In the Ubuntu window\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version"
      }
     },
     {
@@ -143,16 +143,16 @@
      "d": "The output of aws --version must start with aws-cli/2.",
      "os": {
       "mac": "brew install awscli\naws --version",
-      "linux": "curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version",
-      "win": "# In the Ubuntu window\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version"
+      "linux": "sudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version",
+      "win": "# In the Ubuntu window\nsudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version"
      }
     },
     {
      "id": "install-opentofu",
      "who_kind": "ask",
-     "h": "Install OpenTofu (1.5 or later)",
+     "h": "Install OpenTofu (1.10 or later)",
      "who": "You, in a terminal",
-     "d": "OpenTofu creates the Multicloud role in your AWS account. Terraform 1.5 or later also works.",
+     "d": "OpenTofu creates the Multicloud role in your AWS account. Terraform 1.10 or later also works.",
      "os": {
       "mac": "brew install opentofu\ntofu version",
       "linux": "curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh\nchmod +x install-opentofu.sh && ./install-opentofu.sh --install-method standalone\nrm install-opentofu.sh && tofu version",
@@ -168,7 +168,7 @@
      "os": {
       "mac": "brew install kubectl helm jq\nkubectl version --client && helm version",
       "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq        # or: sudo dnf install -y jq\nkubectl version --client && helm version",
-      "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nkubectl version --client && helm version"
+      "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq\nkubectl version --client && helm version"
      }
     }
    ]

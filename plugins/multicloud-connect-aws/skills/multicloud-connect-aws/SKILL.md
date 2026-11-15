@@ -40,7 +40,7 @@ Run these and report what is missing, with the install line:
 | Check | If missing |
 |---|---|
 | `mctl --version` | `uv tool install multicloud-cli` (or `pipx install multicloud-cli`); skill `multicloud-workstation` installs every tool |
-| `tofu version` or `terraform version` (1.5 or later; `mctl` uses `tofu` when both exist) | OpenTofu: https://opentofu.org/docs/intro/install/. An older version: stop and ask the user to upgrade. |
+| `tofu version` or `terraform version` (1.10 or later, which the AWS module 2.0.0 needs; `mctl` uses `tofu` when both exist) | OpenTofu: https://opentofu.org/docs/intro/install/. An older version: stop and ask the user to upgrade. |
 | `aws sts get-caller-identity` | Fails, shows another account, or the user does not know their AWS profile: follow **AWS sign-in help** below. If they use a profile, use `AWS_PROFILE=<p>` in later commands. |
 
 On Windows, run every command inside WSL (`wsl.exe -d Ubuntu -- bash -lc '…'`), and make the
@@ -165,8 +165,10 @@ mctl cloud-account apply <n> --dir <dir> --plan-only
 ```
 
 Read the plan and tell the user, in a few lines, what it creates in their AWS account:
-the role `MulticloudProvisioner-<suffix>`, its policy (EC2 actions only, creates need the tag
-`multicloud:managed`), and the EC2 Spot and Fleet service-linked roles if the account lacks them.
+the role `MulticloudProvisioner-<suffix>`, its policy (EC2 actions, plus read actions on AWS
+account regions and Service Quotas and quota requests; creates need the tag `multicloud:managed`),
+and the service-linked roles for EC2 Spot, EC2 Fleet and Service Quotas if the account lacks them
+(the plan may show these as `aws_cloudformation_stack` resources).
 The role suffix is random and is known only after the apply; say `<suffix>`. Report anything else
 the plan changes or destroys. `terraform_data.connect` is the step that tells Multicloud the role
 exists: on a first apply it is created, on a later apply it is replaced (each apply gets a new
@@ -196,8 +198,8 @@ rows can match at once: after `Ready:`, read every `regions` line too and report
 | `regions ENABLING  <regions>` and `Turning on N opt-in regions takes minutes to hours. Verify again to add them to Multicloud.` | AWS is turning those regions on. Multicloud uses them only after a new verify. | Tell the user to run `mctl cloud-account verify <n>` later (or offer to, when they ask), for example in an hour. |
 | `regions SKIPPED   <regions> (you chose to leave them off)` | Those opt-in regions stay off by the user's choice. | Nothing. To change the choice: `mctl cloud-account verify <n> --opt-in-regions` (ask first). |
 | `regions SKIPPED   <regions> (not in the allowed regions)` | Those opt-in regions are outside the regions of the connection, so Multicloud may not turn them on. | Nothing. To use one, the connection needs that region in `regions` (a new apply, with a new question). |
-| `regions WARNING   The role has policy version ...` | The role is older than module 1.2.0, so Multicloud cannot turn on regions. The account still works. | Offer to change the module version in `multicloud.tf` to 1.2.0 and apply again (step 4, with a new question). |
-| `regions WARNING   AWS denied account:...` | An SCP (service control policy) or the role policy blocks the region calls. The account still works. | If the module is 1.2.0 or later, an SCP is likely: the user's AWS administrator must allow `account:ListRegions` and `account:EnableRegion`, or turn the regions on in the AWS console. |
+| `regions WARNING   The role has policy version ...` | The role comes from an older module, so Multicloud cannot turn on regions. The account still works. | Offer to change the module version in `multicloud.tf` to the version the warning names (2.0.0 today; it needs OpenTofu or Terraform 1.10) and apply again (step 4, with a new question). The plan must not destroy the existing service-linked roles: if it does, stop and ask. |
+| `regions WARNING   AWS denied account:...` | An SCP (service control policy) or the role policy blocks the region calls. The account still works. | If the module is current, an SCP is likely: the user's AWS administrator must allow `account:ListRegions` and `account:EnableRegion`, or turn the regions on in the AWS console. |
 | `Missing permissions:` and a list (exit 1) | The exact permissions. Usually someone changed the role policy, or an SCP (service control policy) blocks an action. | Offer to apply again (step 4, with a new question). If it fails again with the same list, an SCP is likely: the user's AWS administrator must allow those actions. |
 | `Still pending after ...` (exit 5) | AWS has not finished the IAM change. | Run `mctl cloud-account verify <n> --wait` again later. |
 | An `Error:` line and exit 3 (a `list`, `create` or `apply` refused with 403) | The sign-in may not connect cloud accounts: only the organization owner, or an **Infrastructure** API key, can. | The organization owner signs in, or the user stores an Infrastructure key (step 2). |
@@ -211,11 +213,16 @@ last check) if the user asks.
 
 ## Disconnect
 
-Only on an explicit request. First the user tells Multicloud support, so that Multicloud stops its
-machines in the account (a self-service disconnect is planned); a `destroy` before that can leave
-machines running and billed that Multicloud can no longer reach. When support confirms, tell the
-user that `tofu destroy` (or `terraform destroy`) in the connection folder deletes the role, after
-which Multicloud cannot use the account. Ask before you run it.
+Only on an explicit request, and in this order:
+
+1. Ask, then run `mctl cloud-account disconnect <n> --wait --yes` (needs the organization owner's
+   sign-in, not an API key; `--yes` only after the user's clear yes, because your shell has no
+   terminal). Multicloud stops its machines, deletes what it created in the account, and disables
+   the pools that use it. Wait for the status `revoked`; report any `leftovers` it lists.
+2. Then ask, and run `tofu destroy` (or `terraform destroy`) in the connection folder. It deletes
+   the role, after which Multicloud cannot use the account.
+
+A `destroy` before step 1 can leave machines running and billed that Multicloud can no longer reach.
 
 ## Hand back
 

@@ -43,9 +43,11 @@ skill `multicloud-extend` (a GPU for their own cluster).
 1. `classes`: show the sizes.
 2. `create-pool` (ask): fill in the GitHub organization, the cloud-account ID, the classes, the cap
    and the region list (`--set regions=<r1>,<r2>`; without it, every region of the account). The
-   output ends with `Next: mctl pool show <id>` and may list quota lines: report them; a `LOW`
-   line for standard vCPU means skill `multicloud-quota`.
-3. `wait-ready`: `mctl pool show ci`.
+   output ends with `Next: mctl pool show <id>` and a `quota NOTE` line (spot quota is not checked
+   for pools on a cloud account). To check quota, run `mctl cloud-account verify <id>`: a
+   `quota LOW` line there means skill `multicloud-quota`.
+3. `wait-ready`: `mctl pool show ci` (status, classes, GitHub organization; it shows no GitHub App
+   state).
 
 Errors: exit 3 or 403 → the sign-in may not create pools on a cloud account (organization owner, or
 an API key with the Infrastructure scope). `ACCOUNT_NOT_READY` → verify the account first.
@@ -65,7 +67,7 @@ github_app=handed_over`, and continue with Step 3 when the user says the App is 
 `runs-on` (ask): the test workflow from the flow, in a repository of the organization. The user
 starts it from the Actions tab. If the user wants you to write the file and push it, ask first
 and use their normal git; never force-push. Done when the job log shows `hello from Multicloud`.
-Then show the labels from step `labels`.
+Then show the labels from step `labels`: only the sizes in the pool's classes get a runner.
 
 ## Pause or delete (stage `pause`)
 

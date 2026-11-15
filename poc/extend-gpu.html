@@ -570,8 +570,8 @@ const STAGES = [
     "d": "mctl needs Python 3.10 or later. The uv tool installs Python for you. Open a new terminal after the install.",
     "os": {
      "mac": "brew install uv        # Homebrew: https://brew.sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
-     "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
-     "win": "# In the Ubuntu window\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version"
+     "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
+     "win": "# In the Ubuntu window\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version"
     }
    },
    {
@@ -580,14 +580,14 @@ const STAGES = [
     "d": "The output of aws --version must start with aws-cli/2.",
     "os": {
      "mac": "brew install awscli\naws --version",
-     "linux": "curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version",
-     "win": "# In the Ubuntu window\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version"
+     "linux": "sudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version",
+     "win": "# In the Ubuntu window\nsudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version"
     }
    },
    {
-    "h": "Install OpenTofu (1.5 or later)",
+    "h": "Install OpenTofu (1.10 or later)",
     "who": "You, in a terminal",
-    "d": "OpenTofu creates the Multicloud role in your AWS account. Terraform 1.5 or later also works.",
+    "d": "OpenTofu creates the Multicloud role in your AWS account. Terraform 1.10 or later also works.",
     "os": {
      "mac": "brew install opentofu\ntofu version",
      "linux": "curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh\nchmod +x install-opentofu.sh && ./install-opentofu.sh --install-method standalone\nrm install-opentofu.sh && tofu version",
@@ -601,7 +601,7 @@ const STAGES = [
     "os": {
      "mac": "brew install kubectl helm jq\nkubectl version --client && helm version",
      "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq        # or: sudo dnf install -y jq\nkubectl version --client && helm version",
-     "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nkubectl version --client && helm version"
+     "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq\nkubectl version --client && helm version"
     }
    },
    {
@@ -649,7 +649,7 @@ const STAGES = [
      "Region: us-east-1"
     ],
     "c": "mctl cloud-account create --cloud AWS --account <account-id> --region us-east-1 \\\n  --no-opt-in-regions --no-allow-quota-requests",
-    "g": "The output ends with a line like: Next: mctl cloud-account apply 7. The number (here 7) is your cloud-account ID. It is not your AWS account ID. Write it down: you need it in this stage and when you create the pool. To see it again, run: mctl cloud-account list"
+    "g": "The output has a line like: Next: mctl cloud-account apply 7. (The line By hand: … after it is for people who apply without mctl; skip it.) The number (here 7) is your cloud-account ID. It is not your AWS account ID. Write it down: you need it in this stage and when you create the pool. To see it again, run: mctl cloud-account list"
    },
    {
     "h": "Create the role in your account",
@@ -798,7 +798,7 @@ const STAGES = [
    {
     "h": "Ask for one GPU",
     "who": "You approve",
-    "d": "The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu",
+    "d": "The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
     "in": [
      "GPU: 1",
      "CPU: 4 cores",
@@ -820,9 +820,9 @@ const STAGES = [
    {
     "h": "Save the connection file",
     "who": "You, in a terminal",
-    "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id>. The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
-    "c": "ID=<peering-id>\n(\n  umask 077\n  while true; do\n    mctl peering show poc-gpu \"$ID\" --json > peering.json || { sleep 10; continue; }\n    status=$(jq -r .status peering.json); echo \"Status: $status\"\n    case \"$status\" in READY|FAILED|REVOKED) break ;; esac\n    sleep 10\n  done\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
-    "g": "If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again."
+    "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
+    "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      status=$(jq -r .status peering.json); echo \"Status: $status\"\n      [ \"$status\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
+    "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again."
    },
    {
     "h": "Apply the connection file",

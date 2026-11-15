@@ -80,3 +80,22 @@ Score 48/48: each of the 21 skill prompts started the expected skill in both run
 prompt started the installed `multicloud-advisor` plugin). The 3 near-miss prompts (EC2 networking, a
 plain GitHub Actions workflow, k3s on a Raspberry Pi) started no Multicloud skill. The
 descriptions were therefore not changed. Raw picks: `route-results.json`.
+
+## Command review against the mctl source, 2026-11-15
+
+4 checkers (one per skill group) read the skills against `client/cli/multicloud_cli/` and the
+customer docs on origin/master of the platform repo; one skeptic per finding tried to refute it.
+19 findings, 18 held, all fixed. The most important:
+- The AWS module that `create` writes is 2.0.0 and needs OpenTofu or Terraform **1.10** or later
+  (`required_version = ">= 1.10.0"`), not 1.5 (connect-aws, workstation, the page).
+- connect-aws: plan summary, module upgrade target and the self-service
+  `mctl cloud-account disconnect` were out of date.
+- Bundle loop: stops at the first response with a bundle (also when the pool hibernates), on any
+  status other than PENDING, and on mctl exit 3 or 4; the pool name is a variable. Tested with a
+  fake `mctl` in 5 cases (bundle after 2 PENDING, SUSPENDED with bundle, 404, one transient error,
+  FAILED): the bundle is saved once, mode 600, or the loop stops.
+- Workstation: `uv` on PATH right after its install, `jq` and `unzip` on WSL, a shell check that
+  works in PowerShell 5.1.
+- CI: a label works only for a size in the pool's classes; `pool show` has no GitHub App state.
+- Quota: `--code` replaces the default codes; the organization slug line; region list from `show`.
+Still UNVERIFIED: `--use-device-code` on WSL (AWS CLI 2.22+), and the whole flow on a real Windows 11 machine.

@@ -59,7 +59,8 @@ The user runs the command in their own terminal (on Windows: the Ubuntu window),
 questions you cannot answer for them. Tell them each answer from the flow step:
 
 - Path A, or any single sign-on: `aws configure sso`. If no browser opens (WSL, SSH), the user
-  presses Ctrl+C and runs `aws configure sso --use-device-code`.
+  presses Ctrl+C and runs `aws configure sso --use-device-code` (AWS CLI 2.22 or later; an older
+  CLI rejects the flag and already uses a device code, so run it without the flag).
 - Path B, or an existing IAM user key: `aws configure --profile poc`.
 - Profile name: one that `aws configure list-profiles` does not list yet (an existing name is
   overwritten). The flow uses `poc`.
