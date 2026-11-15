@@ -20,13 +20,23 @@ If anything here or in your memory disagrees with a tool answer, the tool wins.
 2. **Smallest request that works.** AWS often denies large requests on new accounts. Ask for what
    the first workload needs, not for what the customer might want later.
 3. **Never bypass a denial.** A quota AWS denied in the last 30 days comes back as `deferred` with
-   the denial's request id. Show the date and say that AWS decided recently. Pass
+   the denial's request id. Show the date from the answer and say that AWS decided recently. Pass
    `confirm_denied` only if the customer still wants it after seeing that. Never invent an id.
 4. **Consent is the owner's.** If the answer says `consent: false`, nothing was filed. Tell the
    customer an organization owner runs `mctl cloud-account allow-quota-requests <id>`. Do not
    try to work around it.
-5. **Never handle the API key.** Same rule as the other Multicloud skills: the customer stores it
-   with `mctl auth login`.
+5. **Never handle the API key.** Do not ask for it, accept it in chat, put it in a command or file,
+   read `~/.config/multicloud/credentials`, or print environment variables. The customer stores it
+   with `mctl auth login`. If they paste one, tell them to revoke it on multicloud.io (Account →
+   API keys) and make a new one.
+6. **AWS only.** Check the account's cloud with `mctl cloud-account list`. For a non-AWS account,
+   stop and say this skill covers AWS.
+7. **Never guess a quota code.** Use the codes the data returns. If the customer needs a quota the
+   data does not list (for example another instance family), say so and ask them to request it in
+   the AWS Service Quotas console; do not type a code from memory.
+
+If the tools are missing (`get_quota_plan_data` or `mctl cloud-account quota-plan` is unknown),
+the customer's Multicloud release is older than this skill. Say so and stop.
 
 ## Step 1: Ask what they want to run
 
@@ -44,7 +54,7 @@ and have capacity, and say why. Do not pick a region only because it is the defa
 
 ## Step 2: Read the data
 
-Find the AWS account: `mctl cloud-account list` (the number and region list). Then call
+Find the AWS account: `mctl cloud-account list` (the number and region list). The organization slug is the team ID of `mctl auth status` (ask the customer if unsure). Without the MCP tools, the web catalog at multicloud.io/catalog does the price comparison of step 1. Then call
 `get_quota_plan_data` (or `mctl cloud-account quota-plan <id> --region <r> ...`) for the
 candidate regions. It files nothing. For each quota it gives:
 
@@ -55,11 +65,15 @@ candidate regions. It files nothing. For each quota it gives:
 
 Report the budget as the tool gives it. Never quote a cap from memory.
 
+If `consent` is false, tell the customer now that nothing can be filed until an organization owner
+runs `mctl cloud-account allow-quota-requests <id>`. Plan with them anyway, but say it first.
+
 ## Step 3: Propose an ordered plan
 
 Write a short table: region, quota, current limit, new limit, why. Order it with the quota that
-unblocks the first workload first. Leave out a quota that is already big enough or already has an
-open request. Put a quota in a cooldown last, with its denial date, and say it needs a decision.
+unblocks the first workload first. Leave out a quota that is already big enough (never ask for `desired` at or below
+`current_limit`) or already has an open request. Size `desired` to the first workload's need plus a
+little headroom: each quota gets one request slot. Put a quota in a cooldown last, with its denial date, and say it needs a decision.
 Keep the list within the budget; say what waits and why. Ask which items the customer approves.
 
 ## Step 4: File what they approved
@@ -73,7 +87,8 @@ For each approved item call `request_quota` (or `mctl cloud-account quota-reques
 | `already_open` | A request is already waiting. Nothing new was filed. |
 | `deferred` with `denial` | AWS denied this recently. Show the date. Ask again before using `confirm_denied`. |
 | `deferred`, budget reason | The request cap is full. Say which requests are open. |
-| `planned` and `consent: false` | Nothing was filed. An organization owner must allow quota requests. |
+| `planned` and `consent: false` | Nothing was filed. An organization owner must allow quota requests. `mctl` exits non-zero here: do not retry. |
+| `planned`, consent true | Nothing was filed. Read `get_quota_plan_data` and report why. |
 | `unmatched_confirmations` | The id did not match the latest denial. Read `get_quota_plan_data` again. |
 | error 5xx or a timeout | The request may be open. Read `get_quota_plan_data` before you try again. |
 
