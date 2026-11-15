@@ -56,6 +56,77 @@
         "onboarding"
       ],
       "strict": true
+    },
+    {
+      "name": "multicloud-onboarding",
+      "source": "./plugins/multicloud-onboarding",
+      "description": "Start with Multicloud from zero: your agent asks which door and which situation, runs the focused Multicloud skills in order, and keeps a resume ledger so the onboarding survives a quota wait of days.",
+      "category": "infrastructure",
+      "tags": [
+        "onboarding",
+        "poc",
+        "aws",
+        "extend",
+        "ci"
+      ],
+      "strict": true
+    },
+    {
+      "name": "multicloud-workstation",
+      "source": "./plugins/multicloud-workstation",
+      "description": "Prepare your computer for Multicloud: WSL2 on Windows, mctl, the AWS CLI, OpenTofu, kubectl and helm, the multicloud.io account and the mctl sign-in. You type every password yourself.",
+      "category": "infrastructure",
+      "tags": [
+        "onboarding",
+        "cli",
+        "wsl",
+        "windows",
+        "mctl"
+      ],
+      "strict": true
+    },
+    {
+      "name": "multicloud-aws-account-setup",
+      "source": "./plugins/multicloud-aws-account-setup",
+      "description": "Make a brand-new AWS account ready for Multicloud: root MFA, then IAM Identity Center single sign-on or an IAM user with a CLI key, and a working AWS CLI profile. The agent never sees a secret.",
+      "category": "infrastructure",
+      "tags": [
+        "aws",
+        "iam",
+        "sso",
+        "identity-center",
+        "onboarding"
+      ],
+      "strict": true
+    },
+    {
+      "name": "multicloud-extend",
+      "source": "./plugins/multicloud-extend",
+      "description": "Give your own Kubernetes cluster cloud nodes or a cloud GPU with Multicloud Extend: cluster checks, pool, peering, connector install, and a first vLLM or burst workload, with the bundle read once and kept private.",
+      "category": "infrastructure",
+      "tags": [
+        "kubernetes",
+        "gpu",
+        "vllm",
+        "liqo",
+        "extend",
+        "onboarding"
+      ],
+      "strict": true
+    },
+    {
+      "name": "multicloud-ci-pool",
+      "source": "./plugins/multicloud-ci-pool",
+      "description": "Run GitHub Actions jobs on machines in your own AWS account with a Multicloud CI pool: create the pool, connect GitHub, and run a first job with runs-on: multicloud.",
+      "category": "infrastructure",
+      "tags": [
+        "github-actions",
+        "ci",
+        "runners",
+        "aws",
+        "onboarding"
+      ],
+      "strict": true
     }
   ]
 }

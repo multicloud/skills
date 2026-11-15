@@ -1,0 +1,177 @@
+{
+ "skill": "multicloud-workstation",
+ "stages": [
+  {
+   "id": "windows",
+   "t": "Before you start (Windows only)",
+   "note": "The commands on this page are for a Linux or macOS terminal. On Windows, you run them in WSL2: a Linux system that Microsoft builds into Windows 10 (version 2004 or later) and Windows 11. On macOS or Linux, skip this stage.",
+   "steps": [
+    {
+     "id": "install-wsl",
+     "who_kind": "user",
+     "h": "Install WSL2 with Ubuntu",
+     "who": "You, in PowerShell as administrator",
+     "d": "Right-click the Start button and select Terminal (Admin) or Windows PowerShell (Admin). Run the command, then restart Windows.",
+     "c": "wsl --install"
+    },
+    {
+     "id": "open-ubuntu",
+     "who_kind": "user",
+     "h": "Open Ubuntu",
+     "who": "You",
+     "d": "Open Ubuntu from the Start menu. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window.",
+     "in": [
+      "Linux user name",
+      "Linux password"
+     ],
+     "c": "sudo apt update && sudo apt install -y curl unzip jq openssl ca-certificates"
+    }
+   ]
+  },
+  {
+   "id": "multicloud-account",
+   "t": "Create your account",
+   "note": "In your browser, at multicloud.io.",
+   "dg": "account",
+   "steps": [
+    {
+     "id": "register",
+     "who_kind": "browser",
+     "h": "Register",
+     "who": "You, in the browser",
+     "d": "Open multicloud.io and click Register.",
+     "in": [
+      "Email",
+      "Name",
+      "Password"
+     ]
+    },
+    {
+     "id": "verify-email",
+     "who_kind": "user",
+     "h": "Verify your email",
+     "who": "You, in your inbox",
+     "d": "Click the link in the verification email soon after you get it. If the link has expired, sign in at multicloud.io and ask for a new email. If no email arrives, check your spam or quarantine folder, then tell your Multicloud contact."
+    },
+    {
+     "id": "create-organization",
+     "who_kind": "browser",
+     "h": "Create your organization",
+     "who": "You, in the console",
+     "d": "You become the organization owner. Write down the organization ID: you may need it later.",
+     "in": [
+      "Organization name",
+      "Organization ID (short name)"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "connect-ai",
+   "t": "Connect your AI (optional)",
+   "note": "An AI agent can run the commands on this page for you and explain each step. Any agent that can run terminal commands and use MCP servers works. Without an AI, run the commands yourself.",
+   "dg": "ai",
+   "steps": [
+    {
+     "id": "create-api-key",
+     "who_kind": "user",
+     "h": "Create an API key",
+     "who": "You, in the console",
+     "d": "On multicloud.io, open Account › API keys and click Create. Copy the key now: the console shows it only once. Keep it secret.",
+     "in": [
+      "Key name, for example poc-ai",
+      "Catalog",
+      "Pools: Manage",
+      "Extend",
+      "Infrastructure"
+     ]
+    },
+    {
+     "id": "add-mcp-server",
+     "who_kind": "user",
+     "h": "Add the Multicloud MCP server to your AI",
+     "who": "You, in your AI tool's MCP settings",
+     "d": "Use these values. Replace mca_… with your key. The exact place to enter them depends on your AI tool; see its documentation for remote MCP servers.",
+     "in": [
+      "Transport: Streamable HTTP",
+      "URL: https://mcp.multicloud.io/mcp",
+      "Header: Authorization: Bearer mca_…"
+     ],
+     "c": "{\n  \"mcpServers\": {\n    \"multicloud\": {\n      \"type\": \"http\",\n      \"url\": \"https://mcp.multicloud.io/mcp\",\n      \"headers\": { \"Authorization\": \"Bearer mca_…\" }\n    }\n  }\n}",
+     "g": "The block above is the common JSON form of an MCP configuration. Restart your AI tool after the change, then ask it to list the Multicloud tools to check the connection."
+    },
+    {
+     "id": "add-skills",
+     "who_kind": "ask",
+     "h": "Add the Multicloud skills (if your AI supports skills)",
+     "who": "You, in a terminal",
+     "d": "The skills teach your AI the steps for connecting AWS and getting GPU quota. They are public at github.com/multicloud/skills. Example for Claude Code:",
+     "c": "claude plugin marketplace add multicloud/skills\nclaude plugin install multicloud-connect-aws@multicloud\nclaude plugin install multicloud-quota@multicloud"
+    }
+   ]
+  },
+  {
+   "id": "tools",
+   "t": "Install the tools and sign in to AWS",
+   "note": "You need four command-line tools. Your AI can install them for you, or you can run the commands below yourself.",
+   "dg": "tools",
+   "steps": [
+    {
+     "id": "ask-ai",
+     "who_kind": "page",
+     "h": "Optional: ask your AI to connect AWS",
+     "who": "You, to your AI",
+     "d": "Say: “Connect my AWS account to Multicloud. Use region us-east-1.” Your AI checks which tools are missing and guides you through this stage and the next one. The commands below are the same steps, if you prefer to run them yourself."
+    },
+    {
+     "id": "install-mctl",
+     "who_kind": "ask",
+     "h": "Install mctl (the Multicloud CLI)",
+     "who": "You, in a terminal",
+     "d": "mctl needs Python 3.10 or later. The uv tool installs Python for you. Open a new terminal after the install.",
+     "os": {
+      "mac": "brew install uv        # Homebrew: https://brew.sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
+      "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
+      "win": "# In the Ubuntu window\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version"
+     }
+    },
+    {
+     "id": "install-aws-cli",
+     "who_kind": "ask",
+     "h": "Install the AWS CLI (version 2)",
+     "who": "You, in a terminal",
+     "d": "The output of aws --version must start with aws-cli/2.",
+     "os": {
+      "mac": "brew install awscli\naws --version",
+      "linux": "curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version",
+      "win": "# In the Ubuntu window\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version"
+     }
+    },
+    {
+     "id": "install-opentofu",
+     "who_kind": "ask",
+     "h": "Install OpenTofu (1.5 or later)",
+     "who": "You, in a terminal",
+     "d": "OpenTofu creates the Multicloud role in your AWS account. Terraform 1.5 or later also works.",
+     "os": {
+      "mac": "brew install opentofu\ntofu version",
+      "linux": "curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh\nchmod +x install-opentofu.sh && ./install-opentofu.sh --install-method standalone\nrm install-opentofu.sh && tofu version",
+      "win": "# In the Ubuntu window\ncurl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh\nchmod +x install-opentofu.sh && ./install-opentofu.sh --install-method standalone\nrm install-opentofu.sh && tofu version"
+     }
+    },
+    {
+     "id": "install-kubectl-helm-jq",
+     "who_kind": "ask",
+     "h": "Install kubectl, helm and jq",
+     "who": "You, in a terminal",
+     "d": "You need them from the stage “Prepare your cluster” on. The connector needs helm 3.14 or later.",
+     "os": {
+      "mac": "brew install kubectl helm jq\nkubectl version --client && helm version",
+      "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq        # or: sudo dnf install -y jq\nkubectl version --client && helm version",
+      "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nkubectl version --client && helm version"
+     }
+    }
+   ]
+  }
+ ]
+}

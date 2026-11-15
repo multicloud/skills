@@ -1,0 +1,54 @@
+{
+ "skill": "multicloud-connect-aws",
+ "stages": [
+  {
+   "id": "connect",
+   "t": "Connect your AWS account",
+   "note": "Multicloud gets a role in your account. No access key leaves your laptop. Run every command of this stage in the same terminal and folder.",
+   "dg": "connect",
+   "steps": [
+    {
+     "id": "mctl-signin",
+     "who_kind": "user",
+     "h": "Sign in to Multicloud from the CLI",
+     "who": "You, in the browser",
+     "d": "The browser opens. Sign in with the same account as on multicloud.io. You must be the organization owner. If you belong to more than one organization, add --org <organization-id> to every mctl command.",
+     "c": "mctl auth login\nmctl auth status",
+     "g": "No browser opens (Windows with WSL, SSH, a container): run mctl auth login --no-browser. It prints a link and a code; open the link in any browser."
+    },
+    {
+     "id": "make-folder",
+     "who_kind": "agent",
+     "h": "Make a folder for the connection",
+     "who": "You, in a terminal",
+     "d": "mctl writes the role definition (multicloud.tf) and the OpenTofu state into this folder. Keep the folder after the PoC: you need it to remove the role later.",
+     "c": "mkdir multicloud-aws && cd multicloud-aws\nexport AWS_PROFILE=poc\nexport AWS_REGION=us-east-1"
+    },
+    {
+     "id": "register-account",
+     "who_kind": "ask",
+     "h": "Register the AWS account",
+     "who": "You confirm the values",
+     "d": "Replace <account-id> with your 12-digit AWS account ID. The two flags at the end answer two questions for you: do not turn on other AWS regions, and do not file quota requests automatically (you do that in the next stage).",
+     "in": [
+      "AWS account ID",
+      "Region: us-east-1"
+     ],
+     "c": "mctl cloud-account create --cloud AWS --account <account-id> --region us-east-1 \\\n  --no-opt-in-regions --no-allow-quota-requests",
+     "g": "The output ends with a line like: Next: mctl cloud-account apply 7. The number (here 7) is your cloud-account ID. It is not your AWS account ID. Write it down: you need it in this stage and when you create the pool. To see it again, run: mctl cloud-account list"
+    },
+    {
+     "id": "create-role",
+     "who_kind": "ask",
+     "h": "Create the role in your account",
+     "who": "You review the plan and type yes",
+     "d": "Replace <cloud-account-id> with the number from the previous step. OpenTofu shows the IAM role it creates and asks you to confirm. After the apply, mctl waits until Multicloud can use the account.",
+     "in": [
+      "Approve plan"
+     ],
+     "c": "mctl cloud-account apply <cloud-account-id>"
+    }
+   ]
+  }
+ ]
+}

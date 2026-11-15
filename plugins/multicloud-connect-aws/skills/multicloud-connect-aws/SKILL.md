@@ -39,9 +39,12 @@ Run these and report what is missing, with the install line:
 
 | Check | If missing |
 |---|---|
-| `mctl --version` | `pipx install multicloud-cli` (or `uv tool install multicloud-cli`) |
+| `mctl --version` | `uv tool install multicloud-cli` (or `pipx install multicloud-cli`); skill `multicloud-workstation` installs every tool |
 | `tofu version` or `terraform version` (1.5 or later; `mctl` uses `tofu` when both exist) | OpenTofu: https://opentofu.org/docs/intro/install/. An older version: stop and ask the user to upgrade. |
 | `aws sts get-caller-identity` | Fails, shows another account, or the user does not know their AWS profile: follow **AWS sign-in help** below. If they use a profile, use `AWS_PROFILE=<p>` in later commands. |
+
+On Windows, run every command inside WSL (`wsl.exe -d Ubuntu -- bash -lc '…'`), and make the
+connection folder in the WSL home folder, never under `/mnt/c` (see skill `multicloud-workstation`).
 
 Tell the user the AWS account ID that `aws sts get-caller-identity` shows. It must equal the
 account they want to connect. If it differs, stop and ask them to log in to the correct account.
@@ -83,8 +86,9 @@ default region. `AWS_PROFILE=<name>` selects it. Then go through these steps, on
 
    No single sign-on in their company (an IAM user with an access key):
    `aws configure --profile multicloud`. They type the key themselves, never in the chat.
-   No AWS login at all, or no role that can create IAM roles: their AWS administrator must give
-   them one. Stop until they have it.
+   A brand-new AWS account (only the root login): use skill `multicloud-aws-account-setup`, then
+   come back here. No AWS login at all in a company account, or no role that can create IAM roles:
+   their AWS administrator must give them one. Stop until they have it.
 4. **Check.** Run `AWS_PROFILE=<p> aws sts get-caller-identity`. Another account, or an error: go
    back to item 2 of this list. The correct account: continue with **Step 2** below. Put
    `AWS_PROFILE=<p>` before every later `aws` and `mctl` command.
@@ -131,11 +135,16 @@ Run `mctl cloud-account list`.
   - The flags need `mctl` 0.4.0 or newer. If `mctl cloud-account create --help` does not list
     them, tell the user that this `mctl` cannot record the choice, and ask them to upgrade
     (`pipx upgrade multicloud-cli`). Do not run `create` without the flag after a "no".
+- Ask also: "Allow Multicloud to request higher AWS quotas in this account later, after you approve
+  each request?" (default no). Only an organization owner can allow it. Yes: pass
+  `--allow-quota-requests`; no: pass `--no-allow-quota-requests`. Always pass one: without a
+  terminal, `mctl` takes no. The user can change it later with
+  `mctl cloud-account allow-quota-requests <n>`.
 - `create` writes `multicloud.tf` into the current directory, and a shell can lose its directory
   between commands, so make the folder and create in one command:
 
   ```bash
-  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...] <--opt-in-regions | --no-opt-in-regions>
+  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...] <--opt-in-regions | --no-opt-in-regions> <--allow-quota-requests | --no-allow-quota-requests>
   ```
 
   It prints `Cloud account <n> created ...` and writes `multicloud.tf`. Note `<n>` and the
@@ -206,3 +215,17 @@ machines in the account (a self-service disconnect is planned); a `destroy` befo
 machines running and billed that Multicloud can no longer reach. When support confirms, tell the
 user that `tofu destroy` (or `terraform destroy`) in the connection folder deletes the role, after
 which Multicloud cannot use the account. Ask before you run it.
+
+## Hand back
+
+End with one line, so an onboarding flow can continue (IDs and states only):
+
+```text
+MULTICLOUD-RESULT skill=multicloud-connect-aws status=<done|waiting|blocked|failed> cloud_account_id=<n> aws_account_id=<id> connection_dir=<absolute path> quota_low=<none|comma-separated quota LOW lines> quota_requests_allowed=<yes|no>
+```
+
+`waiting`: still pending, or regions ENABLING. `blocked`: `who=owner` (exit 3), `who=aws-admin` (an
+SCP blocks), `who=multicloud-contact` (`ACCOUNT_HELD`).
+
+The file `flows/connect.json` next to this file holds the same connection as steps for a person who
+works without an agent (the printed PoC page). You follow this file, not the flow file.

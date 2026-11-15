@@ -1,0 +1,492 @@
+<title>Multicloud PoC Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; stage numbers on a left rail, step cards and one diagram per stage. Dark-first (Multicloud brand). */
+:root {
+  --bg: #0F172A; --bg2: #4A1A73;
+  --card: #211E3A; --inset: #18162B; --border: #3D3A5E;
+  --fg: #EDEDED; --muted: #A6B0C0;
+  --accent: #54A2FF; --accent-fill: #286CD8;
+  --ok: #00C758; --warn: #F99C00; --no: #FB2C36; --todo: #AC4BFF; --cf: #8C96A8;
+  --font-num: "Audiowide", "Inter", sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #F5F6FB; --bg2: #E9E1F5; --card: #FFFFFF; --inset: #EEF0F7; --border: #CDD0E0;
+  --fg: #141629; --muted: #4C5470; --accent: #1F5FC4; --accent-fill: #286CD8;
+  --ok: #0A7F3F; --warn: #A85F00; --no: #C21B24; --todo: #7A2BC2; --cf: #5E6880; color-scheme: light } }
+:root[data-theme="light"] {
+  --bg: #F5F6FB; --bg2: #E9E1F5; --card: #FFFFFF; --inset: #EEF0F7; --border: #CDD0E0;
+  --fg: #141629; --muted: #4C5470; --accent: #1F5FC4; --accent-fill: #286CD8;
+  --ok: #0A7F3F; --warn: #A85F00; --no: #C21B24; --todo: #7A2BC2; --cf: #5E6880; color-scheme: light }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-sans);
+  background-image: radial-gradient(1200px 500px at 85% -10%, color-mix(in srgb, var(--bg2) 55%, transparent), transparent 70%);
+  background-attachment: fixed; }
+.wrap { max-width: 900px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { text-wrap: balance; margin: 0 }
+h1 { font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em }
+.lead { color: var(--muted); font-size: 17px; max-width: 65ch; margin: 10px 0 0 }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 600 }
+a { color: var(--accent) }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 16px 0 0; font-size: 13px; color: var(--muted); align-items: center }
+.sw { display: inline-flex; align-items: center; gap: 6px }
+.sw i { width: 14px; height: 10px; border-radius: 3px; border: 2px solid var(--c); display: inline-block }
+
+.panel { margin-top: 28px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; min-width: 0 }
+.panel h2 { font-size: 18px; margin-bottom: 6px }
+.panel > p { margin: 6px 0 0; max-width: 68ch; font-size: 14.5px }
+.ready ul { margin: 8px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 24px }
+.ready li { font-size: 14px; padding-left: 18px; position: relative; min-width: 0 }
+.ready li::before { content: "□"; position: absolute; left: 0; color: var(--accent) }
+
+.progress { display: flex; align-items: center; gap: 12px; margin: 32px 0 8px; font-size: 13px; color: var(--muted) }
+.bar { flex: 1; height: 6px; background: var(--inset); border-radius: 999px; overflow: hidden }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent-fill); transition: width .3s }
+.progress button { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 4px }
+
+.stage { display: grid; grid-template-columns: 56px 1fr; gap: 0 16px; margin-top: 40px }
+.num { font-family: var(--font-num); font-size: 28px; color: var(--accent); line-height: 1; padding-top: 2px; text-align: right }
+.stage-body { min-width: 0; border-left: 1px solid var(--border); padding-left: 20px }
+.stage-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px }
+.stage-head h2 { font-size: 22px; line-height: 1.3 }
+.stage-note { color: var(--muted); font-size: 14px; margin: 6px 0 0; max-width: 65ch }
+.steps { display: flex; flex-direction: column; gap: 12px; margin-top: 16px }
+
+.step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0 }
+.step.done { opacity: .55 }
+.step-top { display: flex; gap: 12px; align-items: flex-start }
+.step-top input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent-fill); flex: none; cursor: pointer }
+.step-title { flex: 1; min-width: 0 }
+.step-title h3 { font-size: 15.5px; font-weight: 600; line-height: 1.4 }
+.who { font-size: 12px; color: var(--muted); margin-top: 2px }
+.step p { margin: 8px 0 0 30px; font-size: 14px; max-width: 65ch }
+.inputs { margin: 10px 0 0 30px; display: flex; flex-wrap: wrap; gap: 6px }
+.inputs span { font-size: 12.5px; background: var(--inset); border: 1px dashed var(--border); border-radius: 6px; padding: 2px 8px }
+.inputs span b { color: var(--accent); font-weight: 600 }
+.cmd { margin: 10px 0 0 30px; position: relative; background: var(--inset); border-radius: 8px; border: 1px solid var(--border); min-width: 0 }
+.panel .cmd { margin-left: 0 }
+.cmd pre { margin: 0; padding: 10px 70px 10px 12px; overflow-x: auto; font: 12.5px/1.6 var(--font-mono); white-space: pre }
+.cmd .tag { position: absolute; top: -9px; left: 10px; font-size: 11px; background: var(--card); color: var(--muted); padding: 0 6px; border-radius: 4px }
+.cmd button { position: absolute; top: 6px; right: 6px; font: 600 11px var(--font-sans); color: var(--accent);
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; cursor: pointer }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 22px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 12px }
+.toolbar .ospick { margin-top: 0 }
+.pdfbtn { font: 600 13px var(--font-sans); color: #fff; background: var(--accent-fill); border: 0; border-radius: 8px; padding: 7px 14px; cursor: pointer; margin-left: auto }
+.pdfmsg { font-size: 12.5px; color: var(--muted) }
+.ospick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 28px; font-size: 13px; color: var(--muted) }
+.ospick button { font: 600 13px var(--font-sans); color: var(--fg); background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; cursor: pointer }
+.ospick button[aria-pressed="true"] { background: var(--accent-fill); border-color: var(--accent-fill); color: #fff }
+.cmd.os { margin-top: 16px }
+.cmd.os .tag { color: var(--accent); font-weight: 600 }
+:root[data-os="mac"] .os:not(.os-mac), :root[data-os="linux"] .os:not(.os-linux), :root[data-os="win"] .os:not(.os-win) { display: none }
+.gap { margin: 10px 0 0 30px; font-size: 13px; color: var(--muted); border-left: 2px solid var(--accent); padding-left: 10px }
+.panel .gap { margin-left: 0 }
+
+/* Diagrams */
+.dg { margin-top: 16px; overflow-x: auto; background: var(--inset); border: 1px solid var(--border); border-radius: 12px; padding: 10px }
+.dg svg { display: block; width: 100%; min-width: 620px; height: auto; font-family: var(--font-sans) }
+.dg figcaption { font-size: 12.5px; color: var(--muted); padding: 6px 4px 2px }
+.zone rect { fill: none; stroke: var(--border); stroke-width: 1.5; stroke-dasharray: 5 5 }
+.zone text { fill: var(--muted); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700 }
+.bx rect { fill: var(--card); stroke: var(--kc); stroke-width: 1.75 }
+.bx.dash rect { stroke-dasharray: 6 4 }
+.bx .bt { fill: var(--fg); font-size: 13px; font-weight: 600 }
+.bx .bs { fill: var(--muted); font-size: 11px }
+.k-you { --kc: var(--accent) } .k-mc { --kc: var(--todo) } .k-aws { --kc: var(--warn) } .k-cf { --kc: var(--cf) } .k-ok { --kc: var(--ok) } .k-no { --kc: var(--no) }
+.ed { stroke: var(--muted); stroke-width: 1.5; fill: none }
+.ed.d { stroke-dasharray: 5 4 }
+.ed.hot { stroke: var(--accent); stroke-width: 2 }
+.mk { fill: var(--muted) } .mk.hot { fill: var(--accent) }
+.el { fill: var(--fg); font-size: 11px; paint-order: stroke; stroke: var(--inset); stroke-width: 5px; stroke-linejoin: round }
+.nt { fill: var(--muted); font-size: 11px; font-style: italic }
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 12px }
+.tbl { overflow-x: auto; min-width: 0 }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600 }
+td code, p code, li code { font: 12.5px var(--font-mono); background: var(--inset); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere }
+.facts { margin: 10px 0 0; padding-left: 18px; font-size: 14px; display: grid; gap: 4px; max-width: 70ch }
+.twocol { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px }
+.twocol > * { min-width: 0 }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px }
+footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px }
+
+@media (max-width: 560px) {
+  .stage { grid-template-columns: 1fr } .num { text-align: left; margin-bottom: 8px }
+  .stage-body { border-left: 0; padding-left: 0 }
+  .step p, .inputs, .cmd, .gap { margin-left: 0 }
+}
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none } }
+@page { size: A4; margin: 14mm 12mm }
+@media print {
+  html, body { background: #fff !important; background-image: none; font-size: 12.5px }
+  .panel:has(#d-arch) { break-before: page }
+  .wrap { max-width: none; padding: 0 }
+  .progress, .toolbar, .step-top input, .cmd button { display: none !important }
+  .os { display: block !important }
+  .step p, .inputs, .cmd, .gap { margin-left: 0 }
+  .step, .dg, .panel.ready, .cmd, tr { break-inside: avoid }
+  .stage-head, .stage-note { break-after: avoid }
+  .cmd pre { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 12px }
+  .dg { overflow: visible } .dg svg { min-width: 0 }
+  .twocol { grid-template-columns: 1fr }
+  #query, .stage { break-before: auto }
+}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Multicloud PoC flow · GPU on your own Kubernetes</div>
+  <h1>From sign-up to an LLM on your own Kubernetes</h1>
+  <p class="lead">Every step where you act or enter data. At the end, a vLLM server with Qwen2.5-7B runs on one NVIDIA L4 or A10G GPU in your AWS account. Your on-prem cluster uses that GPU as if it were a local node, and you send prompts to the model from your laptop.</p>
+
+  <div class="toolbar">
+    <div class="ospick" role="group" aria-label="Show commands for"><span>Show commands for:</span><button type="button" data-os="mac">macOS</button><button type="button" data-os="linux">Linux</button><button type="button" data-os="win">Windows</button></div>
+    <button type="button" id="pdf" class="pdfbtn" hidden>Download PDF</button>
+    <span id="pdfmsg" class="pdfmsg" role="status"></span>
+  </div>
+  <div class="legend" aria-label="Diagram colors">
+    <span class="sw" style="--c: var(--accent)"><i></i>Yours (laptop, cluster)</span>
+    <span class="sw" style="--c: var(--todo)"><i></i>Multicloud</span>
+    <span class="sw" style="--c: var(--warn)"><i></i>Your AWS account</span>
+    <span class="sw" style="--c: var(--cf)"><i></i>Third party</span>
+  </div>
+
+  <section class="panel ready" aria-labelledby="ready-h">
+    <h2 id="ready-h">Have these ready</h2>
+    <ul>
+      <li>A work email address</li>
+      <li>An AWS account ID (12 digits)</li>
+      <li>An AWS account (a new one is fine: the page shows how to set it up)</li>
+      <li>A laptop with macOS, Linux, or Windows 10/11 (with WSL2)</li>
+      <li>Optional: an AI agent that can run terminal commands and use MCP servers</li>
+      <li>A kubeconfig with cluster-admin rights on your Kubernetes cluster (1.30+)</li>
+      <li>Your pod and service CIDRs, and your CNI name</li>
+      <li>Your egress path: direct, HTTPS proxy or TLS inspection</li>
+      <li>A spend limit per hour (we suggest $1.50)</li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="arch-h">
+    <h2 id="arch-h">What you end up with</h2>
+    <p>Your cluster gets one virtual node. A pod you place on it runs on a real GPU worker in your AWS account. Multicloud runs the control plane of that worker pool and keeps one worker running while the pool is awake. You hibernate the pool to stop paying for the worker. Your control plane, your other nodes and your data stay where they are.</p>
+    <figure class="dg" id="d-arch"><figcaption>Final architecture. Solid lines are in use during the PoC. The dashed line is the optional in-cluster path (Extend proxy).</figcaption></figure>
+  </section>
+
+  <div class="progress"><span id="count">0 of 0 steps done</span><div class="bar"><i id="fill"></i></div><button type="button" id="reset">Clear</button></div>
+
+  <div id="stagesA"></div>
+
+  <section class="panel" id="query" aria-labelledby="q-h">
+    <h2 id="q-h">Send a query to the model</h2>
+    <p>vLLM speaks the OpenAI API. For the PoC you call it through <code>kubectl port-forward</code>: there is no public URL and no extra tunnel. While the port-forward runs, the model answers on your laptop at:</p>
+    <div class="cmd"><pre>http://localhost:8000/v1/chat/completions</pre><button type="button" data-copy>Copy</button></div>
+    <ul class="facts">
+      <li>Model name: <code>qwen</code> (Qwen/Qwen2.5-7B-Instruct, up to 8,192 tokens of context).</li>
+      <li>Every request needs the header <code>Authorization: Bearer &lt;key&gt;</code>. The key is in the secret <code>vllm-api-key</code>.</li>
+      <li>The port-forward works only while its terminal stays open, and only for the person who runs it.</li>
+      <li>The request goes through your API server, the Liqo bridge, Cloudflare and the Multicloud pool API server to the GPU worker. The response comes back the same way.</li>
+    </ul>
+    <figure class="dg" id="d-path"><figcaption>The path of one request with port-forward.</figcaption></figure>
+
+    <div class="twocol">
+      <div class="cmd"><span class="tag">curl (in your first terminal)</span><pre>export KEY=$(kubectl -n my-team get secret vllm-api-key \
+  -o jsonpath='{.data.key}' | base64 -d)
+
+curl -s http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"qwen","messages":[
+        {"role":"user","content":"Say hello."}]}'</pre><button type="button" data-copy>Copy</button></div>
+      <div class="cmd"><span class="tag">Python (after: uv pip install openai, or pip install openai)</span><pre># Run in the same terminal, after the export KEY=... line
+import os
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8000/v1",
+                api_key=os.environ["KEY"])
+r = client.chat.completions.create(
+    model="qwen",
+    messages=[{"role": "user", "content": "Say hello."}])
+print(r.choices[0].message.content)</pre><button type="button" data-copy>Copy</button></div>
+    </div>
+    <div class="cmd" style="margin-top:16px"><span class="tag">Example response (shape only; the text varies)</span><pre>{"object": "chat.completion", "model": "qwen",
+ "choices": [{"index": 0, "finish_reason": "stop",
+   "message": {"role": "assistant", "content": "Hello! How can I help you today?"}}],
+ "usage": {"prompt_tokens": 11, "completion_tokens": 9, "total_tokens": 20}}</pre><button type="button" data-copy>Copy</button></div>
+
+    <h3 style="font-size:15px;margin-top:22px">Ways to call the model</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Path</th><th>URL</th><th>Who can call</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Port-forward (PoC default)</td><td><code>http://localhost:8000/v1</code></td><td>The person who runs <code>kubectl port-forward</code></td><td>No setup beyond the steps on this page.</td></tr>
+        <tr><td>Extend proxy</td><td><code>http://vllm-pool.multicloud-extend-proxy.svc:8000/v1</code></td><td>Any pod in your cluster</td><td>Ask your Multicloud contact. Needs outbound UDP 51820 and a key with the <code>extend:proxy</code> permission.</td></tr>      </tbody>
+    </table></div>
+  </section>
+
+  <div id="stagesB"></div>
+
+  <footer>Region for the PoC: us-east-1. GPU worker: on-demand (no interruptions). Prepared 15 November 2026. Your Multicloud contact enables your organization for the PoC before step 1; you do not need to do anything for that.</footer>
+</div>
+
+<script>
+/* ---------- tiny SVG diagram helper ---------- */
+let mkId = 0;
+const X = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function zone(x, y, w, h, label) { return `<g class="zone"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12"/><text x="${x + 12}" y="${y + 18}">${X(label)}</text></g>` }
+function box(x, y, w, h, t, s, k, dash) {
+  const lines = s ? s.split("\n") : [];
+  const total = 16 + lines.length * 14;
+  let ty = y + h / 2 - total / 2 + 12, cx = x + w / 2;
+  let out = `<g class="bx k-${k}${dash ? " dash" : ""}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10"/><text class="bt" x="${cx}" y="${ty}" text-anchor="middle">${X(t)}</text>`;
+  lines.forEach((l, i) => out += `<text class="bs" x="${cx}" y="${ty + 16 + i * 14}" text-anchor="middle">${X(l)}</text>`);
+  return out + "</g>";
+}
+function edge(pts, label, o = {}) {
+  const id = "m" + (++mkId), cls = "ed" + (o.d ? " d" : "") + (o.hot ? " hot" : "");
+  const p = pts.map(q => q.join(",")).join(" ");
+  let s = `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk${o.hot ? " hot" : ""}" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
+  s += `<polyline class="${cls}" points="${p}" marker-end="url(#${id})"${o.both ? ` marker-start="url(#${id})"` : ""}/>`;
+  if (label) {
+    let lx, ly;
+    if (o.at) [lx, ly] = o.at; else { const a = pts[Math.floor((pts.length - 1) / 2)], b = pts[Math.floor((pts.length - 1) / 2) + 1]; lx = (a[0] + b[0]) / 2; ly = (a[1] + b[1]) / 2 - 6; }
+    s += `<text class="el" x="${lx}" y="${ly}" text-anchor="middle">${X(label)}</text>`;
+  }
+  return s;
+}
+const note = (x, y, t, a = "start") => `<text class="nt" x="${x}" y="${y}" text-anchor="${a}">${X(t)}</text>`;
+const svg = (h, body, label) => `<svg viewBox="0 0 720 ${h}" role="img" aria-label="${X(label)}">${body}</svg>`;
+
+const DIAGRAMS = {
+  account: svg(120, [
+    box(10, 30, 150, 60, "You", "in the browser", "you"),
+    box(195, 30, 150, 60, "Register", "multicloud.io", "mc"),
+    box(380, 30, 150, 60, "Verify email", "link in your inbox", "you"),
+    box(565, 30, 150, 60, "Your organization", "you are the owner", "mc"),
+    edge([[160, 60], [195, 60]]), edge([[345, 60], [380, 60]]), edge([[530, 60], [565, 60]]),
+  ].join(""), "You register, verify your email and create your organization."),
+
+  ai: svg(200, [
+    box(10, 70, 120, 60, "You", "chat", "you"),
+    box(190, 70, 190, 60, "Your AI agent", "+ Multicloud skills", "you"),
+    box(470, 20, 240, 60, "Multicloud MCP server", "mcp.multicloud.io · API key", "mc"),
+    box(470, 120, 240, 60, "Your terminal", "mctl · aws · kubectl", "you"),
+    edge([[130, 100], [190, 100]], "", { both: true }),
+    edge([[380, 88], [470, 52]], "catalog, pools"),
+    edge([[380, 112], [470, 150]], "commands you approve", { at: [425, 152] }),
+  ].join(""), "Your AI uses the Multicloud MCP server and runs commands in your terminal after you approve them."),
+
+  tools: svg(170, [
+    zone(10, 12, 420, 146, "Your laptop"),
+    box(30, 60, 120, 60, "AWS CLI", "aws", "you"),
+    box(160, 60, 120, 60, "mctl", "Multicloud CLI", "you"),
+    box(290, 60, 120, 60, "OpenTofu", "creates the role", "you"),
+    box(520, 58, 190, 64, "AWS sign-in", "IAM Identity Center (SSO)", "aws"),
+    edge([[430, 90], [520, 90]], "browser sign-in"),
+  ].join(""), "You install three tools on your laptop and sign in to AWS."),
+
+  connect: svg(240, [
+    zone(10, 12, 200, 216, "Your laptop"),
+    zone(260, 12, 200, 216, "Your AWS account"),
+    zone(510, 12, 200, 216, "Multicloud"),
+    box(30, 90, 160, 60, "mctl + OpenTofu", "runs with your sign-in", "you"),
+    box(280, 90, 160, 60, "IAM role", "trusts Multicloud only", "aws"),
+    box(530, 90, 160, 60, "Multicloud API", "your organization", "mc"),
+    edge([[190, 135], [280, 135]], "creates", { at: [235, 128] }),
+    edge([[530, 105], [440, 105]], "assumes", { at: [485, 98] }),
+    edge([[110, 150], [110, 200], [610, 200], [610, 150]], "registers account ID + region", { at: [360, 194] }),
+  ].join(""), "OpenTofu creates an IAM role in your AWS account. Multicloud assumes that role. No access key leaves your laptop."),
+
+  quota: svg(170, [
+    box(10, 80, 150, 60, "Request 8 vCPU", "on-demand G and VT", "you"),
+    box(195, 80, 150, 60, "AWS reviews", "hours to days", "aws"),
+    box(380, 80, 150, 60, "Answer AWS", "only if a case opens", "you", true),
+    box(565, 80, 150, 60, "Approved", "applied value ≥ 4", "ok"),
+    edge([[160, 110], [195, 110]]), edge([[345, 110], [380, 110]]), edge([[530, 110], [565, 110]]),
+    edge([[270, 80], [270, 36], [640, 36], [640, 80]], "your AI checks the status and tells you", { d: true, at: [455, 30] }),
+  ].join(""), "You request 8 vCPU of GPU quota. AWS reviews it. Your AI tracks it until the applied value is 4 or more."),
+
+  cluster: svg(240, [
+    zone(10, 12, 300, 216, "Your site"),
+    box(30, 70, 260, 76, "Your Kubernetes cluster", "1.30+ · your CNI\npod CIDR · service CIDR", "you"),
+    note(30, 190, "No inbound port is opened."),
+    box(480, 20, 230, 54, "Cloudflare", "TCP 443 · required", "cf"),
+    box(480, 94, 230, 54, "docker.io · ghcr.io", "TCP 443 · images", "cf"),
+    box(480, 168, 230, 54, "GPU worker (later)", "UDP 51820 · optional", "aws", true),
+    edge([[290, 96], [480, 47]]), edge([[290, 108], [480, 121]]), edge([[290, 120], [480, 195]], "", { d: true }),
+    note(385, 70, "outbound", "middle"),
+  ].join(""), "Your cluster needs outbound TCP 443 to Cloudflare and the image registries. UDP 51820 is optional."),
+
+  pool: svg(230, [
+    zone(10, 12, 300, 206, "Multicloud"),
+    zone(410, 12, 300, 206, "Your AWS account · us-east-1"),
+    box(30, 76, 260, 76, "Pool control plane", "Kubernetes API for poc-gpu\nmax 2 servers · $1.50 per hour", "mc"),
+    box(430, 76, 260, 76, "GPU worker (on-demand)", "g6.2xlarge · 1× L4 24 GB\nor g5.2xlarge · 1× A10G 24 GB", "aws", true),
+    edge([[290, 114], [430, 114]], "starts and manages it", { at: [360, 106] }),
+    note(430, 190, "One worker runs while the pool is awake. Hibernate to stop it."),
+  ].join(""), "Multicloud runs the pool control plane. The GPU worker starts in your AWS account only when a pod needs it."),
+
+  peer: svg(240, [
+    zone(10, 12, 330, 216, "Your cluster"),
+    box(30, 40, 290, 56, "Virtual node: poc-gpu", "shows nvidia.com/gpu = 1", "you"),
+    box(30, 124, 135, 72, "Liqo", "namespace liqo\nvirtual kubelet", "you"),
+    box(185, 124, 135, 72, "Bridge", "cloudflared\noutbound only", "you"),
+    box(380, 132, 120, 56, "Cloudflare", "TCP 443", "cf"),
+    zone(540, 12, 170, 216, "Multicloud"),
+    box(555, 120, 140, 80, "Pool API server", "accepts only your\npeering token", "mc"),
+    edge([[97, 124], [97, 96]], "creates", { at: [130, 115] }),
+    edge([[320, 160], [380, 160]]), edge([[500, 160], [555, 160]]),
+  ].join(""), "The connector adds a virtual node to your cluster and reaches the pool API server through Cloudflare on port 443."),
+
+  run: svg(270, [
+    zone(10, 12, 300, 240, "Your cluster"),
+    box(30, 46, 260, 58, "Deployment vllm", "namespace my-team · 1 GPU", "you"),
+    box(30, 160, 260, 58, "Virtual node: poc-gpu", "the pod is placed here", "you"),
+    edge([[160, 104], [160, 160]], "scheduled", { at: [200, 136] }),
+    zone(410, 12, 300, 152, "Your AWS account"),
+    box(430, 46, 260, 80, "GPU worker", "vLLM pod · Qwen2.5-7B\nL4 or A10G · port 8000", "aws"),
+    box(430, 196, 260, 56, "Hugging Face", "model download, about 15 GB", "cf"),
+    edge([[290, 189], [360, 189], [360, 86], [430, 86]], "the real pod runs here", { at: [360, 140] }),
+    edge([[560, 126], [560, 196]], "first start only", { at: [620, 165] }),
+  ].join(""), "The vLLM pod is placed on the virtual node and runs on the GPU worker in your AWS account."),
+
+  clean: svg(120, [
+    box(10, 30, 150, 60, "vLLM deleted", "kubectl delete", "no"),
+    box(195, 30, 150, 60, "Peering revoked", "virtual node goes", "no"),
+    box(380, 30, 150, 60, "Pool deleted", "GPU worker stops", "no"),
+    box(565, 30, 150, 60, "EC2 check", "0 GPU instances", "ok"),
+    edge([[160, 60], [195, 60]]), edge([[345, 60], [380, 60]]), edge([[530, 60], [565, 60]]),
+  ].join(""), "Delete in this order, then check that no GPU instance runs."),
+
+  path: svg(270, [
+    box(10, 30, 160, 60, "curl or Python", "localhost:8000", "you"),
+    box(195, 30, 160, 60, "kubectl port-forward", "your laptop", "you"),
+    box(380, 30, 160, 60, "Your API server", "on-prem cluster", "you"),
+    box(560, 30, 155, 60, "Liqo + bridge", "namespace liqo", "you"),
+    box(560, 170, 155, 60, "Cloudflare", "TCP 443", "cf"),
+    box(380, 170, 160, 60, "Pool API server", "Multicloud", "mc"),
+    box(195, 170, 160, 60, "GPU worker", "your AWS account", "aws"),
+    box(10, 170, 160, 60, "vLLM pod", "port 8000 · /v1/…", "aws"),
+    edge([[170, 60], [195, 60]], "", { hot: true }), edge([[355, 60], [380, 60]], "", { hot: true }), edge([[540, 60], [560, 60]], "", { hot: true }),
+    edge([[637, 90], [637, 170]], "", { hot: true }),
+    edge([[560, 200], [540, 200]], "", { hot: true }), edge([[380, 200], [355, 200]], "", { hot: true }), edge([[195, 200], [170, 200]], "", { hot: true }),
+    note(360, 258, "The response returns along the same path.", "middle"),
+  ].join(""), "A request goes from your laptop through your API server, the bridge, Cloudflare and the pool API server to the vLLM pod."),
+
+  arch: svg(450, [
+    zone(10, 12, 250, 420, "Your site"),
+    box(30, 42, 210, 70, "Your laptop", "AI agent (optional) · mctl\nkubectl · aws", "you"),
+    zone(25, 138, 220, 280, "Your cluster (on-prem)"),
+    box(40, 170, 190, 56, "Your apps", "unchanged", "you"),
+    box(40, 250, 190, 56, "Virtual node", "poc-gpu · 1 GPU", "you"),
+    box(40, 330, 190, 70, "Liqo + bridge", "outbound 443\n(+ Extend proxy, optional)", "you"),
+    edge([[135, 306], [135, 330]]),
+    box(290, 337, 130, 56, "Cloudflare", "TCP 443", "cf"),
+    zone(460, 12, 250, 190, "Multicloud"),
+    box(480, 42, 210, 58, "Console · API · MCP", "your organization", "mc"),
+    box(480, 124, 210, 58, "Pool control plane", "poc-gpu", "mc"),
+    zone(460, 222, 250, 210, "Your AWS account · us-east-1"),
+    box(480, 250, 210, 50, "IAM role", "Multicloud acts through it", "aws"),
+    box(480, 318, 210, 84, "GPU worker", "vLLM · Qwen2.5-7B\nL4 or A10G · on-demand", "aws"),
+    edge([[240, 71], [480, 71]], "sign-in · API key", { at: [360, 64] }),
+    edge([[230, 365], [290, 365]]),
+    edge([[420, 350], [446, 350], [446, 153], [480, 153]], "pool API", { at: [446, 250] }),
+    edge([[480, 380], [420, 380]], "worker joins", { at: [450, 396] }),
+    edge([[690, 71], [703, 71], [703, 275], [690, 275]], "", {}),
+    note(698, 215, "assumes role", "end"),
+    edge([[135, 400], [135, 424], [585, 424], [585, 402]], "UDP 51820 · optional proxy", { d: true, at: [360, 418] }),
+  ].join(""), "Final architecture: your site, Cloudflare, Multicloud and your AWS account."),
+};
+
+/* ---------- stages ---------- */
+/*@@FLOW_DATA@@*/
+const OSL = { mac: "macOS", linux: "Linux", win: "Windows (Ubuntu in WSL2)" };
+const KEY = "poc-flow-done";
+let done = {};
+try { done = JSON.parse(localStorage.getItem(KEY) || "{}") } catch (e) { done = {} }
+let n = 0, total = 0, stageNo = 0;
+function render(list) {
+  return list.map(st => { const i = ++stageNo; return `
+  <section class="stage" aria-labelledby="st${i}">
+    <div class="num">${String(i).padStart(2, "0")}</div>
+    <div class="stage-body">
+      <div class="stage-head"><h2 id="st${i}">${X(st.t)}</h2></div>
+      <p class="stage-note">${X(st.note)}</p>
+      ${st.dg ? `<figure class="dg">${DIAGRAMS[st.dg]}</figure>` : ""}
+      <div class="steps">${st.steps.map(sp => { const id = "s" + (++n); total++; return `
+        <article class="step${done[id] ? " done" : ""}" id="card-${id}">
+          <div class="step-top">
+            <input type="checkbox" id="${id}" ${done[id] ? "checked" : ""}>
+            <div class="step-title"><h3><label for="${id}">${X(sp.h)}</label></h3><div class="who">${X(sp.who)}</div></div>
+          </div>
+          ${sp.d ? `<p>${X(sp.d)}</p>` : ""}
+          ${sp.in ? `<div class="inputs">${sp.in.map(x => `<span><b>›</b> ${X(x)}</span>`).join("")}</div>` : ""}
+          ${sp.c ? `<div class="cmd"><pre>${X(sp.c)}</pre><button type="button" data-copy>Copy</button></div>` : ""}
+          ${sp.os ? Object.entries(OSL).map(([k, l]) => `<div class="cmd os os-${k}"><span class="tag">${l}</span><pre>${X(sp.os[k])}</pre><button type="button" data-copy>Copy</button></div>`).join("") : ""}
+          ${sp.g ? `<div class="gap">${X(sp.g)}</div>` : ""}
+        </article>` }).join("")}</div>
+    </div>
+  </section>` }).join("");
+}
+document.getElementById("stagesA").innerHTML = render(STAGES);
+document.getElementById("stagesB").innerHTML = render(STAGES_B);
+document.getElementById("d-arch").insertAdjacentHTML("afterbegin", DIAGRAMS.arch);
+document.getElementById("d-path").insertAdjacentHTML("afterbegin", DIAGRAMS.path);
+
+function update() {
+  const c = Object.values(done).filter(Boolean).length;
+  document.getElementById("count").textContent = `${c} of ${total} steps done`;
+  document.getElementById("fill").style.width = (100 * c / total) + "%";
+}
+document.addEventListener("change", e => {
+  if (e.target.type !== "checkbox") return;
+  done[e.target.id] = e.target.checked;
+  document.getElementById("card-" + e.target.id).classList.toggle("done", e.target.checked);
+  try { localStorage.setItem(KEY, JSON.stringify(done)) } catch (err) {}
+  update();
+});
+document.getElementById("reset").addEventListener("click", () => {
+  done = {};
+  document.querySelectorAll(".step input").forEach(x => { x.checked = false; document.getElementById("card-" + x.id).classList.remove("done") });
+  try { localStorage.removeItem(KEY) } catch (err) {}
+  update();
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  const pre = b.parentElement.querySelector("pre");
+  const ok = () => { b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1500) };
+  const sel = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Press ⌘C" };
+  if (navigator.clipboard) navigator.clipboard.writeText(pre.textContent).then(ok, sel); else sel();
+});
+function setOS(o) { document.documentElement.dataset.os = o; document.querySelectorAll(".ospick button").forEach(b => b.setAttribute("aria-pressed", b.dataset.os === o)); try { localStorage.setItem("poc-os", o) } catch (e) {} }
+let os0 = "mac"; try { os0 = localStorage.getItem("poc-os") || (/Windows/.test(navigator.userAgent) ? "win" : /Linux/.test(navigator.userAgent) ? "linux" : "mac") } catch (e) {}
+document.querySelectorAll(".ospick button").forEach(b => b.addEventListener("click", () => setOS(b.dataset.os)));
+setOS(os0);
+update();
+(async () => {
+  const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+  if (!dl) return;
+  const b = document.getElementById("pdf"), msg = document.getElementById("pdfmsg");
+  b.hidden = false;
+  b.addEventListener("click", async () => {
+    msg.textContent = "";
+    try {
+      const r = await fetch("multicloud-poc-flow.pdf");
+      if (!r.ok) throw { code: "missing" };
+      await dl.save({ filename: "Multicloud PoC Flow.pdf", data: await r.blob() });
+      msg.textContent = "Saved.";
+    } catch (e) {
+      const c = e && e.code;
+      if (c === "declined") return;
+      if (c === "rate_limited") { msg.textContent = "A save is already open. Try again in a moment."; return; }
+      if (c === "unavailable" || c === "not_granted" || c === "capability_disabled" || c === "capability_removed") { b.hidden = true; return; }
+      msg.textContent = "The PDF could not be saved. Ask your Multicloud contact for the file.";
+    }
+  });
+})();
+</script>

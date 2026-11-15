@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: my-team
+  labels: {app: vllm}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: vllm}
+  template:
+    metadata:
+      labels: {app: vllm}
+    spec:
+      enableServiceLinks: false
+      tolerations:
+        - {key: multicloud.io/pool, operator: Exists, effect: NoSchedule}
+        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - {key: multicloud.io/pool, operator: Exists}
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.31.0@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3
+          args: ["--model", "Qwen/Qwen2.5-7B-Instruct", "--served-model-name", "qwen",
+                 "--dtype", "bfloat16",
+                 "--max-model-len", "8192", "--gpu-memory-utilization", "0.90",
+                 "--enforce-eager", "--api-key", "$(VLLM_API_KEY)", "--host", "::", "--port", "8000"]
+          env:
+            - {name: VLLM_API_KEY, valueFrom: {secretKeyRef: {name: vllm-api-key, key: key}}}
+            - {name: HF_HOME, value: /cache}
+          ports:
+            - {name: http, containerPort: 8000}
+          resources:
+            requests: {cpu: "3", memory: 12Gi, ephemeral-storage: 40Gi}
+            limits: {memory: 13Gi, nvidia.com/gpu: 1}
+          startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 120}
+          readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10}
+          volumeMounts:
+            - {name: shm, mountPath: /dev/shm}
+            - {name: cache, mountPath: /cache}
+      volumes:
+        - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}
+        - {name: cache, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: my-team
+  labels: {app: vllm}
+spec:
+  type: ClusterIP
+  selector: {app: vllm}
+  ports:
+    - {name: http, port: 8000, targetPort: http}

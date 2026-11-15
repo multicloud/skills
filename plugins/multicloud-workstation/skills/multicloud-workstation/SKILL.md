@@ -1,0 +1,112 @@
+---
+name: multicloud-workstation
+description: Use when someone must prepare their computer for Multicloud - install mctl (the Multicloud CLI, package multicloud-cli), the AWS CLI, OpenTofu, kubectl, helm or jq, set up WSL2 on Windows, create a multicloud.io account and organization, sign in with "mctl auth login", or connect an AI agent to the Multicloud MCP server.
+---
+
+# Prepare the computer for Multicloud
+
+You make the user's computer ready: on Windows a Linux shell (WSL2), a multicloud.io account, the
+command-line tools, and the Multicloud sign-in. The steps, with the exact commands per system, are
+in `flows/workstation.json` next to this file. Follow them in the order of this file.
+
+## Rules that do not bend
+
+1. **The user types every password and code.** Linux password, `sudo` password, multicloud.io
+   password, MFA codes. You never see them.
+2. **Never handle a Multicloud API key.** The new-key page on multicloud.io shows the key once: the
+   user does that page alone, and puts the key into their AI tool's settings themselves. If the
+   user pastes a key, tell them to revoke it (Account › API keys) and make a new one.
+   `mctl auth login` (browser sign-in) needs no key: prefer it.
+3. **Never store a key in a lasting setting** (`setx`, `~/.bashrc`, `~/.zshrc`, a `.env` file).
+4. **Ask before you install.** Name the tools and the commands in one question. A yes covers that
+   list.
+
+## How to read the flow file
+
+Each stage has `steps`. Each step has `h` (title), `d` (what to do), `in` (values the user enters),
+`c` (one command block) or `os` (`mac`, `linux`, `win` blocks), `g` (a note), and `who_kind`:
+
+| `who_kind` | You |
+|---|---|
+| `agent` | Run it. It changes nothing outside the working folder. |
+| `ask` | Show the command and ask; run it after a yes. |
+| `browser` | Guide the user click by click, or drive the browser if you have browser tools. The user types passwords and codes. |
+| `user` | The user does it alone (a secret, an admin right, a reboot). Tell them what to do, wait for "done". |
+| `page` | A line for the printed page only. Skip it. |
+
+A `win` block runs inside Ubuntu (WSL2), never in PowerShell.
+
+## Step 1: Find the system
+
+Run `uname -s 2>/dev/null || echo windows`.
+
+| Result | System | `run_prefix` |
+|---|---|---|
+| `Darwin` | macOS | none |
+| `Linux`, and `uname -r` contains `microsoft` | Windows, you are already inside WSL | none |
+| `Linux` | Linux | none |
+| `windows`, `MINGW…`, `MSYS…`, `CYGWIN…` | Windows host shell | `wsl.exe -d Ubuntu -- bash -lc` |
+
+On a Windows host shell:
+- Run `wsl.exe -l -v`. No `Ubuntu` with VERSION 2: do stage `windows` (the user installs WSL in
+  PowerShell as administrator and restarts Windows; you cannot do this). A company policy that
+  blocks WSL: stop with `status=blocked who=it`.
+- Run every later command as `wsl.exe -d Ubuntu -- bash -lc '<command>'`. For more than one line,
+  write the lines to a script inside WSL (`~/multicloud-onboarding/run/<step>.sh`, by a heredoc in
+  the same wrapper) and run `wsl.exe -d Ubuntu -- bash -l ~/multicloud-onboarding/run/<step>.sh`.
+  This avoids PowerShell quoting.
+- Keep every file inside the WSL home folder (`~/…`), never under `/mnt/c/…`: Windows ignores
+  `chmod 600` there.
+- The user's terminal is the **Ubuntu** window. When a step says "in your own terminal", it means
+  that window.
+
+## Step 2: Multicloud account (stage `multicloud-account`)
+
+Skip if the user already has one. The user registers at multicloud.io, verifies the email and
+creates the organization (they become its owner). Ask for the **organization ID** (the short name;
+it is not secret).
+
+## Step 3: Tools (stage `tools`)
+
+Check first, install only what is missing:
+
+| Check | Need |
+|---|---|
+| `mctl --version` | any; the newest is best (`uv tool upgrade multicloud-cli`) |
+| `aws --version` | starts with `aws-cli/2` |
+| `tofu version` or `terraform version` | 1.5 or later |
+| `kubectl version --client` | Extend only |
+| `helm version` | 3.14 or later, Extend only |
+| `jq --version` | Extend only |
+
+Use the block of the user's system from the flow. A block with `sudo` asks for a password, which
+your shell cannot type: run `sudo -n true` first. It fails: give the block to the user to run in
+their own terminal, and wait for "done". `brew` needs no `sudo`. After `uv tool update-shell`, a new
+shell is needed: run the next checks in a new `bash -lc` (or ask the user to open a new terminal).
+
+## Step 4: Multicloud sign-in
+
+The user runs, in their own terminal: `mctl auth login`. It opens the browser.
+- No browser opens (WSL, SSH, a container): `mctl auth login --no-browser`. It prints a link and a
+  code; the user opens the link in any browser.
+
+Then you run `mctl auth status`. `The sign-in works.` and an `Organizations:` line: note the
+organization ID. Several organizations: ask which one, and add `--org <id>` to every later `mctl`
+command. Connecting a cloud account and allowing quota requests need the **organization owner**;
+an exit code 3 on those steps later means this sign-in is not the owner.
+
+## Step 5: Connect the AI (stage `connect-ai`, optional)
+
+Only when the user wants their AI to use the Multicloud MCP server (`https://mcp.multicloud.io/mcp`).
+`mctl` covers every onboarding step without it. The user makes the API key and puts it into their
+AI tool's MCP settings themselves (step `create-api-key` is `user`). You may show the JSON shape
+from the flow, with `mca_…` as the placeholder, never a real key.
+
+## Hand back
+
+```text
+MULTICLOUD-RESULT skill=multicloud-workstation status=done os=<macos|linux|windows> run_prefix=<none|wsl> org_id=<id> tools=mctl,aws,tofu[,kubectl,helm,jq]
+```
+
+Use `status=blocked who=it` (WSL blocked), `who=user` (waiting for a manual step), or
+`status=failed` with the error line.
