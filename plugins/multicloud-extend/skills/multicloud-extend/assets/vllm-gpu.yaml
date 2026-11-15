@@ -38,7 +38,7 @@ spec:
           resources:
             requests: {cpu: "3", memory: 12Gi, ephemeral-storage: 40Gi}
             limits: {memory: 13Gi, nvidia.com/gpu: 1}
-          startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 120}
+          startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 180}
           readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10}
           volumeMounts:
             - {name: shm, mountPath: /dev/shm}

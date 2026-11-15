@@ -9,7 +9,7 @@ invokes. Detection follows skill-creator's run_eval.py (first Skill tool_use in 
 
 Claude Code only (it drives `claude -p`). It checks trigger routing, not the skills' behaviour.
 """
-import argparse, json, os, pathlib, re, subprocess, sys
+import argparse, json, os, pathlib, re, subprocess, sys, threading
 from concurrent.futures import ThreadPoolExecutor
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -35,6 +35,8 @@ def first_skill(query, project, model, timeout):
     cmd += ["--model", model]
   env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
   p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=project, env=env, text=True)
+  timer = threading.Timer(timeout, p.kill)  # a hung run must not block the whole eval
+  timer.start()
   try:
     for line in p.stdout:
       try:
@@ -52,6 +54,7 @@ def first_skill(query, project, model, timeout):
       if ev.get("type") == "result":
         return "none"
   finally:
+    timer.cancel()
     if p.poll() is None:
       p.kill(); p.wait()
   return "none"

@@ -53,6 +53,8 @@ def stage_steps(st, skill_dir):
 
 def resolve(entry, stages):
   if isinstance(entry, str):
+    if entry not in stages:
+      sys.exit(f"unknown stage {entry!r}")
     st, d = stages[entry]
     out = {"t": st["t"], "note": st["note"]}
     if st.get("dg"):
@@ -64,11 +66,16 @@ def resolve(entry, stages):
     out["dg"] = entry["dg"]
   out["steps"] = []
   for ref in entry["steps"]:
-    skill, sid, step_id = ref.split(":")
+    parts = ref.split(":")
+    if len(parts) != 3 or f"{parts[0]}:{parts[1]}" not in stages:
+      sys.exit(f"bad step reference {ref!r}: want <skill>:<stage>:<step> of an existing stage")
+    skill, sid, step_id = parts
     st, d = stages[f"{skill}:{sid}"]
     step = next((s for s in st["steps"] if s["id"] == step_id), None)
     if step is None:
       sys.exit(f"unknown step {ref}")
+    if not step.get("page", True):
+      sys.exit(f"step {ref} has page: false and cannot be on a page")
     out["steps"].append(page_step(step, d))
   return out
 
@@ -78,8 +85,8 @@ def render(manifest_path, stages):
   template = (ROOT / "poc" / "template.html").read_text()
   if template.count(MARK) != 1:
     sys.exit("template.html must hold the flow marker exactly once")
-  a = [resolve(e, stages) for e in m["STAGES"]]
-  b = [resolve(e, stages) for e in m["STAGES_B"]]
+  a = [resolve(e, stages) for e in m.get("STAGES", [])]
+  b = [resolve(e, stages) for e in m.get("STAGES_B", [])]
   js = ("const STAGES = " + json.dumps(a, ensure_ascii=False, indent=1) + ";\n"
         "const STAGES_B = " + json.dumps(b, ensure_ascii=False, indent=1) + ";\n")
   # A literal "</script" inside a command would end the script element early.

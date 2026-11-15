@@ -113,7 +113,8 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 - Stop for the day: `mctl pool hibernate <pool>` (ask). Resume: `mctl pool wake <pool> --wait`. A
   peering cannot be created on a hibernated pool (409 `POOL_HIBERNATED`).
 - Clean up only when the user asks: stage `cleanup`, in the order of the flow (for `cpu-burst`, skip
-  the vLLM lines and use pool `burst`). Ask once for the whole list and say that the pool delete
+  the vLLM lines and use pool `burst`). Put the real region, AWS profile and connection folder
+  (from the onboarding ledger or skill `multicloud-connect-aws`) into the `<…>` placeholders. Ask once for the whole list and say that the pool delete
   cannot be undone. Stop the background port-forward first:
   `kill "$(cat ~/multicloud-onboarding/port-forward.pid)"`. Then `check-nothing-left` (its `aws`
   command needs the AWS profile of the connection: put `AWS_PROFILE=<profile>` before it).

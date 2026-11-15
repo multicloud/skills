@@ -580,9 +580,10 @@ const STAGES = [
     "d": "The output of aws --version must start with aws-cli/2.",
     "os": {
      "mac": "brew install awscli\naws --version",
-     "linux": "sudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version",
-     "win": "# In the Ubuntu window\nsudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip awscliv2.zip && sudo ./aws/install\naws --version"
-    }
+     "linux": "sudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version",
+     "win": "# In the Ubuntu window\nsudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version"
+    },
+    "g": "ARM Linux (uname -m prints aarch64): use awscli-exe-linux-aarch64.zip."
    },
    {
     "h": "Install OpenTofu (1.10 or later)",
@@ -602,7 +603,8 @@ const STAGES = [
      "mac": "brew install kubectl helm jq\nkubectl version --client && helm version",
      "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq        # or: sudo dnf install -y jq\nkubectl version --client && helm version",
      "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq\nkubectl version --client && helm version"
-    }
+    },
+    "g": "ARM Linux (uname -m prints aarch64): replace linux/amd64 with linux/arm64 in the kubectl URL."
    },
    {
     "h": "Sign in to AWS from the terminal",
@@ -675,7 +677,7 @@ const STAGES = [
    {
     "h": "Read your current GPU quota",
     "who": "You, in a terminal",
-    "d": "The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 4: request 8.",
+    "d": "The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 8: request 8 (one g6.2xlarge or g5.2xlarge needs 8; 4 fits only the smallest L4 or A10G size).",
     "c": "aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA \\\n  --region us-east-1 --query Quota.Value --output text"
    },
    {
@@ -859,7 +861,7 @@ const STAGES = [
     "h": "Save the vLLM manifest",
     "who": "You, in a terminal",
     "d": "Copy this block into a file named vllm-gpu.yaml in your current folder. On the command line: run cat > vllm-gpu.yaml, paste the block, press Enter, then Ctrl+D.",
-    "c": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: vllm\n  namespace: my-team\n  labels: {app: vllm}\nspec:\n  replicas: 1\n  strategy: {type: Recreate}\n  selector:\n    matchLabels: {app: vllm}\n  template:\n    metadata:\n      labels: {app: vllm}\n    spec:\n      enableServiceLinks: false\n      tolerations:\n        - {key: multicloud.io/pool, operator: Exists, effect: NoSchedule}\n        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}\n      affinity:\n        nodeAffinity:\n          requiredDuringSchedulingIgnoredDuringExecution:\n            nodeSelectorTerms:\n              - matchExpressions:\n                  - {key: multicloud.io/pool, operator: Exists}\n      containers:\n        - name: vllm\n          image: vllm/vllm-openai:v0.31.0@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3\n          args: [\"--model\", \"Qwen/Qwen2.5-7B-Instruct\", \"--served-model-name\", \"qwen\",\n                 \"--dtype\", \"bfloat16\",\n                 \"--max-model-len\", \"8192\", \"--gpu-memory-utilization\", \"0.90\",\n                 \"--enforce-eager\", \"--api-key\", \"$(VLLM_API_KEY)\", \"--host\", \"::\", \"--port\", \"8000\"]\n          env:\n            - {name: VLLM_API_KEY, valueFrom: {secretKeyRef: {name: vllm-api-key, key: key}}}\n            - {name: HF_HOME, value: /cache}\n          ports:\n            - {name: http, containerPort: 8000}\n          resources:\n            requests: {cpu: \"3\", memory: 12Gi, ephemeral-storage: 40Gi}\n            limits: {memory: 13Gi, nvidia.com/gpu: 1}\n          startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 120}\n          readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10}\n          volumeMounts:\n            - {name: shm, mountPath: /dev/shm}\n            - {name: cache, mountPath: /cache}\n      volumes:\n        - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}\n        - {name: cache, emptyDir: {}}\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: vllm\n  namespace: my-team\n  labels: {app: vllm}\nspec:\n  type: ClusterIP\n  selector: {app: vllm}\n  ports:\n    - {name: http, port: 8000, targetPort: http}"
+    "c": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: vllm\n  namespace: my-team\n  labels: {app: vllm}\nspec:\n  replicas: 1\n  strategy: {type: Recreate}\n  selector:\n    matchLabels: {app: vllm}\n  template:\n    metadata:\n      labels: {app: vllm}\n    spec:\n      enableServiceLinks: false\n      tolerations:\n        - {key: multicloud.io/pool, operator: Exists, effect: NoSchedule}\n        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}\n      affinity:\n        nodeAffinity:\n          requiredDuringSchedulingIgnoredDuringExecution:\n            nodeSelectorTerms:\n              - matchExpressions:\n                  - {key: multicloud.io/pool, operator: Exists}\n      containers:\n        - name: vllm\n          image: vllm/vllm-openai:v0.31.0@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3\n          args: [\"--model\", \"Qwen/Qwen2.5-7B-Instruct\", \"--served-model-name\", \"qwen\",\n                 \"--dtype\", \"bfloat16\",\n                 \"--max-model-len\", \"8192\", \"--gpu-memory-utilization\", \"0.90\",\n                 \"--enforce-eager\", \"--api-key\", \"$(VLLM_API_KEY)\", \"--host\", \"::\", \"--port\", \"8000\"]\n          env:\n            - {name: VLLM_API_KEY, valueFrom: {secretKeyRef: {name: vllm-api-key, key: key}}}\n            - {name: HF_HOME, value: /cache}\n          ports:\n            - {name: http, containerPort: 8000}\n          resources:\n            requests: {cpu: \"3\", memory: 12Gi, ephemeral-storage: 40Gi}\n            limits: {memory: 13Gi, nvidia.com/gpu: 1}\n          startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 180}\n          readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10}\n          volumeMounts:\n            - {name: shm, mountPath: /dev/shm}\n            - {name: cache, mountPath: /cache}\n      volumes:\n        - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}\n        - {name: cache, emptyDir: {}}\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: vllm\n  namespace: my-team\n  labels: {app: vllm}\nspec:\n  type: ClusterIP\n  selector: {app: vllm}\n  ports:\n    - {name: http, port: 8000, targetPort: http}"
    },
    {
     "h": "Deploy vLLM and wait",
@@ -903,17 +905,17 @@ const STAGES_B = [
    {
     "h": "Check that nothing is left",
     "who": "You, in a terminal",
-    "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact.",
-    "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region us-east-1 \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
+    "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with the AWS profile of the connection (export AWS_PROFILE=<profile>).",
+    "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region <region> \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
    },
    {
     "h": "Keep or remove the AWS connection",
     "who": "You decide",
-    "d": "To continue after the PoC, keep it. To remove it: disconnect the account, which stops Multicloud and removes what it created in your account. Then remove the IAM role from the folder you made when you connected AWS. Type yes when OpenTofu asks.",
+    "d": "To continue after the PoC, keep it. To remove it: disconnect the account, which stops Multicloud and removes what it created in your account. Then remove the IAM role from the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile. Type yes when OpenTofu asks.",
     "in": [
      "Keep or remove"
     ],
-    "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd multicloud-aws\nexport AWS_PROFILE=poc AWS_REGION=us-east-1\ntofu destroy"
+    "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\ntofu destroy"
    }
   ]
  }

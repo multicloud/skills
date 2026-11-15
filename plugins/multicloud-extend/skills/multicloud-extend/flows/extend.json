@@ -259,7 +259,7 @@
      "who": "You, in a second terminal",
      "d": "Open a new terminal (on Windows: a new Ubuntu window), point it at your cluster again (export KUBECONFIG=…), and run the command. Keep this terminal open while you send queries. Send the queries from your first terminal.",
      "c": "kubectl -n my-team port-forward deploy/vllm 8000:8000",
-     "c_agent": "nohup kubectl -n my-team port-forward deploy/vllm 8000:8000 >~/multicloud-onboarding/port-forward.log 2>&1 &\necho $! > ~/multicloud-onboarding/port-forward.pid"
+     "c_agent": "mkdir -p ~/multicloud-onboarding && chmod 700 ~/multicloud-onboarding\nnohup kubectl -n my-team port-forward deploy/vllm 8000:8000 >~/multicloud-onboarding/port-forward.log 2>&1 &\necho $! > ~/multicloud-onboarding/port-forward.pid"
     },
     {
      "id": "first-query",
@@ -319,19 +319,19 @@
      "who_kind": "agent",
      "h": "Check that nothing is left",
      "who": "You, in a terminal",
-     "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact.",
-     "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region us-east-1 \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
+     "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with the AWS profile of the connection (export AWS_PROFILE=<profile>).",
+     "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region <region> \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
     },
     {
      "id": "aws-connection",
      "who_kind": "ask",
      "h": "Keep or remove the AWS connection",
      "who": "You decide",
-     "d": "To continue after the PoC, keep it. To remove it: disconnect the account, which stops Multicloud and removes what it created in your account. Then remove the IAM role from the folder you made when you connected AWS. Type yes when OpenTofu asks.",
+     "d": "To continue after the PoC, keep it. To remove it: disconnect the account, which stops Multicloud and removes what it created in your account. Then remove the IAM role from the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile. Type yes when OpenTofu asks.",
      "in": [
       "Keep or remove"
      ],
-     "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd multicloud-aws\nexport AWS_PROFILE=poc AWS_REGION=us-east-1\ntofu destroy"
+     "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\ntofu destroy"
     }
    ]
   }

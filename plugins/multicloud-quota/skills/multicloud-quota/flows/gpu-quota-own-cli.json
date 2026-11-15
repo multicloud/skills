@@ -19,7 +19,7 @@
      "who_kind": "agent",
      "h": "Read your current GPU quota",
      "who": "You, in a terminal",
-     "d": "The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 4: request 8.",
+     "d": "The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 8: request 8 (one g6.2xlarge or g5.2xlarge needs 8; 4 fits only the smallest L4 or A10G size).",
      "c": "aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA \\\n  --region us-east-1 --query Quota.Value --output text"
     },
     {
