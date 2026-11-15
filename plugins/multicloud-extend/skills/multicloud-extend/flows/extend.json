@@ -67,7 +67,7 @@
      "in": [
       "Egress path: direct, proxy or TLS inspection"
      ],
-     "c": "kubectl run egress-check --rm -it --restart=Never --image=curlimages/curl:8.10.1 -- sh -c \\\n  'curl -sS -o /dev/null -w \"docker hub: %{http_code}\\n\" https://registry-1.docker.io/v2/ ;\n   curl -sS -o /dev/null -w \"ghcr: %{http_code}\\n\" https://ghcr.io/v2/ ;\n   curl -sS -o /dev/null -w \"cloudflare: %{http_code}\\n\" https://www.cloudflare.com/'"
+     "c": "kubectl run egress-check --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- sh -c \\\n  'curl -sS -o /dev/null -w \"docker hub: %{http_code}\\n\" https://registry-1.docker.io/v2/ ;\n   curl -sS -o /dev/null -w \"ghcr: %{http_code}\\n\" https://ghcr.io/v2/ ;\n   curl -sS -o /dev/null -w \"cloudflare: %{http_code}\\n\" https://www.cloudflare.com/'"
     }
    ]
   },
