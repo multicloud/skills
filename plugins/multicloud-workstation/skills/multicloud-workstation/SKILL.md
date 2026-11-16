@@ -61,14 +61,15 @@ On a Windows host shell:
   prints usage text (`Usage: wsl.exe`), the WSL Store app is missing (the old inbox binary runs
   instead), so treat it as "no distro". Confirm in PowerShell: the optional feature
   `Get-CimInstance Win32_OptionalFeature -Filter "Name='Microsoft-Windows-Subsystem-Linux'"`
-  (InstallState 2 = enabled) and the registered distros under
+  (InstallState 1 = enabled, 2 = disabled, 3 = absent) and the registered distros under
   `HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss` (empty = none).
 - No Ubuntu with VERSION 2: do stage `windows`. You can run PowerShell yourself, but every change
   waits for the user's yes: first the read-only checks (`Get-CimInstance Win32_OptionalFeature` for
   `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux`; `Get-WindowsOptionalFeature`
   needs an elevated shell and takes one name per call, so do not use it for checks), then the
-  install. If both features are already on (InstallState 2), no feature restart is needed: say so
-  and only the Ubuntu install and its first start are left. The install
+  install. If both features are already enabled (InstallState 1), no feature restart is needed: say
+  so and only the Ubuntu install and its first start are left. If either is disabled (2), the
+  install enables it and a restart is needed before the distro works. The install
   needs administrator rights: start an elevated PowerShell (`Start-Process powershell -Verb RunAs`)
   and let the user approve the Windows admin prompt (UAC) on their screen; never type or pass the
   user's password. Why a restart: when `wsl --install` turns on a Windows feature (the Linux subsystem or
