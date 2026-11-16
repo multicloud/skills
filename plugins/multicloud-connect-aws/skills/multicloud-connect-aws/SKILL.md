@@ -261,8 +261,11 @@ again only when the target or the effect changes. Do not hand these commands to 
    sign-in, not an API key; `--yes` only after the user's clear yes, because your shell has no
    terminal). Multicloud stops its machines, deletes what it created in the account, and disables
    the pools that use it. Wait for the status `revoked`; report any `leftovers` it lists.
-2. Then ask, and run `tofu destroy` (or `terraform destroy`) in the connection folder. It deletes
-   the role, after which Multicloud cannot use the account.
+2. Then run `tofu state list` in the connection folder. If it lists managed resources (for example
+   `aws_iam_role`, `aws_iam_policy`), run `tofu destroy` there; it needs the connect token, so give
+   it through `mctl cloud-account apply <n>` (or the token step it prints), never by hand. If the
+   state lists only `data.*` and `random_id` (an apply that failed before creating anything), there
+   is nothing to destroy: remove the local folder after the user's yes, and say so.
 
 A `destroy` before step 1 can leave machines running and billed that Multicloud can no longer reach.
 
