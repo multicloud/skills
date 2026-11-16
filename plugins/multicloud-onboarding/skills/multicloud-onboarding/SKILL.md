@@ -31,6 +31,13 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
    names the check). Suggest only what is missing, and say what you found first.
 6. **Use the focused skill for each step.** Do not improvise commands. When a skill and your memory
    disagree, the skill wins; when a tool's live answer and a skill disagree, the live answer wins.
+8. **The agent runs the commands.** With the user's direction and approval, you run every command
+   you can run on this computer and in the cloud: checks, installs, `mctl`, `aws` read calls, plans,
+   applies, disconnects. Do not ask the user to run what you can run. The user does only what needs
+   their hands: typing a Linux or AWS password, MFA codes, browser sign-in, an admin prompt (UAC),
+   typing an approval the skill says the user must type (such as an account number in
+   `accept-shared-account`), and secrets. Show the command and the reason before a change; after a
+   clear yes, run it.
 7. **Dedicated AWS account first.** Multicloud works in a separate sub-account for the PoC. Never
    connect an existing AWS account without the explicit warning and approval in
    `multicloud-connect-aws`, Rule 6. Never run a connect step, `create`, or `apply` for an account

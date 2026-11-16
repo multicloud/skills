@@ -253,7 +253,9 @@ last check) if the user asks.
 
 ## Disconnect
 
-Only on an explicit request, and in this order:
+Only on an explicit request, and in this order. The agent runs these commands itself: the user's
+clear request is the approval, and you show the exact commands and the target number first. Ask
+again only when the target or the effect changes. Do not hand these commands to the user.
 
 1. Ask, then run `mctl cloud-account disconnect <n> --wait --yes` (needs the organization owner's
    sign-in, not an API key; `--yes` only after the user's clear yes, because your shell has no
