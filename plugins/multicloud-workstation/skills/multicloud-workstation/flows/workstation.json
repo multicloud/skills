@@ -21,7 +21,7 @@
      "h": "Open Ubuntu",
      "who": "You",
      "d": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password; the agent cannot run commands in Ubuntu until you do this. Then say \"done\". Run every later command on this page in this Ubuntu window.",
-     "d_human": "How to use the Ubuntu window: Open it from the Start menu (type Ubuntu), or type wsl in PowerShell. Paste a command with Ctrl+Shift+V (or right-click when nothing is selected). Copy text by selecting it, then pressing Ctrl+Shift+C. Ctrl+C does NOT copy: it stops the running command. Passwords do not show on screen while you type; that is normal. Press Enter after the password.",
+     "d_human": "How to use the Ubuntu window: Open it from the Start menu (type Ubuntu), or type wsl in PowerShell. Paste with a right-click (Ctrl+V and Ctrl+Shift+V may print ^V and do nothing in this window). Copy by selecting the text with the mouse, then right-click or press Enter. Ctrl+C does NOT copy: it stops the running command. Passwords do not show on screen while you type; that is normal. Press Enter after the password.",
      "in": [
       "Linux user name",
       {

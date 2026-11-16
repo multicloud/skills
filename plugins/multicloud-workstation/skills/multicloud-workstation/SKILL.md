@@ -100,10 +100,10 @@ On a Windows host shell:
   `chmod 600` there.
 - The user's terminal is the **WSL** window of their distro (Ubuntu, Debian, ...). When a step says
   "in your own terminal", it means that window. Tell the user how to use it, once, before the first
-  command: open it from the Start menu (type the distro name) or type `wsl` in PowerShell; paste with
-  Ctrl+Shift+V (or right-click with nothing selected); copy by selecting text and pressing
-  Ctrl+Shift+C, because Ctrl+C stops the running command; passwords show nothing while typed, which is
-  normal.
+  command: open it from the Start menu (type the distro name) or type `wsl` in PowerShell; paste with a
+  right-click (Ctrl+V and Ctrl+Shift+V may print `^V` and do nothing in the classic console); copy by
+  selecting text with the mouse, then right-click or press Enter. Ctrl+C stops the running command, so
+  never use it to copy. Passwords show nothing while typed, which is normal.
 - The browser cannot open from WSL. Every sign-in uses `--no-browser`: the command prints a link and
   a code, and the user opens the link in the Windows browser.
 - Pick the distro: list the WSL2 distros with `wsl.exe -l -v` (VERSION must be 2). If one or more
