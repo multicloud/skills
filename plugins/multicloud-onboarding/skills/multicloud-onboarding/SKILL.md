@@ -239,6 +239,6 @@ ledger.
 | `multicloud-aws-account-setup` | `multicloud-aws-account-setup--v0.1.0` |
 | `multicloud-connect-aws` | `multicloud-connect-aws--v0.3.0` |
 | `multicloud-quota` | `multicloud-quota--v0.2.0` |
-| `multicloud-extend` | `multicloud-extend--v0.1.0` |
+| `multicloud-extend` | `multicloud-extend--v0.2.2` |
 | `multicloud-ci-pool` | `multicloud-ci-pool--v0.1.0` |
 | `multicloud-advisor` | the newest `multicloud-advisor--v*` tag |
