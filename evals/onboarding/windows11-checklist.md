@@ -1,6 +1,7 @@
-# Windows 11 live run: prep and checklist
+# Windows live run: prep and checklist
 
-Live test of the `multicloud-onboarding` skill set on a real Windows 11 PC,
+Live test of the `multicloud-onboarding` skill set on a real Windows PC
+(Windows 10 2004+ or Windows 11),
 door **Extend** (GPU). Draft PR: https://github.com/multicloud/skills/pull/7,
 branch `claude/multicloud-onboarding`. Results go to
 `evals/onboarding/windows11-run.md` on the same branch.
