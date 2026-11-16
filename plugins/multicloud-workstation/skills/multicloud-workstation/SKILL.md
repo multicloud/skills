@@ -104,6 +104,11 @@ On a Windows host shell:
   right-click (Ctrl+V and Ctrl+Shift+V may print `^V` and do nothing in the classic console); copy by
   selecting text with the mouse, then right-click or press Enter. Ctrl+C stops the running command, so
   never use it to copy. Passwords show nothing while typed, which is normal.
+  If the right-click paste fails, turn on Ctrl+Shift+C/V once: right-click the PowerShell title bar ›
+  Properties › Options › tick **Use Ctrl+Shift+C/V as Copy/Paste** › OK. Then paste with Ctrl+Shift+V
+  and copy with Ctrl+Shift+C in that window. Close and reopen the window after the change.
+  Easier still: type a short value (an URL, a name) into the chat, and let the agent write it to the
+  config file.
 - The browser cannot open from WSL. Every sign-in uses `--no-browser`: the command prints a link and
   a code, and the user opens the link in the Windows browser.
 - Pick the distro: list the WSL2 distros with `wsl.exe -l -v` (VERSION must be 2). If one or more

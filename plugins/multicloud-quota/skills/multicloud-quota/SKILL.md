@@ -99,6 +99,24 @@ Say what was filed, what waits, and how to check: run `get_quota_plan_data` agai
 `mctl cloud-account verify <id>`. Tell the customer that AWS decides each request and that you
 cannot speed it up.
 
+Then offer two things, one question each:
+
+1. **A recurring check until AWS answers.** Offer to check the open requests on a schedule (default
+   every 2 hours; the customer may choose another interval) with step 2 (it files nothing). Start it
+   only after a yes, and say how to stop it. Stop the check by itself when every requested quota
+   reaches its new limit (`quota=enough`), when AWS denies one (`quota=denied`, show the date), or when
+   no request is open any more. Each check reports only what changed. If the agent cannot schedule
+   a recurring check, offer to check again when the customer comes back.
+2. **Continue the onboarding in the meantime.** Name the next step that does not need the quota (for
+   Extend GPU: the cluster stage only, never the GPU pool, which would cost while it waits). Ask
+   whether to go on now, and return to this skill's status when the check reports a change.
+
+For a production workload (goal "production inference" or "batch or training" in Step 1), tell the
+customer: this skill can plan, file and track all the quotas that workload needs, in each region, so
+they do not have to request them by hand. Rule 1 still applies. Each filing needs a yes that covers
+the items shown; a standing yes covers a plan the customer approved, as long as the plan's items,
+limits and regions do not change. Ask which of the two they want before any filing.
+
 ## Without consent: the customer files
 
 When the owner does not allow quota requests, the customer files the same plan with their own AWS
