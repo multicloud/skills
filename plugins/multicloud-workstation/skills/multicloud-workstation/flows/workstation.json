@@ -179,9 +179,9 @@
      "who_kind": "ask",
      "h": "Install mctl (the Multicloud CLI)",
      "who": "You, in a terminal",
-     "d": "mctl needs Python 3.10 or later. The uv tool installs Python for you. Open a new terminal after the install.",
+     "d": "mctl needs Python 3.10 or later. The uv tool installs Python for you. On macOS, brew needs Homebrew: https://brew.sh. Open a new terminal after the install.",
      "os": {
-      "mac": "brew install uv        # Homebrew: https://brew.sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
+      "mac": "brew install uv\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
       "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
       "win": "# In the Ubuntu window\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version"
      }
@@ -194,10 +194,10 @@
      "d": "The output of aws --version must start with aws-cli/2.",
      "os": {
       "mac": "brew install awscli\naws --version",
-      "linux": "sudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version",
+      "linux": "sudo apt install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version",
       "win": "# In the Ubuntu window\nsudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version"
      },
-     "g": "ARM Linux (uname -m prints aarch64): use awscli-exe-linux-aarch64.zip."
+     "g": "Fedora or RHEL: use sudo dnf install -y unzip. ARM Linux (uname -m prints aarch64): use awscli-exe-linux-aarch64.zip."
     },
     {
      "id": "install-opentofu",
@@ -219,10 +219,10 @@
      "d": "You need them from the stage “Prepare your cluster” on. The connector needs helm 3.14 or later.",
      "os": {
       "mac": "brew install kubectl helm jq\nkubectl version --client && helm version",
-      "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq        # or: sudo dnf install -y jq\nkubectl version --client && helm version",
+      "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq\nkubectl version --client && helm version",
       "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq\nkubectl version --client && helm version"
      },
-     "g": "ARM Linux (uname -m prints aarch64): replace linux/amd64 with linux/arm64 in the kubectl URL."
+     "g": "Fedora or RHEL: use sudo dnf install -y jq. ARM Linux (uname -m prints aarch64): replace linux/amd64 with linux/arm64 in the kubectl URL."
     }
    ]
   }

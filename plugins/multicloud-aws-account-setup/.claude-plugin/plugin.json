@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "multicloud-aws-account-setup",
   "description": "Make a brand-new AWS account ready for Multicloud: root MFA, then IAM Identity Center single sign-on or an IAM user with a CLI key, and a working AWS CLI profile. The agent never sees a secret.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "Multicloud",
     "url": "https://multicloud.io"
