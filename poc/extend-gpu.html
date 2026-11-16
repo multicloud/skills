@@ -412,13 +412,13 @@ const STAGES = [
    {
     "h": "Install WSL2 with Ubuntu",
     "who": "The agent opens an administrator PowerShell after your yes; Windows asks you to approve it (UAC)",
-    "d": "Check first (no change, no admin needed): Get-CimInstance Win32_OptionalFeature -Filter \"Name='VirtualMachinePlatform'\" and the same for Name='Microsoft-Windows-Subsystem-Linux' (InstallState 2 = on, 3 = off). Check the Ubuntu distro too: no entries under HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss means none installed. If both features are on, the feature step needs no restart: say so, and only the Ubuntu install is left. Only if a feature is off, after your yes, the agent starts an elevated PowerShell (Start-Process powershell -Verb RunAs) that runs the command and writes its output to a log file. You approve the Windows admin prompt on your screen. The install turns on the features WSL2 needs: they take effect after a restart, because Windows loads the WSL2 Linux kernel at boot. Restart only after you say yes to the restart; the agent saves the ledger first and tells you to run claude --continue after the restart.",
+    "d": "Open PowerShell as administrator (Windows asks you to approve it) and run the command. It turns on the Windows features WSL2 needs and installs Ubuntu. Restart Windows if the install asks for it. After the restart, run the command again if Ubuntu is missing from the output of wsl --list --verbose.",
     "c": "wsl --install -d Ubuntu"
    },
    {
     "h": "Open Ubuntu",
     "who": "You",
-    "d": "Open Ubuntu from the Start menu. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window.",
+    "d": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window.",
     "in": [
      "Linux user name",
      "Linux password"
@@ -829,6 +829,9 @@ const STAGES = [
     "h": "Save the connection file",
     "who": "You, in a terminal",
     "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
+    "in": [
+     "Peering connection file (shown once)"
+    ],
     "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      status=$(jq -r .status peering.json); echo \"Status: $status\"\n      [ \"$status\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
     "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again."
    },

@@ -22,11 +22,16 @@
      "d": "Replace <github-org> with your GitHub organization and <cloud-account-id> with the number from mctl cloud-account list. Repeat --classes for more sizes. The cap is for all runners together.",
      "in": [
       "Pool name: ci",
-      "GitHub organization",
+      {
+       "label": "GitHub organization",
+       "placeholder": "<github-org>"
+      },
       "Classes: medium",
       "Max cost per hour: $2"
      ],
-     "c": "mctl pool create ci --github-org <github-org> --cloud-account <cloud-account-id> \\\n  --classes medium --max-cost-per-hour 2 --set regions=us-east-1"
+     "c": "mctl pool create ci --github-org <github-org> --cloud-account <cloud-account-id> \\\n  --classes medium --max-cost-per-hour 2 --set regions=us-east-1",
+     "detect": "pool_created",
+     "console": "/console/pools?new=1"
     },
     {
      "id": "wait-ready",
@@ -34,7 +39,8 @@
      "h": "Check the pool",
      "who": "You, in a terminal",
      "d": "The pool shows its status, classes and GitHub organization. It does not show the GitHub App state: your Multicloud contact sends the GitHub App link (next stage).",
-     "c": "mctl pool show ci"
+     "c": "mctl pool show ci",
+     "detect": "pool_ready"
     }
    ]
   },
@@ -95,7 +101,8 @@
      "d": "This cannot be undone. Remove the GitHub App from your organization afterwards (GitHub › Settings › GitHub Apps).",
      "c": "mctl pool delete ci --yes"
     }
-   ]
+   ],
+   "optional": true
   }
  ]
 }

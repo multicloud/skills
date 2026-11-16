@@ -96,7 +96,9 @@
       "Max servers: 2",
       "Max cost per hour: $1.50"
      ],
-     "c": "cat > poc-gpu.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"], \"accelerator_names\": [\"L4\", \"A10G\"],\n              \"max_risk\": 0, \"min_storage_gb\": 100,\n              \"max_memory_gb\": 16}}\nEOF\nmctl extend create poc-gpu --cloud-account <cloud-account-id> --max-servers 2 \\\n  --max-cost-per-hour 1.5 --from-file poc-gpu.json"
+     "c": "cat > poc-gpu.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"], \"accelerator_names\": [\"L4\", \"A10G\"],\n              \"max_risk\": 0, \"min_storage_gb\": 100,\n              \"max_memory_gb\": 16}}\nEOF\nmctl extend create poc-gpu --cloud-account <cloud-account-id> --max-servers 2 \\\n  --max-cost-per-hour 1.5 --from-file poc-gpu.json",
+     "detect": "pool_created",
+     "console": "/console/pools?new=1"
     },
     {
      "id": "wait-ready",
@@ -104,7 +106,8 @@
      "h": "Wait until the pool is ready",
      "who": "You, in a terminal",
      "d": "Run the command every minute. Status: ready means the pool is ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
-     "c": "mctl pool show poc-gpu"
+     "c": "mctl pool show poc-gpu",
+     "detect": "pool_ready"
     },
     {
      "id": "hibernate",
@@ -112,7 +115,8 @@
      "h": "Pause the pool when you stop for the day",
      "who": "You",
      "d": "A hibernated pool runs no worker and costs nothing. Wake it when you continue.",
-     "c": "mctl pool hibernate poc-gpu\nmctl pool wake poc-gpu --wait"
+     "c": "mctl pool hibernate poc-gpu\nmctl pool wake poc-gpu --wait",
+     "optional": true
     }
    ]
   },
@@ -132,7 +136,9 @@
       "Max servers: 3",
       "Max cost per hour: $0.50"
      ],
-     "c": "cat > burst.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"]}}\nEOF\nmctl extend create burst --cloud-account <cloud-account-id> --max-servers 3 \\\n  --max-cost-per-hour 0.5 --from-file burst.json"
+     "c": "cat > burst.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"]}}\nEOF\nmctl extend create burst --cloud-account <cloud-account-id> --max-servers 3 \\\n  --max-cost-per-hour 0.5 --from-file burst.json",
+     "detect": "pool_created",
+     "console": "/console/pools?new=1"
     },
     {
      "id": "wait-ready",
@@ -140,7 +146,8 @@
      "h": "Wait until the pool is ready",
      "who": "You, in a terminal",
      "d": "Run it every minute. Status: ready means ready. Still provisioning after 20 minutes: send the output to your Multicloud contact.",
-     "c": "mctl pool show burst"
+     "c": "mctl pool show burst",
+     "detect": "pool_ready"
     }
    ]
   },
@@ -162,7 +169,8 @@
       "Disk: 50 GB"
      ],
      "d": "The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
-     "c": "mctl peering create poc-gpu --gpu 1 --cpu-millicores 4000 --memory-mb 14336 \\\n  --pods 110 --ephemeral-storage-mb 51200"
+     "c": "mctl peering create poc-gpu --gpu 1 --cpu-millicores 4000 --memory-mb 14336 \\\n  --pods 110 --ephemeral-storage-mb 51200",
+     "detect": "peering_created"
     },
     {
      "id": "create-peering-cpu",
@@ -180,8 +188,14 @@
      "who": "You run it, with your CIDRs",
      "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs.",
      "in": [
-      "Pod CIDR",
-      "Service CIDR"
+      {
+       "label": "Pod CIDR",
+       "placeholder": "<POD_CIDR>"
+      },
+      {
+       "label": "Service CIDR",
+       "placeholder": "<SERVICE_CIDR>"
+      }
      ],
      "c": "helm install liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --create-namespace \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR> \\\n  --set liqo.discovery.config.clusterID=c-…  --set-string reflectionKick.remoteClusterID=…"
     },
@@ -192,7 +206,14 @@
      "who": "You, in a terminal",
      "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
      "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      status=$(jq -r .status peering.json); echo \"Status: $status\"\n      [ \"$status\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
-     "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again."
+     "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again.",
+     "detect": "peering_ready",
+     "in": [
+      {
+       "label": "Peering connection file (shown once)",
+       "secret": true
+      }
+     ]
     },
     {
      "id": "apply-bundle",
@@ -320,7 +341,8 @@
      "in": [
       "Confirm delete"
      ],
-     "c": "kubectl -n my-team delete -f vllm-gpu.yaml\nkubectl -n my-team delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-team\nmctl pool delete poc-gpu --yes"
+     "c": "kubectl -n my-team delete -f vllm-gpu.yaml\nkubectl -n my-team delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-team\nmctl pool delete poc-gpu --yes",
+     "detect": "cleanup"
     },
     {
      "id": "check-nothing-left",
@@ -339,7 +361,8 @@
      "in": [
       "Keep or remove"
      ],
-     "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\ntofu destroy"
+     "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\ntofu destroy",
+     "optional": true
     }
    ]
   }

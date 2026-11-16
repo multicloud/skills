@@ -12,7 +12,8 @@
      "h": "Install WSL2 with Ubuntu",
      "who": "The agent opens an administrator PowerShell after your yes; Windows asks you to approve it (UAC)",
      "d": "Check first (no change, no admin needed): Get-CimInstance Win32_OptionalFeature -Filter \"Name='VirtualMachinePlatform'\" and the same for Name='Microsoft-Windows-Subsystem-Linux' (InstallState 1 = enabled, 2 = disabled, 3 = absent). Check the Ubuntu distro too: no entries under HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss means none installed. If both features are on, the feature step needs no restart: say so, and only the Ubuntu install is left. Only if a feature is off, after your yes, the agent starts an elevated PowerShell (Start-Process powershell -Verb RunAs) that runs the command and writes its output to a log file. You approve the Windows admin prompt on your screen. The install turns on the features WSL2 needs: they take effect after a restart, because Windows loads the WSL2 Linux kernel at boot. A failed install stops with the log's last lines; the agent does not retry in a loop. Restart only if a feature was off before the install, and only after you say yes; the agent saves the ledger first. After the restart, the agent checks again: if no Ubuntu with VERSION 2 is listed, it runs this install again after your yes.",
-     "c": "wsl --install -d Ubuntu"
+     "c": "wsl --install -d Ubuntu",
+     "d_human": "Open PowerShell as administrator (Windows asks you to approve it) and run the command. It turns on the Windows features WSL2 needs and installs Ubuntu. Restart Windows if the install asks for it. After the restart, run the command again if Ubuntu is missing from the output of wsl --list --verbose."
     },
     {
      "id": "open-ubuntu",
@@ -22,9 +23,13 @@
      "d": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password; the agent cannot run commands in Ubuntu until you do this. Then say \"done\". Run every later command on this page in this Ubuntu window.",
      "in": [
       "Linux user name",
-      "Linux password"
+      {
+       "label": "Linux password",
+       "secret": true
+      }
      ],
-     "c": "sudo apt update && sudo apt install -y curl unzip jq openssl ca-certificates"
+     "c": "sudo apt update && sudo apt install -y curl unzip jq openssl ca-certificates",
+     "d_human": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window."
     }
    ]
   },
@@ -43,7 +48,10 @@
      "in": [
       "Email",
       "Name",
-      "Password"
+      {
+       "label": "Password",
+       "secret": true
+      }
      ]
     },
     {
@@ -62,7 +70,8 @@
      "in": [
       "Organization name",
       "Organization ID (short name)"
-     ]
+     ],
+     "detect": "organization"
     }
    ]
   },
@@ -84,7 +93,8 @@
       "Pools: Manage",
       "Extend",
       "Infrastructure"
-     ]
+     ],
+     "console": "/account/keys"
     },
     {
      "id": "add-mcp-server",
@@ -95,7 +105,10 @@
      "in": [
       "Transport: Streamable HTTP",
       "URL: https://mcp.multicloud.io/mcp",
-      "Header: Authorization: Bearer mca_…"
+      {
+       "label": "Header: Authorization: Bearer mca_…",
+       "secret": true
+      }
      ],
      "c": "{\n  \"mcpServers\": {\n    \"multicloud\": {\n      \"type\": \"http\",\n      \"url\": \"https://mcp.multicloud.io/mcp\",\n      \"headers\": { \"Authorization\": \"Bearer mca_…\" }\n    }\n  }\n}",
      "g": "The block above is the common JSON form of an MCP configuration. Restart your AI tool after the change, then ask it to list the Multicloud tools to check the connection."
@@ -121,7 +134,8 @@
      "who_kind": "page",
      "h": "Optional: ask your AI to connect AWS",
      "who": "You, to your AI",
-     "d": "Say: “Connect my AWS account to Multicloud. Use region us-east-1.” Your AI checks which tools are missing and guides you through this stage and the next one. The commands below are the same steps, if you prefer to run them yourself."
+     "d": "Say: “Connect my AWS account to Multicloud. Use region us-east-1.” Your AI checks which tools are missing and guides you through this stage and the next one. The commands below are the same steps, if you prefer to run them yourself.",
+     "optional": true
     },
     {
      "id": "install-mctl",

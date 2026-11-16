@@ -1,6 +1,6 @@
 ---
 name: multicloud-onboarding
-description: Use when a new customer wants to start with Multicloud from zero, run a Multicloud proof of concept (PoC) such as "Run the Multicloud GPU PoC", get onboarded, or continue an onboarding that stopped earlier (for example while AWS quota was pending). Covers every door - Extend (cloud nodes for your own Kubernetes cluster), CI runners for GitHub Actions, and the Advisor.
+description: Use when a new customer wants to start with Multicloud from zero, run a Multicloud proof of concept (PoC) such as "Run the Multicloud GPU PoC", get onboarded, or continue an onboarding that stopped earlier (for example while AWS quota was pending). Covers every door - Extend (cloud nodes for your own Kubernetes cluster), and CI runners for GitHub Actions. The Advisor is an optional stage of Extend.
 ---
 
 # Multicloud onboarding (orchestrator)
@@ -42,14 +42,15 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
 | `multicloud-quota` | AWS quota for the first workload | `quota` (`enough`, `waiting`, `denied`), request IDs |
 | `multicloud-extend` | Extend door: cluster checks, pool, peering, first workload, cleanup | `pool`, `peering_id`, `consumer_cluster_id`, `first_run` |
 | `multicloud-ci-pool` | CI runners door | `pool`, `github_app`, `first_job` |
-| `multicloud-advisor` | Advisor door (savings report) | (route only) |
+| `multicloud-advisor` | Optional Extend stage (workloads and cost check, after the cluster checks) | (route only) |
 
 **Find a skill.** If your agent has the skill installed, use it by name. Otherwise read its
 `SKILL.md` from this repository at the release tag in the table at the end, from
 `https://raw.githubusercontent.com/multicloud/skills/<tag>/plugins/<skill>/skills/<skill>/SKILL.md`,
 and the files it names from the same folder (`flows/*.json`, and `assets/vllm-gpu.yaml` for
 `multicloud-extend`). If the tag answers 404 (not released yet), use `main` instead of the tag and
-tell the user so. Never copy its text into this conversation as your own
+tell the user so. (`flows/doors.json` and the step fields `detect`, `optional`, `console`, `d_human`
+are for the multicloud.io console; ignore them. Object-form `in[]` items have a `label`.) Never copy its text into this conversation as your own
 plan; follow it as written.
 
 Every focused skill ends with one line:
@@ -116,8 +117,11 @@ Skip a question that the user's message already answers ("brand-new AWS account"
 laptop", "my k3s cluster"), and write that answer to the ledger. Ask only what is left.
 
 1. **Door.** "What do you want to do first?" Extend (cloud nodes, also GPUs, for your own Kubernetes
-   cluster) · CI runners for GitHub Actions · a savings report for a cluster (Advisor) · other.
-   - Advisor: hand over to `multicloud-advisor` and stop here.
+   cluster) · CI runners for GitHub Actions · other.
+   - Extend: after the `cluster` stage, offer the Advisor as an optional stage ("Choose workloads
+     and check the cost"). If the user accepts, hand over to `multicloud-advisor`, then continue
+     with the pool. If the user declines, continue with the pool.
+   - A user who only asks for a savings report: use `multicloud-advisor` directly.
    - Skipper or anything else: say it is not available in this flow yet, and stop.
 2. **Cloud.** AWS · Google Cloud · Azure. This flow covers AWS. For Google Cloud or Azure, point the
    user to the customer guide (`mctl cloud-account create --cloud GCE|AZURE`) and stop.
@@ -160,8 +164,8 @@ Skip a skill whose result in the ledger is `done` and whose live state agrees.
 
 | Door | Order |
 |---|---|
-| Extend, GPU LLM | workstation → aws-account-setup (if Q3 is new, or no working AWS CLI sign-in) → connect-aws → quota (goal: one on-demand L4 or A10G GPU) → extend (profile `gpu-llm`) |
-| Extend, CPU | workstation → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → extend (profile `cpu-burst`) |
+| Extend, GPU LLM | workstation → aws-account-setup (if Q3 is new, or no working AWS CLI sign-in) → connect-aws → quota (goal: one on-demand L4 or A10G GPU) → extend `cluster` → advisor (optional) → extend pool, peering, run, cleanup (profile `gpu-llm`) |
+| Extend, CPU | workstation → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → extend `cluster` → advisor (optional) → extend pool, peering, run, cleanup (profile `cpu-burst`) |
 | CI runners | workstation (no kubectl, no helm) → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → ci-pool |
 
 The account is already connected and verified (live state), but no connect-aws result is in the
