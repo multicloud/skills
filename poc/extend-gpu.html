@@ -609,7 +609,7 @@ const STAGES = [
    {
     "h": "Sign in to AWS from the terminal",
     "who": "You, in a terminal and the browser",
-    "d": "Use the identity from the stage “Set up your AWS account”. Path A (single sign-on): run aws configure sso. Answers: SSO session name: any name. SSO start URL: your AWS access portal URL. SSO region: the region where you turned on IAM Identity Center. Registration scopes: press Enter. Sign in in the browser, then select your account and AdministratorAccess. Default client region: us-east-1. Output format: press Enter. Profile name: poc. Path B (access key): run aws configure --profile poc and paste the access key ID and secret access key; region us-east-1; output json.",
+    "d": "Use the identity from the stage “Set up your AWS account”. Path A (single sign-on): run aws configure sso --use-device-code (on Windows the browser cannot open from WSL; the command prints a link and a code: open the link in your Windows browser, sign in, enter the code). Answers: SSO session name: any name. SSO start URL: your AWS access portal URL (in the AWS console, IAM Identity Center, dashboard). SSO region: the region where you turned on IAM Identity Center (the region selector at the top right of that console). Registration scopes: press Enter. Then select the account you chose for the PoC (a new dedicated account; an existing account only after the approval in Multicloud connect-aws, Rule 6) and the role with full administrator rights (AdministratorAccess, or another admin role such as SystemAdministrator). Never choose the root login. Default client region: us-east-1. Output format: json (press Enter). Profile name: poc. Path B (access key): run aws configure --profile poc and paste the access key ID and secret access key; region us-east-1; output json.",
     "in": [
      "Path A: access portal URL",
      "Path B: access key ID and secret",
@@ -633,8 +633,8 @@ const STAGES = [
     "h": "Sign in to Multicloud from the CLI",
     "who": "You, in the browser",
     "d": "The browser opens. Sign in with the same account as on multicloud.io. You must be the organization owner. If you belong to more than one organization, add --org <organization-id> to every mctl command.",
-    "c": "mctl auth login\nmctl auth status",
-    "g": "No browser opens (Windows with WSL, SSH, a container): run mctl auth login --no-browser. It prints a link and a code; open the link in any browser."
+    "c": "mctl auth login --no-browser\nmctl auth status",
+    "g": "Use --no-browser on every machine, Windows with WSL included: the browser cannot open from the Linux terminal. It prints a link and a code; open the link in any browser on your computer, sign in, and enter the code."
    },
    {
     "h": "Make a folder for the connection",
@@ -804,9 +804,9 @@ const STAGES = [
   "dg": "peer",
   "steps": [
    {
-    "h": "Ask for one GPU",
+    "h": "Create the peering (1 GPU)",
     "who": "You approve",
-    "d": "The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
+    "d": "--gpu 1 lets your cluster use 1 GPU of the pool. Without --gpu, the pool grants no GPU. The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
     "in": [
      "GPU: 1",
      "CPU: 4 cores",

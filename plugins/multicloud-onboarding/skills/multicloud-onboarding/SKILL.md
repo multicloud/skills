@@ -55,7 +55,8 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
 and the files it names from the same folder (`flows/*.json`, and `assets/vllm-gpu.yaml` for
 `multicloud-extend`). If the tag answers 404 (not released yet), use `main` instead of the tag and
 tell the user so. (`flows/doors.json` and the step fields `detect`, `optional`, `console`, `d_human`
-are for the multicloud.io console; ignore them. Object-form `in[]` items have a `label`.) Never copy its text into this conversation as your own
+are for the multicloud.io console; ignore them. Object-form `in[]` items have a `label`. A step with
+`doors` belongs only to those doors: skip it on any other door.) Never copy its text into this conversation as your own
 plan; follow it as written.
 
 Every focused skill ends with one line:
