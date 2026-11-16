@@ -25,6 +25,15 @@ On Windows, run every command inside WSL (`wsl.exe -d <wsl_distro> -- bash -lc '
 WSL home folder; see skill `multicloud-workstation`). Keep every file of this skill in a folder in
 the WSL home, never under `/mnt/c`.
 
+## Stage order
+
+Every Extend use case runs the proxy stage. The flow runs these stages in this order:
+
+| Profile | Stages, in order |
+|---|---|
+| `gpu-llm` | `cluster` → `pool-gpu` → `peering` → `proxy` → `run-gpu-llm` → (`cleanup` on request) |
+| `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `proxy` → `run-cpu-burst` → (`cleanup` on request) |
+
 ## Rules that do not bend
 
 1. **The bundle is read once.** The first read of a READY peering holds the connection file; the
@@ -40,6 +49,9 @@ the WSL home, never under `/mnt/c`.
    $<max-cost-per-hour> per hour. `mctl pool hibernate <pool>` stops the cost." Ask, then create.
 5. **Ask before each change** (`who_kind` `ask`): pool, peering, helm install, kubectl apply,
    namespace, secret, deploy, deletes. A yes covers one step. Deletes cannot be undone: say so.
+6. **The proxy key is the user's.** Steps `proxy-key` and `proxy-secret` are `who_kind` `user` with
+   `owner_only`: the user creates the key and types it at the prompt of their own terminal. Never
+   ask for it in chat, never print it, never write a file with it.
 
 `who_kind` in the flow: `agent` = run it; `ask` = show, ask, then run; `user` = the user does it;
 `page` = skip. When a step has `c_agent`, run that instead of `c`.
@@ -87,7 +99,10 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 1. `gpu-llm`: step `create-peering`. `cpu-burst`: step `create-peering-cpu`. Note the peering ID
    from `Peering <id> created`, and the whole `Install command:` line.
 2. `install-connector` (ask, name the context): the install command with `<POD_CIDR>` and
-   `<SERVICE_CIDR>` replaced by the values of Step 1. Change nothing else.
+   `<SERVICE_CIDR>` replaced by the values of Step 1. Change nothing else. The chart must be
+   **0.3.1 or later**, with the `reflectionKick.remoteClusterID` line (the pool slug). This applies to
+   every customer of chart 0.3.1, with or without the proxy. An older install: `install-connector-upgrade`
+   (optional) runs `helm upgrade --reset-then-reuse-values`, then restart the offloaded workloads.
 3. `save-bundle`: run the loop with the pool name and the peering ID, as one script. It stops at
    the first response that holds the bundle, at any status other than `PENDING`, and on `mctl`
    exit 3 or 4. After it: `test -s
@@ -99,7 +114,31 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 5. `gpu-llm`: `check-gpu` must print `1` (empty in the first two minutes is normal; retry).
    `cpu-burst`: `check-virtual-node` must show `Ready` and the pool slug.
 
-## Step 4: First workload
+## Step 4: Reach the pool from your cluster (stage `proxy`)
+
+The Extend proxy lets a pod or Service in the cluster call a pod on the pool. It runs for **every**
+use case, after `peering` and before the first workload. Steps in order:
+1. `proxy-key` (user, owner, secret): the user creates an API key with scope `extend:proxy` only.
+   Wait for the user to say it is done. Never ask for the key.
+2. `proxy-manifest` (ask): ask for the path of `extend-proxy.yaml`. Multicloud gives it to the user;
+   there is no public download, so do not invent a path. Show the apply command, then run it on a yes.
+3. `proxy-secret` (user, secret): the user types the key at the prompt of their own terminal (the
+   command reads it without echo). Wait for the user to say it is done.
+4. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.
+5. `proxy-restart` (optional, ask): only for offloaded workloads that already run. None on a first run.
+6. `proxy-test` (agent): run it only after the first workload is up on the pool (`deploy-vllm` in
+   `run-gpu-llm`, or `burst-pod` in `run-cpu-burst`). Before that, leave it and come back.
+
+Notes for the user:
+- `HOST_FIREWALL_OFF` in the proxy log: ask Multicloud to turn on the pool network. The proxy retries.
+- The replicas show NotReady while the pool sleeps. Do not act; they become Ready when the pool wakes.
+- An offloaded pod not restarted since the chart change has no address. Restart it (`proxy-restart`).
+
+If the user declines the proxy: say that a pod in the cluster calling a pod on the pool will not
+work, and record `proxy=skipped`. If the check fails and cannot be fixed, record `proxy=blocked`
+and ask the Multicloud contact.
+
+## Step 5: First workload
 
 - `gpu-llm` (stage `run-gpu-llm`): `offload-namespace`, `model-api-key`, `save-manifest` (write
   `assets/vllm-gpu.yaml` unchanged to `vllm-gpu.yaml` in the working folder), `deploy-vllm` (wait
@@ -132,8 +171,10 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 ## Hand back
 
 ```text
-MULTICLOUD-RESULT skill=multicloud-extend status=<done|waiting|blocked|failed> profile=<gpu-llm|cpu-burst> pool=<name> peering_id=<id> consumer_cluster_id=<c-…> first_run=<yes|no>
+MULTICLOUD-RESULT skill=multicloud-extend status=<done|waiting|blocked|failed> profile=<gpu-llm|cpu-burst> pool=<name> peering_id=<id> consumer_cluster_id=<c-…> first_run=<yes|no> proxy=<ready|skipped|blocked>
 ```
 
 `status=blocked who=cluster-admin` for a failed cluster check, `who=multicloud-contact` for a pool
-that does not get ready or a preflight Job that fails twice.
+that does not get ready, a preflight Job that fails twice, or a proxy that stays not ready.
+`proxy=` is always set: `ready` after `proxy-check`, `skipped` if the user declined, `blocked` if the
+check fails.

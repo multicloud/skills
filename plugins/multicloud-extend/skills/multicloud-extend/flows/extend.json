@@ -189,7 +189,7 @@
      "who_kind": "ask",
      "h": "Install the connector",
      "who": "You run it, with your CIDRs",
-     "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs.",
+     "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs. The chart must be 0.3.1 or later (this command uses 0.3.1). The --set-string reflectionKick.remoteClusterID line (your pool slug) is required. This chart change applies to every Extend customer, with or without the proxy: offloaded pods that already run keep an empty IP until they restart.",
      "in": [
       {
        "label": "Pod CIDR",
@@ -236,6 +236,26 @@
      "c": "kubectl get node -l liqo.io/type=virtual-node \\\n  -o jsonpath='{..allocatable.nvidia\\.com/gpu}'"
     },
     {
+     "id": "install-connector-upgrade",
+     "doors": ["extend-gpu", "extend-cpu"],
+     "who_kind": "ask",
+     "h": "Upgrade an older connector install",
+     "who": "You run it, with your CIDRs",
+     "d": "Only if liqo-consumer is already installed below chart 0.3.1. Keep the same values, then restart the offloaded workloads (step proxy-restart).",
+     "in": [
+      {
+       "label": "Pod CIDR",
+       "placeholder": "<POD_CIDR>"
+      },
+      {
+       "label": "Service CIDR",
+       "placeholder": "<SERVICE_CIDR>"
+      }
+     ],
+     "c": "helm upgrade liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --reset-then-reuse-values \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR>",
+     "optional": true
+    },
+    {
      "id": "check-virtual-node",
      "doors": ["extend-cpu"],
      "who_kind": "agent",
@@ -244,6 +264,77 @@
      "who": "You, in a terminal",
      "d": "The virtual node must be Ready and show the pool slug in the last column. It needs about 2 minutes after the bundle.",
      "c": "kubectl get nodes -l liqo.io/type=virtual-node -L multicloud.io/pool"
+    }
+   ]
+  },
+  {
+   "id": "proxy",
+   "t": "Reach the pool from your cluster (Extend proxy)",
+   "note": "Required for every Extend use case. Without the proxy, a pod in your cluster cannot call a pod on the pool. Multicloud gives you the manifest and turns on the pool network for your pool.",
+   "steps": [
+    {
+     "id": "proxy-key",
+     "who_kind": "user",
+     "owner_only": true,
+     "h": "Create the proxy API key (you, secret)",
+     "who": "You, an organization owner, in a terminal",
+     "d": "This key can only run the proxy. The API shows it once. It is secret: the agent never sees or stores it. Replace <org-slug>. Use $API and $TOKEN as in the connector setup. Paste the key only at the prompt of the next step, in your own terminal.",
+     "c": "curl -fsS -X POST \"$API/api/v1/orgs/<org-slug>/keys\" \\\n  -H \"Authorization: Bearer $TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"name\":\"extend-proxy\",\"scopes\":[\"extend:proxy\"]}'"
+    },
+    {
+     "id": "proxy-manifest",
+     "who_kind": "ask",
+     "h": "Apply the proxy manifest",
+     "who": "You, with the file from Multicloud",
+     "d": "Multicloud gives you extend-proxy.yaml. There is no public download. Ask for its path; do not guess one. Before you apply it, Multicloud sets the values named at the top of the file: image tag, pool, peering ID, the routes, one Role and RoleBinding per route namespace, and one Service per route. The file creates the namespace multicloud-extend-proxy. Never label that namespace for Liqo offloading. A second proxy in the same cluster needs its own copy of the file with its own namespace.",
+     "in": [
+      {
+       "label": "Path to extend-proxy.yaml (from Multicloud)",
+       "placeholder": "<path-to-extend-proxy.yaml>"
+      }
+     ],
+     "c": "kubectl apply -f <path-to-extend-proxy.yaml>",
+     "g": "An install from an older copy of the file used the names extend-proxy-discovery. After you apply the new file, delete the old objects in each route namespace: kubectl -n <route namespace> delete rolebinding,role extend-proxy-discovery"
+    },
+    {
+     "id": "proxy-secret",
+     "who_kind": "user",
+     "owner_only": true,
+     "h": "Create the key Secret (you, secret)",
+     "who": "You, in your own terminal",
+     "d": "Type or paste the extend:proxy key from the first step at the prompt. The prompt does not show it. The agent never asks for the key and never writes a file with it. The Secret name must match the manifest: extend-proxy-api-key.",
+     "in": [
+      {
+       "label": "extend:proxy key (typed at the prompt, never in chat)",
+       "secret": true
+      }
+     ],
+     "c": "read -rs -p 'extend:proxy key: ' PK; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
+    },
+    {
+     "id": "proxy-check",
+     "who_kind": "agent",
+     "h": "Check that both replicas are ready",
+     "who": "You, in a terminal",
+     "d": "Both replicas must show READY 1/1. A replica is Ready when Multicloud has registered it and a pool node has answered it in the last 3 minutes. If the pool sleeps, the replicas show NotReady: do not act, they become Ready when the pool wakes. If the log shows HOST_FIREWALL_OFF, ask Multicloud to turn on the pool network; the proxy retries by itself. When both show 1/1, hand back proxy=ready.",
+     "c": "kubectl -n multicloud-extend-proxy get pods\nkubectl -n multicloud-extend-proxy logs deploy/extend-proxy --tail=20"
+    },
+    {
+     "id": "proxy-restart",
+     "who_kind": "ask",
+     "h": "Restart offloaded workloads that already run",
+     "who": "You, in a terminal",
+     "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
+     "c": "kubectl -n my-apps rollout restart deployment/<name>      # also statefulset\nkubectl -n my-apps get pods -o wide                        # the IP column shows an fd00:244:... address",
+     "optional": true
+    },
+    {
+     "id": "proxy-test",
+     "who_kind": "agent",
+     "h": "Test from a pod in your cluster",
+     "who": "You, in a terminal",
+     "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or burst-pod in run-cpu-burst). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
+     "c": "kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \\\n  curl -sS -m 10 -o /dev/null -w '%{http_code}\\n' http://vllm-pool.multicloud-extend-proxy.svc:8000/"
     }
    ]
   },
