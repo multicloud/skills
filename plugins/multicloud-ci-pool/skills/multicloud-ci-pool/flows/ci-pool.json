@@ -1,0 +1,108 @@
+{
+ "skill": "multicloud-ci-pool",
+ "stages": [
+  {
+   "id": "pool",
+   "t": "Create the CI pool",
+   "note": "A CI pool runs GitHub Actions runners on machines in your AWS account. It keeps no machine running while no job waits.",
+   "steps": [
+    {
+     "id": "classes",
+     "who_kind": "agent",
+     "h": "List the runner sizes",
+     "who": "You, in a terminal",
+     "d": "Runner sizes are classes: small, medium, large, xlarge. GPU classes are not available yet.",
+     "c": "mctl pool classes"
+    },
+    {
+     "id": "create-pool",
+     "who_kind": "ask",
+     "h": "Create the pool",
+     "who": "You approve the spend limit",
+     "d": "Replace <github-org> with your GitHub organization and <cloud-account-id> with the number from mctl cloud-account list. Repeat --classes for more sizes. The cap is for all runners together.",
+     "in": [
+      "Pool name: ci",
+      {
+       "label": "GitHub organization",
+       "placeholder": "<github-org>"
+      },
+      "Classes: medium",
+      "Max cost per hour: $2"
+     ],
+     "c": "mctl pool create ci --github-org <github-org> --cloud-account <cloud-account-id> \\\n  --classes medium --max-cost-per-hour 2 --set regions=us-east-1",
+     "detect": "pool_created",
+     "console": "/console/pools?new=1"
+    },
+    {
+     "id": "wait-ready",
+     "who_kind": "agent",
+     "h": "Check the pool",
+     "who": "You, in a terminal",
+     "d": "The pool shows its status, classes and GitHub organization. It does not show the GitHub App state: your Multicloud contact sends the GitHub App link (next stage).",
+     "c": "mctl pool show ci",
+     "detect": "pool_ready"
+    }
+   ]
+  },
+  {
+   "id": "github-app",
+   "t": "Connect GitHub",
+   "note": "Multicloud registers a GitHub App in your GitHub organization. The runners use it to receive jobs.",
+   "steps": [
+    {
+     "id": "contact",
+     "who_kind": "user",
+     "h": "Ask your Multicloud contact for the GitHub App link",
+     "who": "You, with your Multicloud contact",
+     "d": "Send the pool name and your GitHub organization. Your contact sends a one-time link. Open it as an owner of the GitHub organization, click Create GitHub App, and do not change the App name. Then install the App on the organization."
+    }
+   ]
+  },
+  {
+   "id": "workflow",
+   "t": "Run a first job",
+   "note": "One label in a workflow sends the job to Multicloud.",
+   "steps": [
+    {
+     "id": "runs-on",
+     "who_kind": "ask",
+     "h": "Add a test workflow",
+     "who": "You, in your repository",
+     "d": "Save this file as .github/workflows/multicloud-test.yml in a repository of the organization, push it, and start it from the Actions tab (Run workflow). The first job waits a few minutes for a new machine.",
+     "c": "name: multicloud-test\non: workflow_dispatch\njobs:\n  hello:\n    runs-on: multicloud\n    steps:\n      - run: echo \"hello from Multicloud\"; nproc; free -g"
+    },
+    {
+     "id": "labels",
+     "who_kind": "page",
+     "h": "Choose a runner size",
+     "who": "You",
+     "d": "A label works only for a size in the pool's classes. A pool made with --classes medium serves multicloud, multicloud-medium, multicloud-medium-no-spot and multicloud-medium-spot-only. Other sizes: add them first (mctl pool update ci --classes medium,large). Labels per size: multicloud-small, multicloud-large, multicloud-xlarge. Add -no-spot for on-demand only (no interruption), or -spot-only to wait for spot."
+    }
+   ]
+  },
+  {
+   "id": "pause",
+   "t": "Pause or delete",
+   "note": "",
+   "steps": [
+    {
+     "id": "hibernate",
+     "who_kind": "ask",
+     "h": "Pause the pool",
+     "who": "You",
+     "d": "A hibernated pool runs no runner and takes no job.",
+     "c": "mctl pool hibernate ci\nmctl pool wake ci --wait"
+    },
+    {
+     "id": "delete",
+     "who_kind": "ask",
+     "h": "Delete the pool",
+     "who": "You confirm",
+     "d": "This cannot be undone. Remove the GitHub App from your organization afterwards (GitHub › Settings › GitHub Apps).",
+     "c": "mctl pool delete ci --yes"
+    }
+   ],
+   "optional": true
+  }
+ ]
+}

@@ -54,9 +54,9 @@ and have capacity, and say why. Do not pick a region only because it is the defa
 
 ## Step 2: Read the data
 
-Find the AWS account: `mctl cloud-account list` (the number and region list). The organization slug is the team ID of `mctl auth status` (ask the customer if unsure). Without the MCP tools, the web catalog at multicloud.io/catalog does the price comparison of step 1. Then call
-`get_quota_plan_data` (or `mctl cloud-account quota-plan <id> --region <r> ...`) for the
-candidate regions. It files nothing. For each quota it gives:
+Find the AWS account: `mctl cloud-account list` (the ID column), then `mctl cloud-account show <id>` for its region list. The organization slug is on the `Organizations:` line of `mctl auth status` (ask the customer if there is more than one). Without the MCP tools, the web catalog at multicloud.io/catalog does the price comparison of step 1. Then call
+`get_quota_plan_data` (or `mctl cloud-account quota-plan <id> --region <r> [--region <r2> ...]`, at
+most 10 regions; `--code <c>` (repeat) reads only the codes you name instead of the default four, and the API accepts only codes it knows) for the candidate regions. It files nothing. For each quota it gives:
 
 - `current_limit`, or an `error` (a quota you could not read is not a quota that is big enough);
 - `open_request`: a request already waiting. Do not file another for the same quota;
@@ -66,7 +66,8 @@ candidate regions. It files nothing. For each quota it gives:
 Report the budget as the tool gives it. Never quote a cap from memory.
 
 If `consent` is false, tell the customer now that nothing can be filed until an organization owner
-runs `mctl cloud-account allow-quota-requests <id>`. Plan with them anyway, but say it first.
+runs `mctl cloud-account allow-quota-requests <id>`. Plan with them anyway, but say it first. If the
+owner does not want to allow it, use **Without consent: the customer files** below.
 
 ## Step 3: Propose an ordered plan
 
@@ -97,3 +98,53 @@ For each approved item call `request_quota` (or `mctl cloud-account quota-reques
 Say what was filed, what waits, and how to check: run `get_quota_plan_data` again later, or
 `mctl cloud-account verify <id>`. Tell the customer that AWS decides each request and that you
 cannot speed it up.
+
+Then offer two things, one question each:
+
+1. **A recurring check until AWS answers.** Offer to check the open requests on a schedule (default
+   every 2 hours; the customer may choose another interval) with step 2 (it files nothing). Start it
+   only after a yes, and say how to stop it. Stop the check by itself when every requested quota
+   reaches its new limit (`quota=enough`), when AWS denies one (`quota=denied`, show the date), or when
+   no request is open any more. Each check reports only what changed. If the agent cannot schedule
+   a recurring check, offer to check again when the customer comes back.
+2. **Continue the onboarding in the meantime.** Name the next step that does not need the quota (for
+   Extend GPU: the cluster stage only, never the GPU pool, which would cost while it waits). Ask
+   whether to go on now, and return to this skill's status when the check reports a change.
+
+For a production workload (goal "production inference" or "batch or training" in Step 1), tell the
+customer: this skill can plan, file and track all the quotas that workload needs, in each region, so
+they do not have to request them by hand. Rule 1 still applies. Each filing needs a yes that covers
+the items shown; a standing yes covers a plan the customer approved, as long as the plan's items,
+limits and regions do not change. Ask which of the two they want before any filing.
+
+## Without consent: the customer files
+
+When the owner does not allow quota requests, the customer files the same plan with their own AWS
+sign-in. The steps are in `flows/gpu-quota-own-cli.json` next to this file (the GPU PoC form:
+on-demand G and VT vCPUs in one region).
+
+1. Plan as in steps 1 to 3. Take the quota code, the region and the new limit from the plan data,
+   not from memory. The flow's code is the one for on-demand G and VT instances; for another quota,
+   use the code the data returned.
+2. Read the current limit (step `read-quota`, with the code and region of the plan). You may run it:
+   it only reads.
+3. Step `request-quota`: show the command with the code, region and value, ask, and run it only
+   after a yes (or give it to the customer to run). It uses their AWS sign-in
+   (`AWS_PROFILE=<p>`), not Multicloud.
+4. Step `answer-aws`: if AWS opens a support case, the customer answers it.
+5. Step `wait-approval`: read the request history later. Do not file again while a request is
+   open.
+
+On Windows, run the commands inside WSL (see skill `multicloud-workstation`).
+
+## Hand back
+
+End with one line, so an onboarding flow can continue (IDs and states only):
+
+```text
+MULTICLOUD-RESULT skill=multicloud-quota status=<done|waiting|blocked|failed> quota=<enough|waiting|denied> region=<r> requests=<id,id|none> filed_by=<multicloud|customer|none>
+```
+
+`done` with `quota=enough`: the first workload fits now. `waiting`: requests are open; check again
+later with step 2 (it files nothing). `blocked who=owner`: consent is missing and the customer has
+not chosen to file themselves. `quota=denied`: AWS denied it; show the date and stop.

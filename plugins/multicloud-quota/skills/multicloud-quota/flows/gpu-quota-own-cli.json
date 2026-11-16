@@ -1,0 +1,60 @@
+{
+ "skill": "multicloud-quota",
+ "stages": [
+  {
+   "id": "gpu-quota-own-cli",
+   "t": "Get GPU quota",
+   "note": "New AWS accounts often have 0 vCPU for GPU instances. You file the request from your own AWS sign-in. Do not create the pool before the quota is 4 or more. You may prepare your cluster while you wait.",
+   "dg": "quota",
+   "steps": [
+    {
+     "id": "ask-ai",
+     "who_kind": "page",
+     "h": "Optional: ask your AI for GPU quota",
+     "who": "You, to your AI",
+     "d": "After your AWS account is connected, say: “Request AWS quota for one on-demand L4 or A10G GPU in us-east-1 for my connected account.” Your AI files the request through Multicloud only after the organization owner allows it: mctl cloud-account allow-quota-requests <cloud-account-id>. Without that, or if you prefer, run the commands below yourself.",
+     "optional": true,
+     "owner_only": true
+    },
+    {
+     "id": "read-quota",
+     "who_kind": "agent",
+     "h": "Read your current GPU quota",
+     "who": "You, in a terminal",
+     "d": "The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 8: request 8 (one g6.2xlarge or g5.2xlarge needs 8; 4 fits only the smallest L4 or A10G size).",
+     "c": "aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA \\\n  --region us-east-1 --query Quota.Value --output text"
+    },
+    {
+     "id": "request-quota",
+     "who_kind": "ask",
+     "h": "Request 8 vCPU of GPU quota",
+     "who": "You approve the request",
+     "d": "8 vCPU covers one g6.2xlarge (L4) or g5.2xlarge (A10G). 4 vCPU is the minimum.",
+     "in": [
+      "Desired value: 8"
+     ],
+     "c": "aws service-quotas request-service-quota-increase --service-code ec2 \\\n  --quota-code L-DB2E81BA --desired-value 8 --region us-east-1"
+    },
+    {
+     "id": "answer-aws",
+     "who_kind": "user",
+     "h": "Answer AWS if it asks",
+     "who": "You, in AWS Support",
+     "d": "AWS can open a support case and ask for your use case. Reply: “Evaluation of LLM inference on one L4 or A10G GPU, on-demand, for about one week.”",
+     "in": [
+      "Reply to AWS"
+     ]
+    },
+    {
+     "id": "wait-approval",
+     "who_kind": "agent",
+     "h": "Wait for approval",
+     "who": "You, or your AI",
+     "d": "This takes hours to a few days. CASE_OPENED or PENDING: wait. APPROVED: read your quota again with the first command; it must be 4 or more. DENIED: tell your Multicloud contact.",
+     "c": "aws service-quotas list-requested-service-quota-change-history-by-quota \\\n  --service-code ec2 --quota-code L-DB2E81BA --region us-east-1 \\\n  --query 'RequestedQuotas[].[Status,DesiredValue,Created]' --output table",
+     "detect": "quota_gpu"
+    }
+   ]
+  }
+ ]
+}

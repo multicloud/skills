@@ -1,0 +1,280 @@
+{
+ "version": 1,
+ "doors": [
+  {
+   "id": "extend-gpu",
+   "title": "Extend · GPU inference",
+   "status": "available",
+   "os_stage": {
+    "windows": "workstation#windows"
+   },
+   "stages": [
+    {
+     "id": "account",
+     "title": "Create your Multicloud account",
+     "refs": [
+      "workstation#multicloud-account"
+     ]
+    },
+    {
+     "id": "ai",
+     "title": "Connect your AI",
+     "optional": true,
+     "refs": [
+      "workstation#connect-ai"
+     ]
+    },
+    {
+     "id": "aws-account",
+     "title": "Prepare your AWS account",
+     "refs": [
+      "aws-account-setup#aws-account"
+     ]
+    },
+    {
+     "id": "tools",
+     "title": "Install tools and sign in to AWS",
+     "refs": [
+      "workstation#tools",
+      "aws-account-setup#aws-cli-signin"
+     ]
+    },
+    {
+     "id": "connect",
+     "title": "Connect AWS to Multicloud",
+     "refs": [
+      "connect#connect"
+     ]
+    },
+    {
+     "id": "quota",
+     "title": "Get GPU quota in AWS",
+     "refs": [
+      "gpu-quota-own-cli#gpu-quota-own-cli"
+     ]
+    },
+    {
+     "id": "cluster",
+     "title": "Prepare your cluster",
+     "refs": [
+      "extend#cluster"
+     ]
+    },
+    {
+     "id": "advisor",
+     "title": "Choose workloads and check the cost (Advisor)",
+     "optional": true,
+     "refs": [],
+     "skill": "multicloud-advisor"
+    },
+    {
+     "id": "pool",
+     "title": "Create the GPU pool",
+     "refs": [
+      "extend#pool-gpu"
+     ]
+    },
+    {
+     "id": "peering",
+     "title": "Connect your cluster to the pool",
+     "refs": [
+      "extend#peering"
+     ]
+    },
+    {
+     "id": "run",
+     "title": "Run a model on the GPU",
+     "refs": [
+      "extend#run-gpu-llm"
+     ]
+    },
+    {
+     "id": "cleanup",
+     "title": "Clean up",
+     "refs": [
+      "extend#cleanup"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "extend-cpu",
+   "title": "Extend · CPU burst",
+   "status": "available",
+   "os_stage": {
+    "windows": "workstation#windows"
+   },
+   "stages": [
+    {
+     "id": "account",
+     "title": "Create your Multicloud account",
+     "refs": [
+      "workstation#multicloud-account"
+     ]
+    },
+    {
+     "id": "ai",
+     "title": "Connect your AI",
+     "optional": true,
+     "refs": [
+      "workstation#connect-ai"
+     ]
+    },
+    {
+     "id": "aws-account",
+     "title": "Prepare your AWS account",
+     "refs": [
+      "aws-account-setup#aws-account"
+     ]
+    },
+    {
+     "id": "tools",
+     "title": "Install tools and sign in to AWS",
+     "refs": [
+      "workstation#tools",
+      "aws-account-setup#aws-cli-signin"
+     ]
+    },
+    {
+     "id": "connect",
+     "title": "Connect AWS to Multicloud",
+     "refs": [
+      "connect#connect"
+     ]
+    },
+    {
+     "id": "quota",
+     "title": "Check AWS quota",
+     "optional": true,
+     "refs": [
+      "gpu-quota-own-cli#gpu-quota-own-cli"
+     ]
+    },
+    {
+     "id": "cluster",
+     "title": "Prepare your cluster",
+     "refs": [
+      "extend#cluster"
+     ]
+    },
+    {
+     "id": "advisor",
+     "title": "Choose workloads and check the cost (Advisor)",
+     "optional": true,
+     "refs": [],
+     "skill": "multicloud-advisor"
+    },
+    {
+     "id": "pool",
+     "title": "Create the CPU pool",
+     "refs": [
+      "extend#pool-cpu"
+     ]
+    },
+    {
+     "id": "peering",
+     "title": "Connect your cluster to the pool",
+     "refs": [
+      "extend#peering"
+     ]
+    },
+    {
+     "id": "run",
+     "title": "Burst a pod to the pool",
+     "refs": [
+      "extend#run-cpu-burst"
+     ]
+    },
+    {
+     "id": "cleanup",
+     "title": "Clean up",
+     "refs": [
+      "extend#cleanup"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ci-runners",
+   "title": "CI runners for GitHub Actions",
+   "status": "available",
+   "os_stage": {
+    "windows": "workstation#windows"
+   },
+   "stages": [
+    {
+     "id": "account",
+     "title": "Create your Multicloud account",
+     "refs": [
+      "workstation#multicloud-account"
+     ]
+    },
+    {
+     "id": "ai",
+     "title": "Connect your AI",
+     "optional": true,
+     "refs": [
+      "workstation#connect-ai"
+     ]
+    },
+    {
+     "id": "aws-account",
+     "title": "Prepare your AWS account",
+     "refs": [
+      "aws-account-setup#aws-account"
+     ]
+    },
+    {
+     "id": "tools",
+     "title": "Install tools and sign in to AWS",
+     "refs": [
+      "workstation#tools",
+      "aws-account-setup#aws-cli-signin"
+     ]
+    },
+    {
+     "id": "connect",
+     "title": "Connect AWS to Multicloud",
+     "refs": [
+      "connect#connect"
+     ]
+    },
+    {
+     "id": "pool",
+     "title": "Create the runner pool",
+     "refs": [
+      "ci-pool#pool"
+     ]
+    },
+    {
+     "id": "github-app",
+     "title": "Install the GitHub App",
+     "refs": [
+      "ci-pool#github-app"
+     ]
+    },
+    {
+     "id": "workflow",
+     "title": "Run a workflow on the pool",
+     "refs": [
+      "ci-pool#workflow"
+     ]
+    },
+    {
+     "id": "pause",
+     "title": "Pause or delete the pool",
+     "optional": true,
+     "refs": [
+      "ci-pool#pause"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "skipper",
+   "title": "Skipper",
+   "status": "not_available",
+   "stages": []
+  }
+ ]
+}

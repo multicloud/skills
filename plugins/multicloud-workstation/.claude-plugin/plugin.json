@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "multicloud-workstation",
+  "description": "Prepare your computer for Multicloud: WSL2 on Windows, mctl, the AWS CLI, OpenTofu, kubectl and helm, the multicloud.io account and the mctl sign-in. You type every password yourself.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Multicloud",
+    "url": "https://multicloud.io"
+  },
+  "homepage": "https://multicloud.io",
+  "repository": "https://github.com/multicloud/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "onboarding",
+    "cli",
+    "wsl",
+    "windows",
+    "mctl",
+    "multicloud"
+  ]
+}

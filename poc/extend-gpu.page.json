@@ -1,0 +1,32 @@
+{
+ "title": "Multicloud PoC Flow",
+ "output": "poc/extend-gpu.html",
+ "STAGES": [
+  "multicloud-workstation:windows",
+  "multicloud-workstation:multicloud-account",
+  "multicloud-workstation:connect-ai",
+  "multicloud-aws-account-setup:aws-account",
+  {
+   "t": "Install the tools and sign in to AWS",
+   "note": "You need four command-line tools. Your AI can install them for you, or you can run the commands below yourself.",
+   "dg": "tools",
+   "steps": [
+    "multicloud-workstation:tools:ask-ai",
+    "multicloud-workstation:tools:install-mctl",
+    "multicloud-workstation:tools:install-aws-cli",
+    "multicloud-workstation:tools:install-opentofu",
+    "multicloud-workstation:tools:install-kubectl-helm-jq",
+    "multicloud-aws-account-setup:aws-cli-signin:aws-signin"
+   ]
+  },
+  "multicloud-connect-aws:connect",
+  "multicloud-quota:gpu-quota-own-cli",
+  "multicloud-extend:cluster",
+  "multicloud-extend:pool-gpu",
+  "multicloud-extend:peering",
+  "multicloud-extend:run-gpu-llm"
+ ],
+ "STAGES_B": [
+  "multicloud-extend:cleanup"
+ ]
+}

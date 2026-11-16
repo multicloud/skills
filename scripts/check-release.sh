@@ -57,4 +57,7 @@ for manifest in plugins/*/.claude-plugin/plugin.json; do
   fi
 done
 
+# The PoC page is built from the flow files; a stale page gives a person other commands than the skills.
+python3 scripts/render-poc-page.py --check || fail=1
+
 exit "$fail"

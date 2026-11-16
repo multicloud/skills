@@ -47,13 +47,44 @@ yourself, including the one that watching the pod's egress cannot tell you.
 |---|---|---|
 | `multicloud-advisor` | Available | Installs the Advisor and connects your agent to it |
 | `multicloud-connect-aws` | Available | Connects your AWS account to Multicloud through `mctl`, and checks it is ready |
-| `multicloud-quota` | Available after the quota API release | Plans AWS quota increases with you (what to run, which regions, which order) and files the ones you approve |
+| `multicloud-quota` | Available | Plans AWS quota increases with you (what to run, which regions, which order) and files the ones you approve, or gives you the commands to file them yourself |
+| `multicloud-onboarding` | Available | Starts here: asks which door and which situation, runs the skills below in order, and keeps a resume ledger |
+| `multicloud-workstation` | Available | Prepares your computer: WSL2 on Windows, `mctl`, AWS CLI, OpenTofu, kubectl, helm, and the Multicloud sign-in |
+| `multicloud-aws-account-setup` | Available | Makes a brand-new AWS account ready: root MFA, single sign-on or an IAM user, and an AWS CLI profile |
+| `multicloud-extend` | Available | Gives your own Kubernetes cluster cloud nodes or a cloud GPU, and runs a first vLLM or burst workload |
+| `multicloud-ci-pool` | Available | GitHub Actions runners in your own AWS account (CPU sizes; the GitHub App step goes through your Multicloud contact) |
 | `skipper-onboard` | Name reserved | Onboarding onto Skipper |
 | `skipper-deploy` | Name reserved | Deploying with Skipper |
 
 Reserved names are listed here rather than as entries in
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json): a manifest entry whose
 `source` directory does not exist is a broken marketplace, not a reservation.
+
+## Onboarding from zero
+
+```bash
+claude plugin marketplace add multicloud/skills
+for p in onboarding workstation aws-account-setup connect-aws quota extend ci-pool; do
+  claude plugin install multicloud-$p@multicloud
+done
+```
+
+Then tell your agent: *"Onboard me to Multicloud."* or *"Run the Multicloud GPU PoC."* It asks
+which door you want and what you have, and continues another day where it stopped
+(*"Continue my Multicloud onboarding."*).
+
+Another agent: tell it to read and follow
+<https://raw.githubusercontent.com/multicloud/skills/main/plugins/multicloud-onboarding/skills/multicloud-onboarding/SKILL.md>.
+It fetches the other skills it needs from the same repository, at the release tags the
+orchestrator names (or `main` before the first release).
+
+The same steps for a person without an agent: [poc/extend-gpu.html](poc/extend-gpu.html). The page
+is built from the skills' `flows/*.json` files, so the page and the skills give the same commands:
+
+```bash
+python3 scripts/render-poc-page.py          # after a change to a flow file
+python3 scripts/render-poc-page.py --check  # fails if the committed page is out of date
+```
 
 ## Documentation
 
@@ -125,6 +156,7 @@ Each plugin carries its own `LICENSE` file:
 | `multicloud-advisor` | Proprietary, see [LICENSE](LICENSE) |
 | `multicloud-connect-aws` | Apache-2.0, see [plugins/multicloud-connect-aws/LICENSE](plugins/multicloud-connect-aws/LICENSE) |
 | `multicloud-quota` | Apache-2.0, see [plugins/multicloud-quota/LICENSE](plugins/multicloud-quota/LICENSE) |
+| `multicloud-onboarding`, `multicloud-workstation`, `multicloud-aws-account-setup`, `multicloud-extend`, `multicloud-ci-pool` | Apache-2.0, see the `LICENSE` file in each plugin folder |
 
 Everything else in this repository is proprietary ([LICENSE](LICENSE)). It is **public so you can
 read it before you run it**, not open source. You are licensed to run these Materials against
