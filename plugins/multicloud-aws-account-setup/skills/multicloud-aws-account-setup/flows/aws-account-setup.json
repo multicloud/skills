@@ -32,7 +32,10 @@
      "in": [
       "User name",
       "Email",
-      "Password (in the invitation)"
+      {
+       "label": "Password (in the invitation)",
+       "secret": true
+      }
      ]
     },
     {
@@ -69,8 +72,14 @@
      "who": "You, in the AWS console",
      "d": "Open the user poc-admin › Security credentials › Create access key › Command Line Interface (CLI). Confirm the note and click Next › Create access key. Copy the Access key ID and the Secret access key: AWS shows the secret only once. Keep both secret, and delete the key after the PoC (same page › Actions › Deactivate, then Delete). Sign out of the root user.",
      "in": [
-      "Access key ID",
-      "Secret access key"
+      {
+       "label": "Access key ID",
+       "secret": true
+      },
+      {
+       "label": "Secret access key",
+       "secret": true
+      }
      ]
     }
    ]
@@ -88,7 +97,10 @@
      "d": "Use the identity from the stage “Set up your AWS account”. Path A (single sign-on): run aws configure sso. Answers: SSO session name: any name. SSO start URL: your AWS access portal URL. SSO region: the region where you turned on IAM Identity Center. Registration scopes: press Enter. Sign in in the browser, then select your account and AdministratorAccess. Default client region: us-east-1. Output format: press Enter. Profile name: poc. Path B (access key): run aws configure --profile poc and paste the access key ID and secret access key; region us-east-1; output json.",
      "in": [
       "Path A: access portal URL",
-      "Path B: access key ID and secret",
+      {
+       "label": "Path B: access key ID and secret",
+       "secret": true
+      },
       "Profile name: poc"
      ],
      "os": {

@@ -13,7 +13,10 @@ A page manifest (`poc/<name>.page.json`) lists stages in page order. An entry is
 that composes one page stage from steps of several skills.
 
 Step fields the page shows: h, who, d, in, c, os, g. `c_file` is inlined into `c` (path relative to
-the skill folder). Fields only the agent reads (id, who_kind, c_agent, agent_note, ...) are dropped.
+the skill folder). `d_human`, when set, replaces `d` (`d` is agent-voiced there). An `in[]` item is a
+string or {label, secret?, placeholder?}; the page shows the label. Fields only the agent or the
+console reads (id, who_kind, c_agent, agent_note, detect, optional, console, owner_only, ...)
+`os` is a command map {mac, linux, win}; a step whose map lacks the chosen OS is dropped are dropped.
 A step with "page": false is left out of the page.
 """
 import json
@@ -28,6 +31,8 @@ MARK = "/*@@FLOW_DATA@@*/"
 def load_flows():
   stages = {}
   for f in sorted(ROOT.glob("plugins/*/skills/*/flows/*.json")):
+    if f.name == "doors.json":  # console door paths, not a skill flow
+      continue
     data = json.loads(f.read_text())
     for st in data["stages"]:
       key = f"{data['skill']}:{st['id']}"
@@ -42,6 +47,10 @@ def page_step(step, skill_dir):
   for k in PAGE_KEYS:
     if k == "c" and "c_file" in step:
       out["c"] = (skill_dir / step["c_file"]).read_text().rstrip("\n")
+    elif k == "d" and "d_human" in step:
+      out["d"] = step["d_human"]
+    elif k == "in" and k in step:
+      out["in"] = [i if isinstance(i, str) else i["label"] for i in step["in"]]
     elif k in step:
       out[k] = step[k]
   return out

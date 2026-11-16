@@ -31,11 +31,16 @@
      "who": "You confirm the values",
      "d": "Replace <account-id> with your 12-digit AWS account ID. The two flags at the end answer two questions for you: do not turn on other AWS regions, and do not file quota requests automatically (you do that in the next stage).",
      "in": [
-      "AWS account ID",
+      {
+       "label": "AWS account ID",
+       "placeholder": "<account-id>"
+      },
       "Region: us-east-1"
      ],
      "c": "mctl cloud-account create --cloud AWS --account <account-id> --region us-east-1 \\\n  --no-opt-in-regions --no-allow-quota-requests",
-     "g": "The output has a line like: Next: mctl cloud-account apply 7. (The line By hand: … after it is for people who apply without mctl; skip it.) The number (here 7) is your cloud-account ID. It is not your AWS account ID. Write it down: you need it in this stage and when you create the pool. To see it again, run: mctl cloud-account list"
+     "g": "The output has a line like: Next: mctl cloud-account apply 7. (The line By hand: … after it is for people who apply without mctl; skip it.) The number (here 7) is your cloud-account ID. It is not your AWS account ID. Write it down: you need it in this stage and when you create the pool. To see it again, run: mctl cloud-account list",
+     "console": "/account/cloud-accounts",
+     "owner_only": true
     },
     {
      "id": "create-role",
@@ -46,7 +51,9 @@
      "in": [
       "Approve plan"
      ],
-     "c": "mctl cloud-account apply <cloud-account-id>"
+     "c": "mctl cloud-account apply <cloud-account-id>",
+     "detect": "cloud_account",
+     "owner_only": true
     }
    ]
   }

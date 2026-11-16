@@ -12,7 +12,9 @@
      "who_kind": "page",
      "h": "Optional: ask your AI for GPU quota",
      "who": "You, to your AI",
-     "d": "After your AWS account is connected, say: “Request AWS quota for one on-demand L4 or A10G GPU in us-east-1 for my connected account.” Your AI files the request through Multicloud only after the organization owner allows it: mctl cloud-account allow-quota-requests <cloud-account-id>. Without that, or if you prefer, run the commands below yourself."
+     "d": "After your AWS account is connected, say: “Request AWS quota for one on-demand L4 or A10G GPU in us-east-1 for my connected account.” Your AI files the request through Multicloud only after the organization owner allows it: mctl cloud-account allow-quota-requests <cloud-account-id>. Without that, or if you prefer, run the commands below yourself.",
+     "optional": true,
+     "owner_only": true
     },
     {
      "id": "read-quota",
@@ -49,7 +51,8 @@
      "h": "Wait for approval",
      "who": "You, or your AI",
      "d": "This takes hours to a few days. CASE_OPENED or PENDING: wait. APPROVED: read your quota again with the first command; it must be 4 or more. DENIED: tell your Multicloud contact.",
-     "c": "aws service-quotas list-requested-service-quota-change-history-by-quota \\\n  --service-code ec2 --quota-code L-DB2E81BA --region us-east-1 \\\n  --query 'RequestedQuotas[].[Status,DesiredValue,Created]' --output table"
+     "c": "aws service-quotas list-requested-service-quota-change-history-by-quota \\\n  --service-code ec2 --quota-code L-DB2E81BA --region us-east-1 \\\n  --query 'RequestedQuotas[].[Status,DesiredValue,Created]' --output table",
+     "detect": "quota_gpu"
     }
    ]
   }
