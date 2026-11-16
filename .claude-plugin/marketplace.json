@@ -127,6 +127,18 @@
         "onboarding"
       ],
       "strict": true
+    },
+    {
+      "name": "multicloud-progress",
+      "source": "./plugins/multicloud-progress",
+      "description": "A panel on the right of Claude Code that shows your Multicloud onboarding steps, with each step checked off as it finishes. Optional: the onboarding skills work without it.",
+      "category": "infrastructure",
+      "tags": [
+        "onboarding",
+        "progress",
+        "multicloud"
+      ],
+      "strict": true
     }
   ]
 }
