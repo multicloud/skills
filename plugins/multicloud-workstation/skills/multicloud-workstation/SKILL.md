@@ -131,8 +131,12 @@ Check first, install only what is missing:
 
 Use the block of the user's system from the flow. A block with `sudo` asks for a password, which
 your shell cannot type: run `sudo -n true` first. It fails: give the block to the user to run in
-their own terminal, and wait for "done". `brew` needs no `sudo`. After `uv tool update-shell`, a new
-shell is needed: run the next checks in a new `bash -lc` (or ask the user to open a new terminal).
+their own terminal, and wait for "done". `brew` needs no `sudo`. After any tool
+install, the user's Ubuntu window must be closed and opened again: a window opened before the install
+does not see `~/.local/bin` or the new commands (`aws`, `tofu`, `kubectl`, `helm`, `jq`, `mctl`).
+Say this to the user explicitly, with the steps: "Close the Ubuntu window. Open Ubuntu again from the
+Start menu. Then run `aws --version`." Check the tools again in a new `bash -lc` before you call a
+tool missing.
 
 ## Step 4: Multicloud sign-in
 

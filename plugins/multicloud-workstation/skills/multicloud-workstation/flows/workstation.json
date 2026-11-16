@@ -127,7 +127,7 @@
   {
    "id": "tools",
    "t": "Install the tools and sign in to AWS",
-   "note": "You need four command-line tools. Your AI can install them for you, or you can run the commands below yourself.",
+   "note": "You need command-line tools. Your AI can install them for you, or you can run the commands below yourself. After the installs, close your Ubuntu window and open Ubuntu again from the Start menu. A window opened before the install cannot find aws, tofu, kubectl, helm, jq or mctl. Then check with: aws --version",
    "dg": "tools",
    "steps": [
     {
