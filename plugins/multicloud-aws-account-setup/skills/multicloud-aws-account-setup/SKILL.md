@@ -76,6 +76,28 @@ stay outside an organization takes path B.
 
 ## Step 3: CLI sign-in (stage `aws-cli-signin`)
 
+Before the user starts, tell them every question the command asks and the answer to give. Do not
+wait for them to get stuck:
+
+1. **SSO start URL** (path A): the AWS access portal address, like
+   `https://d-1234567890.awsapps.com/start`. Where: the AWS console, search **IAM Identity Center**,
+   copy **AWS access portal URL** on the dashboard. No IAM Identity Center in that account yet: stop
+   and go back to Step 2 (path A).
+2. **SSO region** (path A): the region where IAM Identity Center is turned on. Where: the region
+   selector at the top right of the IAM Identity Center console. Often `us-east-1`.
+3. **Account** (path A): the account the user chose in Step 0 or Step 1. **Stop here if it is an
+   existing account** that was not approved under `multicloud-connect-aws`, Rule 6. A new account
+   (Step 0) is fine.
+4. **Role**: choose the role with full administrator rights. The name varies: `AdministratorAccess`,
+   or another admin role such as `SystemAdministrator`. Check the name you see in the list. Never the
+   root login; Multicloud does not use it. No admin role listed: stop and ask the user's AWS
+   administrator (`status=blocked who=aws-admin`). After sign-in, the ARN shows the role name
+   (`AWSReservedSSO_<role>_…`).
+5. **Default client region**: `us-east-1` (the region the PoC uses).
+6. **Default output format**: `json`.
+7. **Profile name**: `poc`. Other prompts (session name, registration scopes): press Enter for the
+   default.
+
 The user runs the command in their own terminal (on Windows: the WSL window of the `wsl_distro`), because it asks
 questions you cannot answer for them. Tell them each answer from the flow step:
 
