@@ -38,17 +38,18 @@
       "Region: us-east-1",
       "Quota requests by Multicloud: yes (recommended) or no"
      ],
-     "c": "mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1 \\\n  --allow-quota-requests",
+     "c": "mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1 \\\n  --opt-in-regions --allow-quota-requests",
      "g": "This writes multicloud.tf and multicloud.auto.tfvars (the email only) in the folder: keep both. The output has a line like: Next: mctl cloud-account apply 7. The number (here 7) is your cloud-account ID, not an AWS account ID. Write it down. To see it again: mctl cloud-account list",
      "console": "/account/cloud-accounts",
-     "owner_only": true
+     "owner_only": true,
+     "optional": true
     },
     {
      "id": "existing-account-warning",
      "who_kind": "ask",
      "h": "Path B: approve the use of an account you have",
      "who": "You decide",
-     "d": "Only for an AWS account that you made yourself or that holds other work. Multicloud starts and deletes machines, networks and security groups in this account, in the regions you allow. Other work in the account shares its quotas and limits with Multicloud. A new account only for Multicloud (path A) avoids this. A new account that you made by hand for the PoC holds no other work: say so and continue. Multicloud may report ACCOUNT_NOT_DEDICATED later: then the organization owner runs mctl cloud-account accept-shared-account <cloud-account-id> and types the number it asks for. Nobody else types it.",
+     "d": "Only for an AWS account that you have. Read this warning first: this account gets a Multicloud IAM role that can start and stop compute and request quota. Existing workloads and their permissions share the account, and its quotas and limits. Removing the connection later means a destroy of the role. Option: a new account (path A), which keeps the PoC apart from your current work. Approve only with an explicit yes. A new account that you made by hand for the PoC holds no other work: it counts as a new account, so say so and continue. If Multicloud reports ACCOUNT_NOT_DEDICATED later, the organization owner runs mctl cloud-account accept-shared-account <cloud-account-id> and types the 12-digit AWS account ID it asks for. Nobody else types it.",
      "in": [
       "Approve: connect this account"
      ],

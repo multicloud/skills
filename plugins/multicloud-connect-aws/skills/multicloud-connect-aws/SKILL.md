@@ -42,7 +42,8 @@ missing permissions.
    > apart from your current work.
 
    Ask one question: "Use a new dedicated account (recommended), or connect the existing account
-   `<id>` after this warning?" Record the answer in the ledger as `aws_account_choice=new|existing`
+   `<id>` after this warning?" A new account that the user made by hand for the PoC holds no other
+   work: it counts as new. Record the answer in the ledger as `aws_account_choice=new|existing`
    and `aws_existing_approved=yes` only on an explicit yes. A "yes" to another question is not an
    approval. No approval: stop with `status=blocked who=user`.
 
@@ -163,9 +164,9 @@ yes, `apply --yes`). Then continue here at step 5.
   When the owner confirms a re-connect of an account that is not dedicated, the user runs this in
   their own terminal (an owner's sign-in, `mctl auth login`; never an API key):
   `mctl cloud-account accept-shared-account <n> --org <org-id>`, where `<n>` is the **cloud account
-  number** from `mctl cloud-account list` (the ID column, for example 19), not the 12-digit AWS
-  account ID. The command shows the warning and asks the user to type that same number. The typed
-  number is the approval. You do not type it for them. Then `mctl cloud-account show <n>` and continue with step 4.
+  number** from `mctl cloud-account list` (the ID column, for example 19). The command shows the
+  warning and asks the user to type the account's **12-digit AWS account ID** (its cloud id, as
+  `--help` says). The typed ID is the approval. You do not type it for them. Then `mctl cloud-account show <n>` and continue with step 4.
   Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
   may use (it starts machines only there). Name the regions again in the apply question.
@@ -267,8 +268,9 @@ again only when the target or the effect changes. Do not hand these commands to 
    terminal). Multicloud stops its machines, deletes what it created in the account, and disables
    the pools that use it. Wait for the status `revoked`; report any `leftovers` it lists.
 2. Then run `tofu state list` in the connection folder. If it lists managed resources (for example
-   `aws_iam_role`, `aws_iam_policy`), run `tofu destroy` there; it needs the connect token, so give
-   it through `mctl cloud-account apply <n>` (or the token step it prints), never by hand. If the
+   `aws_iam_role`, `aws_iam_policy`), run `TF_VAR_multicloud_connect_token=unused tofu destroy`
+   there. The variable has no default, so a bare `tofu destroy` asks for it; the module uses the
+   token only when it creates the connection (no destroy-time step), so any valid value works. If the
    state lists only `data.*` and `random_id` (an apply that failed before creating anything), there
    is nothing to destroy: remove the local folder after the user's yes, and say so.
 3. **New account (created by Multicloud's Terraform):** the cleanup closes the AWS account, which is

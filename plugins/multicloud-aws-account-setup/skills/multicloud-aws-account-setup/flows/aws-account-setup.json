@@ -31,7 +31,8 @@
      "d": "In the top search bar, type IAM Identity Center and open it. Select a region at the top right, for example us-east-1 or the region nearest to you. Click Enable, then Enable with AWS Organizations. AWS creates an organization for your account. Write down the region.",
      "in": [
       "Identity Center region"
-     ]
+     ],
+     "optional": true
     },
     {
      "id": "a2-create-user",
@@ -46,14 +47,16 @@
        "label": "Password (in the invitation)",
        "secret": true
       }
-     ]
+     ],
+     "optional": true
     },
     {
      "id": "a3-admin-rights",
      "who_kind": "browser",
      "h": "Path A, step 3: give the user administrator rights",
      "who": "You, in IAM Identity Center",
-     "d": "Open Permission sets › Create permission set › Predefined permission set › AdministratorAccess › Next › Next › Create. Then open AWS accounts, select your account, click Assign users or groups, select your user, then the AdministratorAccess permission set, and Submit."
+     "d": "Open Permission sets › Create permission set › Predefined permission set › AdministratorAccess › Next › Next › Create. Then open AWS accounts, select your account, click Assign users or groups, select your user, then the AdministratorAccess permission set, and Submit.",
+     "optional": true
     },
     {
      "id": "a4-portal-url",
@@ -63,7 +66,8 @@
      "d": "Open Dashboard. In Settings summary, copy the AWS access portal URL (it looks like https://d-1234567890.awsapps.com/start). Sign out of the root user. From now on, sign in through this URL.",
      "in": [
       "AWS access portal URL"
-     ]
+     ],
+     "optional": true
     },
     {
      "id": "b1-iam-user",
@@ -73,7 +77,8 @@
      "d": "Open IAM › Users › Create user. User name: poc-admin. Do not give console access. Next › Attach policies directly › select AdministratorAccess › Next › Create user.",
      "in": [
       "User name: poc-admin"
-     ]
+     ],
+     "optional": true
     },
     {
      "id": "b2-access-key",
@@ -90,7 +95,8 @@
        "label": "Secret access key",
        "secret": true
       }
-     ]
+     ],
+     "optional": true
     }
    ]
   },

@@ -358,15 +358,27 @@
      "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region <region> \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
     },
     {
-     "id": "aws-connection",
+     "id": "aws-connection-new",
      "who_kind": "ask",
-     "h": "Keep or remove the AWS connection",
-     "who": "You decide",
-     "d": "To continue after the PoC, keep it. To remove it, run the commands in the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile. Path A (a new account that Multicloud's Terraform created): mctl cloud-account destroy disconnects the account, waits until Multicloud has cleaned up, removes the role and closes the AWS account. AWS keeps a closed account for 90 days, and its email cannot be used for a new AWS account again. Path B (an account you have): disconnect first, then tofu state list: if it lists only data.* and random_id, there is nothing to destroy; otherwise run tofu destroy and type yes. Each path asks you to confirm.",
+     "h": "Path A: close the new AWS account",
+     "who": "You approve the close",
+     "d": "Only for a new account that Multicloud's Terraform created, and only when you do not keep it after the PoC. Run it in the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile (the management account). It disconnects the account, waits until Multicloud has cleaned up, removes the role and closes the AWS account. AWS keeps a closed account for 90 days, and its email cannot be used for a new AWS account again. mctl asks you to confirm: type y. Path B of “Set up your AWS account” (an IAM user with an access key): after the PoC, deactivate and delete the key (IAM › Users › poc-admin › Security credentials › Actions › Deactivate, then Delete).",
      "in": [
-      "Keep or remove"
+      "Approve: close the AWS account"
      ],
-     "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\n# Path A: a new account that Multicloud's Terraform created (closes the account)\nmctl cloud-account destroy <cloud-account-id>\n# Path B: an account you have (removes the role)\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\ntofu destroy",
+     "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account destroy <cloud-account-id>",
+     "optional": true
+    },
+    {
+     "id": "aws-connection-existing",
+     "who_kind": "ask",
+     "h": "Path B: remove Multicloud from an account you have",
+     "who": "You approve each command",
+     "d": "Only for an account you have, and only when you do not keep the connection after the PoC. Run the commands one at a time, in the folder you made when you connected AWS, with the same AWS profile. The disconnect stops Multicloud and removes what it created in your account. If tofu state list prints only data.* and random_id lines, there is nothing to destroy: stop there. Otherwise tofu destroy removes the role; type yes. The destroy does not use the connect token, so any value works for it. Path B of “Set up your AWS account” (an IAM user with an access key): after the PoC, deactivate and delete the key (IAM › Users › poc-admin › Security credentials › Actions › Deactivate, then Delete).",
+     "in": [
+      "Approve: disconnect and remove the role"
+     ],
+     "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\nTF_VAR_multicloud_connect_token=unused tofu destroy",
      "optional": true
     }
    ]

@@ -21,27 +21,30 @@
      "who_kind": "agent",
      "h": "Path A: read the quota through Multicloud",
      "who": "You, or your AI",
-     "d": "Shows the current limit, any open request and any recent denial for each GPU quota. It files nothing. L-DB2E81BA (on-demand G and VT instances) must be 8 or more: 8 or more, skip the request.",
-     "c": "mctl cloud-account quota-plan <cloud-account-id> --region us-east-1"
+     "d": "Shows the current limit, any open request and any recent denial for each GPU quota. It files nothing. Look at L-DB2E81BA (on-demand G and VT instances). 4 or more is enough for the PoC (one g6.xlarge): skip the request. Less than 4: request 8, so that a g6.2xlarge (L4) or g5.2xlarge (A10G) also fits.",
+     "c": "mctl cloud-account quota-plan <cloud-account-id> --region us-east-1",
+     "optional": true
     },
     {
      "id": "mc-request-quota",
      "who_kind": "ask",
      "h": "Path A: Multicloud files 8 vCPU of GPU quota",
      "who": "You approve the request",
-     "d": "8 vCPU covers one g6.2xlarge (L4) or g5.2xlarge (A10G). 4 vCPU is the minimum. The first line is needed only if you answered no to quota requests when you connected the account (organization owner only).",
+     "d": "8 vCPU covers one g6.2xlarge (L4) or g5.2xlarge (A10G). 4 vCPU is the minimum for the PoC.",
      "in": [
       "Desired value: 8"
      ],
-     "c": "mctl cloud-account allow-quota-requests <cloud-account-id>   # only if not allowed yet\nmctl cloud-account quota-request <cloud-account-id> --region us-east-1 \\\n  --code L-DB2E81BA --desired 8",
-     "owner_only": true
+     "c": "mctl cloud-account quota-request <cloud-account-id> --region us-east-1 \\\n  --code L-DB2E81BA --desired 8",
+     "owner_only": true,
+     "optional": true,
+     "g": "If mctl says that quota requests are not allowed (consent: false), the organization owner allows them once: mctl cloud-account allow-quota-requests <cloud-account-id>. That is a separate yes. Then run the request again."
     },
     {
      "id": "read-quota",
      "who_kind": "agent",
      "h": "Path B: read your current GPU quota",
      "who": "You, in a terminal",
-     "d": "Only with your own AWS sign-in to the account. The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 8: request 8 (one g6.2xlarge or g5.2xlarge needs 8; 4 fits only the smallest L4 or A10G size).",
+     "d": "Only with your own AWS sign-in to the account. The command prints one number: your vCPU limit for on-demand G and VT instances. 4 or more is enough for the PoC (one g6.xlarge): skip the request. Less than 4: request 8, so that a g6.2xlarge (L4) or g5.2xlarge (A10G) also fits.",
      "c": "aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA \\\n  --region us-east-1 --query Quota.Value --output text",
      "optional": true
     },
@@ -50,7 +53,7 @@
      "who_kind": "ask",
      "h": "Path B: request 8 vCPU of GPU quota",
      "who": "You approve the request",
-     "d": "8 vCPU covers one g6.2xlarge (L4) or g5.2xlarge (A10G). 4 vCPU is the minimum.",
+     "d": "8 vCPU covers one g6.2xlarge (L4) or g5.2xlarge (A10G). 4 vCPU is the minimum for the PoC.",
      "in": [
       "Desired value: 8"
      ],
@@ -72,7 +75,7 @@
      "who_kind": "agent",
      "h": "Wait for approval",
      "who": "You, or your AI",
-     "d": "This takes hours to a few days. Your AI can check every 2 hours and tell you when AWS answers. Meanwhile continue with “Prepare your cluster”, but do not create the GPU pool yet: it costs while it waits. Open request: wait. Limit 8 or more: done. Denied: tell your Multicloud contact.",
+     "d": "This takes hours to a few days. Your AI can check every 2 hours and tell you when AWS answers. Meanwhile continue with “Prepare your cluster”, but do not create the GPU pool yet: it costs while it waits. Open request: wait. Limit 4 or more: done. Denied: tell your Multicloud contact.",
      "c": "mctl cloud-account quota-plan <cloud-account-id> --region us-east-1",
      "detect": "quota_gpu",
      "g": "Path B, with your own AWS sign-in: aws service-quotas list-requested-service-quota-change-history-by-quota --service-code ec2 --quota-code L-DB2E81BA --region us-east-1 --query 'RequestedQuotas[].[Status,DesiredValue,Created]' --output table"
