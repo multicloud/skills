@@ -105,8 +105,8 @@
           "who_kind": "agent",
           "h": "Wait until the pool is ready",
           "who": "You, in a terminal",
-          "d": "Run the command every minute. Status: ready means the pool is ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
-          "c": "mctl pool show poc-gpu",
+          "d": "Open the pools page in the browser and tell the user: you can follow the creation at https://multicloud.io/console/pools. Then return to this chat. The agent keeps checking the status here: run the check every minute until Status: ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
+          "c": "cmd.exe /c start \"\" \"https://multicloud.io/console/pools\"   # opens the pools page in the Windows browser\nmctl pool show poc-gpu",
           "detect": "pool_ready"
         },
         {
@@ -145,8 +145,8 @@
           "who_kind": "agent",
           "h": "Wait until the pool is ready",
           "who": "You, in a terminal",
-          "d": "Run it every minute. Status: ready means ready. Still provisioning after 20 minutes: send the output to your Multicloud contact.",
-          "c": "mctl pool show burst",
+          "d": "Open the pools page in the browser and tell the user: you can follow the creation at https://multicloud.io/console/pools. Then return to this chat. The agent keeps checking the status here: run the check every minute until Status: ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
+          "c": "cmd.exe /c start \"\" \"https://multicloud.io/console/pools\"   # opens the pools page in the Windows browser\nmctl pool show burst",
           "detect": "pool_ready"
         }
       ]
@@ -157,6 +157,14 @@
       "note": "Your Multicloud contact joins you for this stage. Check first that kubectl points at your own cluster (kubectl config current-context).",
       "dg": "peer",
       "steps": [
+        {
+          "id": "check-connector",
+          "who_kind": "agent",
+          "h": "Check that the cluster has no connector yet",
+          "who": "You, in a terminal",
+          "d": "If liqo-consumer is already installed, stop. That install serves a peering that may still be in use. Show the release and its consumer ID, then find the peering it serves (mctl peering list <pool> in each org you belong to). Ask the user before any peering or install on this cluster: use another cluster, or replace the connector only on a yes.",
+          "c": "if helm list -n liqo -o json | jq -e 'length > 0' >/dev/null; then\n  echo 'liqo-consumer is installed: stop'\n  helm get values liqo-consumer -n liqo | grep -E 'clusterID|remoteClusterID'\nelse\n  echo 'no connector: continue'\nfi"
+        },
         {
           "id": "create-peering",
           "doors": [
@@ -359,6 +367,14 @@
           "who": "You, in a terminal",
           "d": "Replace <slug> with the pool slug from the virtual node check (the multicloud.io/pool value). The NODE column must show the virtual node. A cold pool needs about 5 minutes to add a worker.",
           "c": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: Pod\nmetadata: {name: burst-hello, namespace: my-apps}\nspec:\n  tolerations:\n  - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n  nodeSelector: {multicloud.io/pool: <slug>}\n  restartPolicy: Never\n  containers:\n  - name: hello\n    image: busybox:1.36\n    command: [\"sh\", \"-c\", \"echo hello from the pool; uname -n; sleep 30\"]\n    resources:\n      requests: {cpu: 100m, memory: 64Mi}\nEOF\nkubectl -n my-apps wait --for=jsonpath='{.status.phase}'=Succeeded pod/burst-hello --timeout=15m\nkubectl -n my-apps get pod burst-hello -o wide\nkubectl -n my-apps logs burst-hello\nkubectl -n my-apps delete pod burst-hello"
+        },
+        {
+          "id": "cpu-service",
+          "who_kind": "ask",
+          "h": "Run a test Service for the proxy",
+          "who": "You, in a terminal",
+          "d": "The proxy route needs a Service in my-apps. This runs a tiny HTTP server on the pool and a Service named vllm on port 8000, the same route the GPU door uses, so the proxy test works for the CPU door too. Replace <slug> with the pool slug from the virtual node check.",
+          "c": "kubectl apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata: {name: vllm, namespace: my-apps}\nspec:\n  replicas: 1\n  selector: {matchLabels: {app: vllm}}\n  template:\n    metadata: {labels: {app: vllm}}\n    spec:\n      tolerations:\n      - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n      nodeSelector: {multicloud.io/pool: <slug>}\n      containers:\n      - name: http\n        image: busybox:1.36\n        command: [\"sh\", \"-c\", \"mkdir -p /www && echo ok > /www/index.html && httpd -f -p 8000 -h /www\"]\n        ports: [{containerPort: 8000, name: http}]\n        resources:\n          requests: {cpu: 100m, memory: 64Mi}\n---\napiVersion: v1\nkind: Service\nmetadata: {name: vllm, namespace: my-apps}\nspec:\n  selector: {app: vllm}\n  ports: [{name: http, port: 8000, targetPort: http}]\nEOF\nkubectl -n my-apps wait --for=condition=Available deploy/vllm --timeout=15m"
         }
       ]
     },
@@ -432,7 +448,7 @@
           "who_kind": "agent",
           "h": "Test from a pod in your cluster",
           "who": "You, in a terminal",
-          "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or burst-pod in run-cpu-burst). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
+          "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or cpu-service in run-cpu-burst). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
           "c": "kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \\\n  curl -sS -m 10 -o /dev/null -w '%{http_code}\\n' http://vllm-pool.multicloud-extend-proxy.svc:8000/"
         }
       ]

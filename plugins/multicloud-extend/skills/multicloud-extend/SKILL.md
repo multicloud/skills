@@ -32,7 +32,7 @@ Every Extend use case runs the proxy stage. The flow runs these stages in this o
 | Profile | Stages, in order |
 |---|---|
 | `gpu-llm` | `cluster` → `pool-gpu` → `peering` → `run-gpu-llm` → `proxy` → (`cleanup` on request) |
-| `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `run-cpu-burst` → `proxy` → (`cleanup` on request) |
+| `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `run-cpu-burst` (includes `cpu-service`, the route the proxy needs) → `proxy` → (`cleanup` on request) |
 
 ## Rules that do not bend
 
@@ -89,13 +89,18 @@ quota waits).
 - `cpu-burst`: stage `pool-cpu`, pool `burst`.
 
 Put the cloud-account ID and the region into the commands: the flow shows `us-east-1` as an
-example; use the region of the quota (GPU) or the region the user chose. Then poll `wait-ready`: run
-`mctl pool show <pool>` once a minute until `Status: ready`, at most 20 minutes; then stop and give
-the output to the user for their Multicloud contact. Errors: `ACCOUNT_NOT_READY` (409) → verify
+example; use the region of the quota (GPU) or the region the user chose. Then open the pools page
+(`https://multicloud.io/console/pools`) and tell the user they can follow the creation there, and
+that they should come back to this chat. Poll `wait-ready` here: run `mctl pool show <pool>` once
+a minute until `Status: ready`, at most 20 minutes; then stop and give the output to the user for
+their Multicloud contact. Errors: `ACCOUNT_NOT_READY` (409) → verify
 the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 
 ## Step 3: Connect the cluster (stage `peering`)
 
+0. `check-connector` (agent): if `liqo-consumer` is already installed on this cluster, stop. An
+   existing install serves a peering that may still be in use (one consumer ID per install). Show
+   the release and its consumer ID, find the peering it serves, and ask the user before any change.
 1. `gpu-llm`: step `create-peering`. `cpu-burst`: step `create-peering-cpu`. Note the peering ID
    from `Peering <id> created`, and the whole `Install command:` line.
 2. `install-connector` (ask, name the context): the install command with `<POD_CIDR>` and

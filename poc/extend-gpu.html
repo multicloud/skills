@@ -881,8 +881,8 @@ const STAGES = [
    {
     "h": "Wait until the pool is ready",
     "who": "You, in a terminal",
-    "d": "Run the command every minute. Status: ready means the pool is ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
-    "c": "mctl pool show poc-gpu"
+    "d": "Open the pools page in the browser and tell the user: you can follow the creation at https://multicloud.io/console/pools. Then return to this chat. The agent keeps checking the status here: run the check every minute until Status: ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
+    "c": "cmd.exe /c start \"\" \"https://multicloud.io/console/pools\"   # opens the pools page in the Windows browser\nmctl pool show poc-gpu"
    },
    {
     "h": "Pause the pool when you stop for the day",
@@ -897,6 +897,12 @@ const STAGES = [
   "note": "Your Multicloud contact joins you for this stage. Check first that kubectl points at your own cluster (kubectl config current-context).",
   "dg": "peer",
   "steps": [
+   {
+    "h": "Check that the cluster has no connector yet",
+    "who": "You, in a terminal",
+    "d": "If liqo-consumer is already installed, stop. That install serves a peering that may still be in use. Show the release and its consumer ID, then find the peering it serves (mctl peering list <pool> in each org you belong to). Ask the user before any peering or install on this cluster: use another cluster, or replace the connector only on a yes.",
+    "c": "if helm list -n liqo -o json | jq -e 'length > 0' >/dev/null; then\n  echo 'liqo-consumer is installed: stop'\n  helm get values liqo-consumer -n liqo | grep -E 'clusterID|remoteClusterID'\nelse\n  echo 'no connector: continue'\nfi"
+   },
    {
     "h": "Create the peering (1 GPU)",
     "who": "You approve",
