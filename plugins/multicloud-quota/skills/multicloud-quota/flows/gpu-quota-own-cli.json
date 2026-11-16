@@ -13,7 +13,8 @@
      "h": "Optional: ask your AI for GPU quota",
      "who": "You, to your AI",
      "d": "After your AWS account is connected, say: “Request AWS quota for one on-demand L4 or A10G GPU in us-east-1 for my connected account.” Your AI files the request through Multicloud only after the organization owner allows it: mctl cloud-account allow-quota-requests <cloud-account-id>. Without that, or if you prefer, run the commands below yourself.",
-     "optional": true
+     "optional": true,
+     "owner_only": true
     },
     {
      "id": "read-quota",

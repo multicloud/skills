@@ -15,7 +15,8 @@ that composes one page stage from steps of several skills.
 Step fields the page shows: h, who, d, in, c, os, g. `c_file` is inlined into `c` (path relative to
 the skill folder). `d_human`, when set, replaces `d` (`d` is agent-voiced there). An `in[]` item is a
 string or {label, secret?, placeholder?}; the page shows the label. Fields only the agent or the
-console reads (id, who_kind, c_agent, agent_note, detect, optional, console, ...) are dropped.
+console reads (id, who_kind, c_agent, agent_note, detect, optional, console, owner_only, ...)
+`os` is a command map {mac, linux, win}; a step whose map lacks the chosen OS is dropped are dropped.
 A step with "page": false is left out of the page.
 """
 import json

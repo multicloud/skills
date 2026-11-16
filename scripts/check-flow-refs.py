@@ -31,6 +31,8 @@ for f in sorted(ROOT.glob("plugins/*/skills/*/flows/*.json")):
       where = f"{f.stem}#{st['id']}:{s['id']}"
       if "detect" in s and s["detect"] not in DETECT:
         errs.append(f"{where}: unknown detect {s['detect']!r}")
+      if "owner_only" in s and not isinstance(s["owner_only"], bool):
+        errs.append(f"{where}: owner_only must be a boolean")
       for i in s.get("in", []):
         ok = isinstance(i, str) or (isinstance(i, dict) and isinstance(i.get("label"), str)
                                     and set(i) <= {"label", "secret", "placeholder"})
