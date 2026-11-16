@@ -49,6 +49,20 @@ billing is the user's. Then carry the new account ID into `multicloud-connect-aw
 If the user wants to keep an existing account, skip Step 0 and stop before Step 1: the user must
 approve the warning in `multicloud-connect-aws`, Rule 6, first.
 
+**When the current sign-in cannot create IAM roles (tested 2026-11-16: `SystemAdministrator` was
+denied `iam:CreateRole`):** the fix is not a different role on the same account. Ask the person who
+holds the **root login or administers the AWS Organization** (the management account) to:
+
+1. Create the member account (Organizations → Add an account), named for the PoC, with an email they
+   own.
+2. In IAM Identity Center, assign a role with full administrator rights to the user for that new
+   account.
+
+Then the user runs `aws configure sso` with a new profile for that new account, and Step 3 continues.
+Rules: the root login is used only by its holder, and only for these steps. Never give the root
+login or its keys to this agent, to Multicloud or to the user's AI tool. The agent does not
+create accounts with root.
+
 ## Step 1: Choose the path
 
 First ask: "Can you sign in to this AWS account with an identity that is not the root user and can
