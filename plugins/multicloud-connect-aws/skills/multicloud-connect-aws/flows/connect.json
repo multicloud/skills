@@ -13,8 +13,8 @@
      "h": "Sign in to Multicloud from the CLI",
      "who": "You, in the browser",
      "d": "The browser opens. Sign in with the same account as on multicloud.io. You must be the organization owner. If you belong to more than one organization, add --org <organization-id> to every mctl command.",
-     "c": "mctl auth login\nmctl auth status",
-     "g": "No browser opens (Windows with WSL, SSH, a container): run mctl auth login --no-browser. It prints a link and a code; open the link in any browser."
+     "c": "mctl auth login --no-browser\nmctl auth status",
+     "g": "Use --no-browser on every machine, Windows with WSL included: the browser cannot open from the Linux terminal. It prints a link and a code; open the link in any browser on your computer, sign in, and enter the code."
     },
     {
      "id": "make-folder",

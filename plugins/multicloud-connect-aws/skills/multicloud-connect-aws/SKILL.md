@@ -103,8 +103,9 @@ Run `mctl auth status`.
 - `The sign-in works.` (signed in with the company account) or `The key works.` (API key): continue.
 - Not signed in, or the API refused it: ask the user to sign in themselves, in their own
   terminal, then tell you when done:
-  `mctl auth login`. It opens the browser; they sign in as on multicloud.io.
-  With no browser (SSH, a container): `mctl auth login --no-browser`.
+  `mctl auth login --no-browser`. It prints a link and a code; they open the link in any browser
+  (Windows, WSL, SSH and containers cannot open the browser from the terminal), sign in as on
+  multicloud.io, and enter the code.
   Or with an API key instead of the company account: on multicloud.io, Account → API keys →
   New key, select **Infrastructure** (if there is no Infrastructure box, Multicloud support
   creates the key), then `mctl auth login --org <org-id> --api-key`. It asks for the key and

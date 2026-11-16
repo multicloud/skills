@@ -130,8 +130,9 @@ shell is needed: run the next checks in a new `bash -lc` (or ask the user to ope
 
 ## Step 4: Multicloud sign-in
 
-The user runs, in their own terminal: `mctl auth login`. It opens the browser.
-- No browser opens (WSL, SSH, a container): `mctl auth login --no-browser`. It prints a link and a
+The user runs, in their own terminal: `mctl auth login --no-browser`. Use `--no-browser` on every
+computer that runs a Linux shell, including Windows with WSL: the browser cannot open from WSL, so a
+plain `mctl auth login` does nothing there. The command prints a link and a
   code; the user opens the link in any browser.
 
 Then you run `mctl auth status`. `The sign-in works.` and an `Organizations:` line: note the
