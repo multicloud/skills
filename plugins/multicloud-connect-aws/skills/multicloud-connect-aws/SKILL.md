@@ -144,9 +144,10 @@ Run `mctl cloud-account list`.
   after the warning in Rule 6. Also ask whether a new dedicated account is the better choice.
   When the owner confirms a re-connect of an account that is not dedicated, the user runs this in
   their own terminal (an owner's sign-in, `mctl auth login`; never an API key):
-  `mctl cloud-account accept-shared-account <account-id> --org <org-id>`. The command shows the
-  warning and asks the user to type the account ID. The typed ID is the approval. You do not type
-  it for them. Then `mctl cloud-account show <n>` and continue with step 4.
+  `mctl cloud-account accept-shared-account <n> --org <org-id>`, where `<n>` is the **cloud account
+  number** from `mctl cloud-account list` (the ID column, for example 19), not the 12-digit AWS
+  account ID. The command shows the warning and asks the user to type that same number. The typed
+  number is the approval. You do not type it for them. Then `mctl cloud-account show <n>` and continue with step 4.
   Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
   may use (it starts machines only there). Name the regions again in the apply question.
