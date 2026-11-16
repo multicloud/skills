@@ -142,6 +142,19 @@ Run `mctl cloud-account list`.
   revoked account was disconnected on purpose (for example, by an organization owner), so do not
   re-connect it on your own. Re-connecting needs the owner's decision and the user's explicit yes,
   after the warning in Rule 6. Also ask whether a new dedicated account is the better choice.
+  **Reconnect path, as tested on 2026-11-16 (account 431412299678, record 19, revoked):**
+  1. `accept-shared-account` refuses when the record already carries an approval ("Needs no
+     approval (approved)"). Do not use it for a revoked record with a recorded approval.
+  2. Ask the Step 3 questions first, one at a time: regions (`us-east-1` only), opt-in regions
+     (default yes, the flow's `--no-opt-in-regions` is a choice to confirm), quota requests (default
+     no). Do not pass the flow's flags without the user's answers.
+  3. The owner runs `mctl cloud-account create --cloud AWS --account <12-digit> --region <r> --org <org>`
+     with those answers. This writes `multicloud.tf` in the current folder and gives a new number.
+  4. `AWS_PROFILE=<p> AWS_REGION=<r> mctl cloud-account apply <new-n> --plan-only`. Show the plan
+     counts (add/change/destroy), then ask one yes/no. `--plan-only` needs `AWS_PROFILE` and
+     `AWS_REGION`, or tofu fails on the credentials.
+  5. After the yes: `mctl cloud-account apply <new-n> --yes`, with the same environment.
+
   When the owner confirms a re-connect of an account that is not dedicated, the user runs this in
   their own terminal (an owner's sign-in, `mctl auth login`; never an API key):
   `mctl cloud-account accept-shared-account <n> --org <org-id>`, where `<n>` is the **cloud account
