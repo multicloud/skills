@@ -912,7 +912,7 @@ const STAGES = [
    {
     "h": "Install the connector",
     "who": "You run it, with your CIDRs",
-    "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs.",
+    "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs. The chart must be 0.3.1 or later (this command uses 0.3.1). The --set-string reflectionKick.remoteClusterID line (your pool slug) is required. This chart change applies to every Extend customer, with or without the proxy: offloaded pods that already run keep an empty IP until they restart.",
     "in": [
      "Pod CIDR",
      "Service CIDR"
@@ -940,6 +940,16 @@ const STAGES = [
     "who": "You, in a terminal",
     "d": "The virtual node needs about 2 minutes. The output must be 1. An empty output in the first minutes is normal: run it again.",
     "c": "kubectl get node -l liqo.io/type=virtual-node \\\n  -o jsonpath='{..allocatable.nvidia\\.com/gpu}'"
+   },
+   {
+    "h": "Upgrade an older connector install",
+    "who": "You run it, with your CIDRs",
+    "d": "Only if liqo-consumer is already installed below chart 0.3.1. Keep the same values, then restart the offloaded workloads (step proxy-restart).",
+    "in": [
+     "Pod CIDR",
+     "Service CIDR"
+    ],
+    "c": "helm upgrade liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --reset-then-reuse-values \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR>"
    }
   ]
  },
@@ -988,6 +998,55 @@ const STAGES = [
     ]
    }
   ]
+ },
+ {
+  "t": "Reach the pool from your cluster (Extend proxy)",
+  "note": "Required for every Extend use case. Without the proxy, a pod in your cluster cannot call a pod on the pool. Multicloud gives you the manifest and turns on the pool network for your pool.",
+  "steps": [
+   {
+    "h": "Create the proxy API key (you, secret)",
+    "who": "You, an organization owner, in the console",
+    "d": "Open Account › API keys › Create a key. Name it extend-proxy. Untick Catalog, choose Pools: None, and tick only Extend proxy (it is free). The key can only run the proxy. The console shows it once: keep the page open until the Secret step, and paste the key only at the prompt of that step, in your own terminal. The agent never sees or stores it."
+   },
+   {
+    "h": "Fill and apply the proxy manifest",
+    "who": "You, with the file from Multicloud (the agent edits the copy)",
+    "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service vllm, port 8000) from this ledger, and shows you the result. It applies the file only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
+    "in": [
+     "Path to extend-proxy.yaml (from Multicloud)",
+     "Image tag of the release (from Multicloud)"
+    ],
+    "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\ncp \"<path-to-extend-proxy.yaml>\" \"$F\" && chmod 600 \"$F\"\nsed -i.bak -e 's|multicloud/extend-proxy:<tag>|multicloud/extend-proxy:<image-tag>|' -e 's|pool: <pool name>|pool: <pool>|' -e 's|peering_id: <peering id>|peering_id: <peering-id>|' -e 's|{listen_port: 8000, namespace: demo, service: vllm, port: 8000}|{listen_port: 8000, namespace: my-apps, service: vllm, port: 8000}|' -e 's|namespace: demo[[:space:]]*$|namespace: my-apps|' \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n -e '<' -e 'demo'   # prints nothing when every placeholder is filled\nkubectl apply --dry-run=server -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
+    "g": "An install from an older copy of the file used the names extend-proxy-discovery. Only if they exist: kubectl -n my-apps get role,rolebinding extend-proxy-discovery. If they do, delete them after your yes (deletes cannot be undone)."
+   },
+   {
+    "h": "Create the key Secret (you, secret)",
+    "who": "You, in your own terminal",
+    "d": "Type or paste the extend:proxy key from the first step at the prompt. The prompt does not show it. The agent never asks for the key and never writes a file with it. The Secret name must match the manifest: extend-proxy-api-key.",
+    "in": [
+     "extend:proxy key (typed at the prompt, never in chat)"
+    ],
+    "c": "read -rs -p 'extend:proxy key: ' PK; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
+   },
+   {
+    "h": "Check that both replicas are ready",
+    "who": "You, in a terminal",
+    "d": "Needs the pool awake, the peering ready, the namespace my-apps offloaded, and chart liqo-consumer 0.3.1 or later (helm list -n liqo). Both replicas must show READY 1/1. A replica is Ready when Multicloud has registered it and a pool node has answered it in the last 3 minutes. If the pool sleeps, the replicas show NotReady: do not act, they become Ready when the pool wakes. If the log shows HOST_FIREWALL_OFF, ask Multicloud to turn on the pool network; the proxy retries by itself. When both show 1/1, hand back proxy=ready.",
+    "c": "kubectl -n multicloud-extend-proxy get pods\nkubectl -n multicloud-extend-proxy logs deploy/extend-proxy --tail=20"
+   },
+   {
+    "h": "Restart offloaded workloads that already run",
+    "who": "You, in a terminal",
+    "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
+    "c": "kubectl -n my-apps rollout restart deployment/<name>      # also statefulset\nkubectl -n my-apps get pods -o wide                        # the IP column shows an fd00:244:... address"
+   },
+   {
+    "h": "Test from a pod in your cluster",
+    "who": "You, in a terminal",
+    "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or proxy-target for the CPU use case). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works: for vLLM a 401 is normal (it needs its API key); the CPU service answers 200. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
+    "c": "kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \\\n  curl -sS -m 10 -o /dev/null -w '%{http_code}\\n' http://vllm-pool.multicloud-extend-proxy.svc:8000/"
+   }
+  ]
  }
 ];
 const STAGES_B = [
@@ -999,11 +1058,11 @@ const STAGES_B = [
    {
     "h": "Remove the PoC from your cluster and Multicloud",
     "who": "You confirm each delete",
-    "d": "Stop the port-forward first (Ctrl+C). Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
+    "d": "Stop the port-forward first (Ctrl+C). The proxy goes first: when it stops, it removes its registration with its key. Then revoke the extend-proxy key in Account › API keys. Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
     "in": [
      "Confirm delete"
     ],
-    "c": "kubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes"
+    "c": "kubectl delete namespace multicloud-extend-proxy --ignore-not-found   # the proxy removes its registration when it stops\nkubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes"
    },
    {
     "h": "Check that nothing is left",
