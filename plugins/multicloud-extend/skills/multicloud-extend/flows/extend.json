@@ -393,7 +393,7 @@
           "who_kind": "ask",
           "h": "Fill and apply the proxy manifest",
           "who": "You, with the file from Multicloud (the agent edits the copy)",
-          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service vllm, port 8000) from this ledger, and shows you the result. The grep line prints nothing when every placeholder is filled. It runs the last line (kubectl apply) only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
+          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service vllm, port 8000) from this ledger, and shows you the result. The grep line prints nothing when every placeholder is filled. The agent runs the last line (kubectl apply) only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
           "in": [
             {
               "label": "Path to extend-proxy.yaml (from Multicloud)",
@@ -415,7 +415,7 @@
           "who_kind": "ask",
           "h": "Fill and apply the proxy manifest",
           "who": "You, with the file from Multicloud (the agent edits the copy)",
-          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service hello, port 8080, from the step before) from this ledger, and shows you the result. The grep line prints nothing when every placeholder is filled. It runs the last line (kubectl apply) only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
+          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service hello, port 8080, from the step before) from this ledger, and shows you the result. The grep line prints nothing when every placeholder is filled. The agent runs the last line (kubectl apply) only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
           "in": [
             {
               "label": "Path to extend-proxy.yaml (from Multicloud)",
@@ -461,7 +461,7 @@
           "who_kind": "ask",
           "h": "Restart offloaded workloads that already run",
           "who": "You, in a terminal",
-          "d": "An offloaded pod that has not restarted since the chart change has no address. Restart each deployment (or statefulset) in my-apps. After the restart, the IP column shows an fd00:244:... address. The proxy skips it. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
+          "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. Restart each deployment (or statefulset) in my-apps. After the restart, the IP column shows an fd00:244:... address. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
           "c": "kubectl -n my-apps rollout restart deployment/<name>\nkubectl -n my-apps get pods -o wide",
           "optional": true
         },
