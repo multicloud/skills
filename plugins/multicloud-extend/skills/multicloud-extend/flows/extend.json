@@ -1,478 +1,493 @@
 {
- "skill": "multicloud-extend",
- "stages": [
-  {
-   "id": "cluster",
-   "t": "Prepare your cluster",
-   "note": "Your cluster gets a virtual node. Pods you send there run on the GPU in AWS. From here on, run the commands below, or ask your AI to run them one at a time.",
-   "dg": "cluster",
-   "steps": [
+  "skill": "multicloud-extend",
+  "stages": [
     {
-     "id": "kubeconfig",
-     "who_kind": "agent",
-     "h": "Point kubectl at your cluster",
-     "who": "You, in a terminal",
-     "d": "Your cluster administrator gives you a kubeconfig file. The node list must show the nodes of the cluster that gets the GPU. The last command must print yes: the connector install needs cluster-admin rights.",
-     "in": [
-      "Path to your kubeconfig"
-     ],
-     "c": "export KUBECONFIG=/path/to/kubeconfig\nkubectl config current-context\nkubectl get nodes\nkubectl auth can-i '*' '*' --all-namespaces"
+      "id": "cluster",
+      "t": "Prepare your cluster",
+      "note": "Your cluster gets a virtual node. Pods you send there run on the GPU in AWS. From here on, run the commands below, or ask your AI to run them one at a time.",
+      "dg": "cluster",
+      "steps": [
+        {
+          "id": "kubeconfig",
+          "who_kind": "agent",
+          "h": "Point kubectl at your cluster",
+          "who": "You, in a terminal",
+          "d": "Your cluster administrator gives you a kubeconfig file. The node list must show the nodes of the cluster that gets the GPU. The last command must print yes: the connector install needs cluster-admin rights.",
+          "in": [
+            "Path to your kubeconfig"
+          ],
+          "c": "export KUBECONFIG=/path/to/kubeconfig\nkubectl config current-context\nkubectl get nodes\nkubectl auth can-i '*' '*' --all-namespaces"
+        },
+        {
+          "id": "version",
+          "who_kind": "agent",
+          "h": "Check the version",
+          "who": "You, in a terminal",
+          "d": "The Server Version must be 1.30 or later. The second command must print one line.",
+          "c": "kubectl version\nkubectl api-resources | grep validatingadmissionpolicies"
+        },
+        {
+          "id": "cidrs",
+          "who_kind": "agent",
+          "h": "Find your pod and service CIDRs",
+          "who": "You, in a terminal",
+          "d": "Write down both values. You need them when you install the connector.",
+          "in": [
+            "Pod CIDR",
+            "Service CIDR"
+          ],
+          "c": "# any cluster: Kubernetes 1.33 or later\nkubectl get servicecidrs -o custom-columns=NAME:.metadata.name,CIDRS:.spec.cidrs\nkubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDRS:.spec.podCIDRs\n# kubeadm clusters: the whole pod range\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
+          "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
+        },
+        {
+          "id": "pod-proxy",
+          "who_kind": "agent",
+          "h": "Check that the API server reaches pods",
+          "who": "You, in a terminal",
+          "d": "It must print ok (or OK). A 502 means the API server cannot reach pod addresses (OrbStack Kubernetes does this): kubectl logs, exec and port-forward to the pool then fail. Use another cluster, for example kind or k3s.",
+          "c": "P=$(kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{.items[0].metadata.name}')\nkubectl get --raw \"/api/v1/namespaces/kube-system/pods/$P:8080/proxy/health\""
+        },
+        {
+          "id": "cni",
+          "who_kind": "agent",
+          "h": "Find your CNI",
+          "who": "You, in a terminal",
+          "d": "The output names your network plugin, for example calico, cilium or flannel. Tell your Multicloud contact.",
+          "in": [
+            "CNI"
+          ],
+          "c": "kubectl -n kube-system get pods -o name | grep -E 'cilium|calico|flannel|weave|antrea|canal'"
+        },
+        {
+          "id": "free-cpu",
+          "who_kind": "agent",
+          "h": "Check free CPU",
+          "who": "You, in a terminal",
+          "d": "The virtual node needs about 115m of free CPU requests on one of your nodes. If every node shows 95% or more CPU requested, add capacity first.",
+          "c": "kubectl describe nodes | grep -A8 'Allocated resources'"
+        },
+        {
+          "id": "egress",
+          "who_kind": "ask",
+          "h": "Check outbound access",
+          "who": "You, with your network team",
+          "d": "Good result: docker hub 401, ghcr 401, cloudflare 200. A connection or certificate error means your network blocks the connector. No inbound port is needed. If you use an HTTPS proxy or TLS inspection, tell your Multicloud contact.",
+          "in": [
+            "Egress path: direct, proxy or TLS inspection"
+          ],
+          "c": "kubectl run egress-check --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- sh -c \\\n  'curl -sS -o /dev/null -w \"docker hub: %{http_code}\\n\" https://registry-1.docker.io/v2/ ;\n   curl -sS -o /dev/null -w \"ghcr: %{http_code}\\n\" https://ghcr.io/v2/ ;\n   curl -sS -o /dev/null -w \"cloudflare: %{http_code}\\n\" https://www.cloudflare.com/'"
+        }
+      ]
     },
     {
-     "id": "version",
-     "who_kind": "agent",
-     "h": "Check the version",
-     "who": "You, in a terminal",
-     "d": "The Server Version must be 1.30 or later. The second command must print one line.",
-     "c": "kubectl version\nkubectl api-resources | grep validatingadmissionpolicies"
+      "id": "pool-gpu",
+      "t": "Create the GPU pool",
+      "note": "A pool is the capacity in your AWS account that Multicloud manages for you. The pool keeps one worker running while it is awake, and you pay AWS for that worker. Create the pool only when your GPU quota is 4 or more.",
+      "dg": "pool",
+      "steps": [
+        {
+          "id": "create-pool",
+          "who_kind": "ask",
+          "h": "Create the pool with GPU settings",
+          "who": "You approve the spend limit",
+          "d": "Replace <cloud-account-id> with your cloud-account ID. The settings allow L4 or A10G only, on-demand only (no interruptions), and a 100 GB disk for the model. A cap of $1.50 per hour allows both GPU types.",
+          "in": [
+            "Pool name: poc-gpu",
+            "Max servers: 2",
+            "Max cost per hour: $1.50"
+          ],
+          "c": "cat > poc-gpu.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"], \"accelerator_names\": [\"L4\", \"A10G\"],\n              \"max_risk\": 0, \"min_storage_gb\": 100,\n              \"max_memory_gb\": 16}}\nEOF\nmctl extend create poc-gpu --cloud-account <cloud-account-id> --max-servers 2 \\\n  --max-cost-per-hour 1.5 --from-file poc-gpu.json",
+          "detect": "pool_created",
+          "console": "/console/pools?new=1"
+        },
+        {
+          "id": "wait-ready",
+          "who_kind": "agent",
+          "h": "Wait until the pool is ready",
+          "who": "You, in a terminal",
+          "d": "Run the command every minute. Status: ready means the pool is ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
+          "c": "mctl pool show poc-gpu",
+          "detect": "pool_ready"
+        },
+        {
+          "id": "hibernate",
+          "who_kind": "ask",
+          "h": "Pause the pool when you stop for the day",
+          "who": "You",
+          "d": "A hibernated pool runs no worker and costs nothing. Wake it when you continue.",
+          "c": "mctl pool hibernate poc-gpu\nmctl pool wake poc-gpu --wait",
+          "optional": true
+        }
+      ]
     },
     {
-     "id": "cidrs",
-     "who_kind": "agent",
-     "h": "Find your pod and service CIDRs",
-     "who": "You, in a terminal",
-     "d": "Write down both values. You need them when you install the connector.",
-     "in": [
-      "Pod CIDR",
-      "Service CIDR"
-     ],
-     "c": "# any cluster: Kubernetes 1.33 or later\nkubectl get servicecidrs -o custom-columns=NAME:.metadata.name,CIDRS:.spec.cidrs\nkubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDRS:.spec.podCIDRs\n# kubeadm clusters: the whole pod range\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
-     "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
+      "id": "pool-cpu",
+      "t": "Create the CPU pool",
+      "note": "A CPU pool for burst work. The pool keeps one worker running while it is awake, and you pay AWS for that worker.",
+      "steps": [
+        {
+          "id": "create-pool",
+          "who_kind": "ask",
+          "h": "Create the pool",
+          "who": "You approve the spend limit",
+          "d": "Replace <cloud-account-id> and the region. Three servers at most, at most $0.50 per hour together.",
+          "in": [
+            "Pool name: burst",
+            "Max servers: 3",
+            "Max cost per hour: $0.50"
+          ],
+          "c": "cat > burst.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"]}}\nEOF\nmctl extend create burst --cloud-account <cloud-account-id> --max-servers 3 \\\n  --max-cost-per-hour 0.5 --from-file burst.json",
+          "detect": "pool_created",
+          "console": "/console/pools?new=1"
+        },
+        {
+          "id": "wait-ready",
+          "who_kind": "agent",
+          "h": "Wait until the pool is ready",
+          "who": "You, in a terminal",
+          "d": "Run it every minute. Status: ready means ready. Still provisioning after 20 minutes: send the output to your Multicloud contact.",
+          "c": "mctl pool show burst",
+          "detect": "pool_ready"
+        }
+      ]
     },
     {
-     "id": "pod-proxy",
-     "who_kind": "agent",
-     "h": "Check that the API server reaches pods",
-     "who": "You, in a terminal",
-     "d": "It must print ok (or OK). A 502 means the API server cannot reach pod addresses (OrbStack Kubernetes does this): kubectl logs, exec and port-forward to the pool then fail. Use another cluster, for example kind or k3s.",
-     "c": "P=$(kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{.items[0].metadata.name}')\nkubectl get --raw \"/api/v1/namespaces/kube-system/pods/$P:8080/proxy/health\""
+      "id": "peering",
+      "t": "Connect your cluster to the pool",
+      "note": "Your Multicloud contact joins you for this stage. Check first that kubectl points at your own cluster (kubectl config current-context).",
+      "dg": "peer",
+      "steps": [
+        {
+          "id": "create-peering",
+          "doors": [
+            "extend-gpu"
+          ],
+          "who_kind": "ask",
+          "h": "Create the peering (1 GPU)",
+          "who": "You approve",
+          "in": [
+            "GPU: 1",
+            "CPU: 4 cores",
+            "Memory: 14 GB",
+            "Disk: 50 GB"
+          ],
+          "d": "--gpu 1 lets your cluster use 1 GPU of the pool. Without --gpu, the pool grants no GPU. The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
+          "c": "mctl peering create poc-gpu --gpu 1 --cpu-millicores 4000 --memory-mb 14336 \\\n  --pods 110 --ephemeral-storage-mb 51200",
+          "detect": "peering_created"
+        },
+        {
+          "id": "create-peering-cpu",
+          "doors": [
+            "extend-cpu"
+          ],
+          "detect": "peering_created",
+          "who_kind": "ask",
+          "page": false,
+          "h": "Create the peering",
+          "who": "You approve",
+          "d": "The pool default grant. The output starts with Peering <id> created and has an Install command line. Then continue with install-connector.",
+          "c": "mctl peering create burst"
+        },
+        {
+          "id": "install-connector",
+          "who_kind": "ask",
+          "h": "Install the connector",
+          "who": "You run it, with your CIDRs",
+          "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs. The chart must be 0.3.1 or later (this command uses 0.3.1). The --set-string reflectionKick.remoteClusterID line (your pool slug) is required. This chart change applies to every Extend customer, with or without the proxy: offloaded pods that already run keep an empty IP until they restart.",
+          "in": [
+            {
+              "label": "Pod CIDR",
+              "placeholder": "<POD_CIDR>"
+            },
+            {
+              "label": "Service CIDR",
+              "placeholder": "<SERVICE_CIDR>"
+            }
+          ],
+          "c": "helm install liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --create-namespace \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR> \\\n  --set liqo.discovery.config.clusterID=c-…  --set-string reflectionKick.remoteClusterID=…"
+        },
+        {
+          "id": "save-bundle",
+          "who_kind": "agent",
+          "h": "Save the connection file",
+          "who": "You, in a terminal",
+          "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
+          "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      status=$(jq -r .status peering.json); echo \"Status: $status\"\n      [ \"$status\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
+          "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again.",
+          "detect": "peering_ready",
+          "in": [
+            {
+              "label": "Peering connection file (shown once)",
+              "secret": true
+            }
+          ]
+        },
+        {
+          "id": "apply-bundle",
+          "who_kind": "ask",
+          "h": "Apply the connection file",
+          "who": "You, in a terminal",
+          "d": "The check Job name ends with your consumer cluster ID (c- and 8 characters), not the peering ID. Find it in the line Consumer cluster of mctl peering show poc-gpu <peering-id>, or in the clusterID value of your helm command.",
+          "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<consumer-cluster-id>"
+        },
+        {
+          "id": "check-gpu",
+          "doors": [
+            "extend-gpu"
+          ],
+          "who_kind": "agent",
+          "h": "Check that the GPU shows up",
+          "who": "You, in a terminal",
+          "d": "The virtual node needs about 2 minutes. The output must be 1. An empty output in the first minutes is normal: run it again.",
+          "c": "kubectl get node -l liqo.io/type=virtual-node \\\n  -o jsonpath='{..allocatable.nvidia\\.com/gpu}'"
+        },
+        {
+          "id": "install-connector-upgrade",
+          "doors": [
+            "extend-gpu",
+            "extend-cpu"
+          ],
+          "who_kind": "ask",
+          "h": "Upgrade an older connector install",
+          "who": "You run it, with your CIDRs",
+          "d": "Only if liqo-consumer is already installed below chart 0.3.1. Keep the same values, then restart the offloaded workloads (step proxy-restart).",
+          "in": [
+            {
+              "label": "Pod CIDR",
+              "placeholder": "<POD_CIDR>"
+            },
+            {
+              "label": "Service CIDR",
+              "placeholder": "<SERVICE_CIDR>"
+            }
+          ],
+          "c": "helm upgrade liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --reset-then-reuse-values \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR>",
+          "optional": true
+        },
+        {
+          "id": "check-virtual-node",
+          "doors": [
+            "extend-cpu"
+          ],
+          "who_kind": "agent",
+          "page": false,
+          "h": "Check the virtual node",
+          "who": "You, in a terminal",
+          "d": "The virtual node must be Ready and show the pool slug in the last column. It needs about 2 minutes after the bundle.",
+          "c": "kubectl get nodes -l liqo.io/type=virtual-node -L multicloud.io/pool"
+        }
+      ]
     },
     {
-     "id": "cni",
-     "who_kind": "agent",
-     "h": "Find your CNI",
-     "who": "You, in a terminal",
-     "d": "The output names your network plugin, for example calico, cilium or flannel. Tell your Multicloud contact.",
-     "in": [
-      "CNI"
-     ],
-     "c": "kubectl -n kube-system get pods -o name | grep -E 'cilium|calico|flannel|weave|antrea|canal'"
+      "id": "run-gpu-llm",
+      "t": "Run the LLM",
+      "note": "Qwen2.5-7B-Instruct fits the 24 GB of an L4 or A10G.",
+      "dg": "run",
+      "steps": [
+        {
+          "id": "offload-namespace",
+          "who_kind": "ask",
+          "h": "Create and offload the namespace",
+          "who": "You, in a terminal",
+          "d": "Only pods in an offloaded namespace can use the pool. Other pods in my-apps still run on your own nodes.",
+          "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
+        },
+        {
+          "id": "model-api-key",
+          "who_kind": "ask",
+          "h": "Create the model API key",
+          "who": "You, in a terminal",
+          "d": "vLLM refuses a request without this key. The key stays in your cluster.",
+          "c": "kubectl -n my-apps create secret generic vllm-api-key \\\n  --from-literal=key=\"$(openssl rand -hex 16)\""
+        },
+        {
+          "id": "save-manifest",
+          "who_kind": "agent",
+          "h": "Save the vLLM manifest",
+          "who": "You, in a terminal",
+          "d": "Copy this block into a file named vllm-gpu.yaml in your current folder. On the command line: run cat > vllm-gpu.yaml, paste the block, press Enter, then Ctrl+D.",
+          "c_file": "assets/vllm-gpu.yaml"
+        },
+        {
+          "id": "deploy-vllm",
+          "who_kind": "ask",
+          "h": "Deploy vLLM and wait",
+          "who": "You, in a terminal",
+          "d": "The first start takes up to about 20 minutes: a new GPU worker, the image and a 15 GB model download. The wait command returns when the model is loaded.",
+          "c": "kubectl -n my-apps apply -f vllm-gpu.yaml\nkubectl -n my-apps wait --for=condition=available deploy/vllm --timeout=30m",
+          "g": "To watch the progress, run kubectl -n my-apps get pod -l app=vllm -o wide -w in another terminal. Press Ctrl+C to stop the watch."
+        },
+        {
+          "id": "port-forward",
+          "who_kind": "agent",
+          "h": "Open the local port",
+          "who": "You, in a second terminal",
+          "d": "Open a new terminal (on Windows: a new Ubuntu window), point it at your cluster again (export KUBECONFIG=…), and run the command. Keep this terminal open while you send queries. Send the queries from your first terminal.",
+          "c": "kubectl -n my-apps port-forward deploy/vllm 8000:8000",
+          "c_agent": "mkdir -p ~/multicloud-onboarding && chmod 700 ~/multicloud-onboarding\nnohup kubectl -n my-apps port-forward deploy/vllm 8000:8000 >~/multicloud-onboarding/port-forward.log 2>&1 &\necho $! > ~/multicloud-onboarding/port-forward.pid"
+        },
+        {
+          "id": "first-query",
+          "who_kind": "agent",
+          "h": "Send your first query",
+          "who": "You",
+          "d": "See “Send a query to the model” below.",
+          "in": [
+            "Your prompt"
+          ],
+          "c_agent": "KEY=$(kubectl -n my-apps get secret vllm-api-key -o jsonpath='{.data.key}' | base64 -d)\ncurl -s http://localhost:8000/v1/chat/completions -H \"Authorization: Bearer $KEY\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\":\"qwen\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello.\"}]}' | jq -r '.choices[0].message.content'\nunset KEY"
+        }
+      ]
     },
     {
-     "id": "free-cpu",
-     "who_kind": "agent",
-     "h": "Check free CPU",
-     "who": "You, in a terminal",
-     "d": "The virtual node needs about 115m of free CPU requests on one of your nodes. If every node shows 95% or more CPU requested, add capacity first.",
-     "c": "kubectl describe nodes | grep -A8 'Allocated resources'"
+      "id": "run-cpu-burst",
+      "t": "Run a first burst pod",
+      "note": "A small pod on the pool proves the path.",
+      "steps": [
+        {
+          "id": "offload-namespace",
+          "who_kind": "ask",
+          "h": "Create and offload the namespace",
+          "who": "You, in a terminal",
+          "d": "Only pods in an offloaded namespace can use the pool.",
+          "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
+        },
+        {
+          "id": "burst-pod",
+          "who_kind": "ask",
+          "h": "Run the test pod",
+          "who": "You, in a terminal",
+          "d": "Replace <slug> with the pool slug from the virtual node check (the multicloud.io/pool value). The NODE column must show the virtual node. A cold pool needs about 5 minutes to add a worker.",
+          "c": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: Pod\nmetadata: {name: burst-hello, namespace: my-apps}\nspec:\n  tolerations:\n  - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n  nodeSelector: {multicloud.io/pool: <slug>}\n  restartPolicy: Never\n  containers:\n  - name: hello\n    image: busybox:1.36\n    command: [\"sh\", \"-c\", \"echo hello from the pool; uname -n; sleep 30\"]\n    resources:\n      requests: {cpu: 100m, memory: 64Mi}\nEOF\nkubectl -n my-apps wait --for=jsonpath='{.status.phase}'=Succeeded pod/burst-hello --timeout=15m\nkubectl -n my-apps get pod burst-hello -o wide\nkubectl -n my-apps logs burst-hello\nkubectl -n my-apps delete pod burst-hello"
+        }
+      ]
     },
     {
-     "id": "egress",
-     "who_kind": "ask",
-     "h": "Check outbound access",
-     "who": "You, with your network team",
-     "d": "Good result: docker hub 401, ghcr 401, cloudflare 200. A connection or certificate error means your network blocks the connector. No inbound port is needed. If you use an HTTPS proxy or TLS inspection, tell your Multicloud contact.",
-     "in": [
-      "Egress path: direct, proxy or TLS inspection"
-     ],
-     "c": "kubectl run egress-check --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- sh -c \\\n  'curl -sS -o /dev/null -w \"docker hub: %{http_code}\\n\" https://registry-1.docker.io/v2/ ;\n   curl -sS -o /dev/null -w \"ghcr: %{http_code}\\n\" https://ghcr.io/v2/ ;\n   curl -sS -o /dev/null -w \"cloudflare: %{http_code}\\n\" https://www.cloudflare.com/'"
+      "id": "proxy",
+      "t": "Reach the pool from your cluster (Extend proxy)",
+      "note": "Required for every Extend use case. Without the proxy, a pod in your cluster cannot call a pod on the pool. Multicloud gives you the manifest and turns on the pool network for your pool.",
+      "steps": [
+        {
+          "id": "proxy-key",
+          "who_kind": "user",
+          "owner_only": true,
+          "h": "Create the proxy API key (you, secret)",
+          "who": "You, an organization owner, in a terminal",
+          "d": "This key can only run the proxy. The API shows it once. It is secret: the agent never sees or stores it. Replace <org-slug>. Use $API and $TOKEN as in the connector setup. Paste the key only at the prompt of the next step, in your own terminal.",
+          "c": "curl -fsS -X POST \"$API/api/v1/orgs/<org-slug>/keys\" \\\n  -H \"Authorization: Bearer $TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"name\":\"extend-proxy\",\"scopes\":[\"extend:proxy\"]}'"
+        },
+        {
+          "id": "proxy-manifest",
+          "who_kind": "ask",
+          "h": "Fill and apply the proxy manifest",
+          "who": "You, with the file from Multicloud (the agent edits the copy)",
+          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file into your WSL home, fills in the pool, the peering ID and the route (my-apps, Service vllm, port 8000) from this ledger, and shows you the result. It applies the file only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
+          "in": [
+            {
+              "label": "Path to extend-proxy.yaml (from Multicloud)",
+              "placeholder": "<path-to-extend-proxy.yaml>"
+            },
+            {
+              "label": "Image tag of the release (from Multicloud)",
+              "placeholder": "<image-tag>"
+            }
+          ],
+          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\ncp \"<path-to-extend-proxy.yaml>\" \"$F\" && chmod 600 \"$F\"\nsed -i -e 's|multicloud/extend-proxy:<tag>|multicloud/extend-proxy:<image-tag>|' -e 's|pool: <pool name>|pool: <pool>|' -e 's|peering_id: <peering id>|peering_id: <peering-id>|' -e 's|{listen_port: 8000, namespace: demo, service: vllm, port: 8000}|{listen_port: 8000, namespace: my-apps, service: vllm, port: 8000}|' -e 's|namespace: demo\\s*$|namespace: my-apps|' \"$F\"\n! grep -v '^ *#' \"$F\" | grep -n -e '<' -e 'demo'   # prints nothing when every placeholder is filled\nkubectl apply --dry-run=server -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
+          "g": "An install from an older copy of the file used the names extend-proxy-discovery. Only if they exist: kubectl -n my-apps get role,rolebinding extend-proxy-discovery. If they do, delete them after your yes (deletes cannot be undone)."
+        },
+        {
+          "id": "proxy-secret",
+          "who_kind": "user",
+          "owner_only": true,
+          "h": "Create the key Secret (you, secret)",
+          "who": "You, in your own terminal",
+          "d": "Type or paste the extend:proxy key from the first step at the prompt. The prompt does not show it. The agent never asks for the key and never writes a file with it. The Secret name must match the manifest: extend-proxy-api-key.",
+          "in": [
+            {
+              "label": "extend:proxy key (typed at the prompt, never in chat)",
+              "secret": true
+            }
+          ],
+          "c": "read -rs -p 'extend:proxy key: ' PK; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
+        },
+        {
+          "id": "proxy-check",
+          "who_kind": "agent",
+          "h": "Check that both replicas are ready",
+          "who": "You, in a terminal",
+          "d": "Needs the pool awake, the peering ready, the namespace my-apps offloaded, and chart liqo-consumer 0.3.1 or later (helm list -n liqo). Both replicas must show READY 1/1. A replica is Ready when Multicloud has registered it and a pool node has answered it in the last 3 minutes. If the pool sleeps, the replicas show NotReady: do not act, they become Ready when the pool wakes. If the log shows HOST_FIREWALL_OFF, ask Multicloud to turn on the pool network; the proxy retries by itself. When both show 1/1, hand back proxy=ready.",
+          "c": "kubectl -n multicloud-extend-proxy get pods\nkubectl -n multicloud-extend-proxy logs deploy/extend-proxy --tail=20"
+        },
+        {
+          "id": "proxy-restart",
+          "who_kind": "ask",
+          "h": "Restart offloaded workloads that already run",
+          "who": "You, in a terminal",
+          "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
+          "c": "kubectl -n my-apps rollout restart deployment/<name>      # also statefulset\nkubectl -n my-apps get pods -o wide                        # the IP column shows an fd00:244:... address",
+          "optional": true
+        },
+        {
+          "id": "proxy-test",
+          "who_kind": "agent",
+          "h": "Test from a pod in your cluster",
+          "who": "You, in a terminal",
+          "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or burst-pod in run-cpu-burst). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
+          "c": "kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \\\n  curl -sS -m 10 -o /dev/null -w '%{http_code}\\n' http://vllm-pool.multicloud-extend-proxy.svc:8000/"
+        }
+      ]
+    },
+    {
+      "id": "cleanup",
+      "t": "Clean up",
+      "note": "A GPU worker costs about $0.80–$1.20 per hour while it runs. To pause instead of delete, use mctl pool hibernate poc-gpu. Delete in this order.",
+      "dg": "clean",
+      "steps": [
+        {
+          "id": "remove",
+          "who_kind": "ask",
+          "h": "Remove the PoC from your cluster and Multicloud",
+          "who": "You confirm each delete",
+          "d": "Stop the port-forward first (Ctrl+C). Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
+          "in": [
+            "Confirm delete"
+          ],
+          "c": "kubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes",
+          "detect": "cleanup"
+        },
+        {
+          "id": "check-nothing-left",
+          "who_kind": "agent",
+          "h": "Check that nothing is left",
+          "who": "You, in a terminal",
+          "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with an AWS sign-in to the account (export AWS_PROFILE=<profile>). A new account that Multicloud's Terraform made: skip the aws command if you have no sign-in there; closing the account in the next step removes everything in it.",
+          "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region <region> \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
+        },
+        {
+          "id": "aws-connection-new",
+          "who_kind": "ask",
+          "h": "Path A: close the new AWS account",
+          "who": "You approve the close",
+          "d": "Only for a new account that Multicloud's Terraform created, and only when you do not keep it after the PoC. Run it in the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile (the management account). It disconnects the account, waits until Multicloud has cleaned up, removes the role and closes the AWS account. AWS keeps a closed account for 90 days, and its email cannot be used for a new AWS account again. mctl asks you to confirm: type y. Path B of “Set up your AWS account” (an IAM user with an access key): after the PoC, deactivate and delete the key (IAM › Users › poc-admin › Security credentials › Actions › Deactivate, then Delete).",
+          "in": [
+            "Approve: close the AWS account"
+          ],
+          "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account destroy <cloud-account-id>",
+          "optional": true
+        },
+        {
+          "id": "aws-connection-existing",
+          "who_kind": "ask",
+          "h": "Path B: remove Multicloud from an account you have",
+          "who": "You approve each command",
+          "d": "Only for an account you have, and only when you do not keep the connection after the PoC. Run the commands one at a time, in the folder you made when you connected AWS, with the same AWS profile. The disconnect stops Multicloud and removes what it created in your account. If tofu state list prints only data.* and random_id lines, there is nothing to destroy: stop there. Otherwise tofu destroy removes the role; type yes. The destroy does not use the connect token, so any value works for it. Path B of “Set up your AWS account” (an IAM user with an access key): after the PoC, deactivate and delete the key (IAM › Users › poc-admin › Security credentials › Actions › Deactivate, then Delete).",
+          "in": [
+            "Approve: disconnect and remove the role"
+          ],
+          "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\nTF_VAR_multicloud_connect_token=unused tofu destroy",
+          "optional": true
+        }
+      ]
     }
-   ]
-  },
-  {
-   "id": "pool-gpu",
-   "t": "Create the GPU pool",
-   "note": "A pool is the capacity in your AWS account that Multicloud manages for you. The pool keeps one worker running while it is awake, and you pay AWS for that worker. Create the pool only when your GPU quota is 4 or more.",
-   "dg": "pool",
-   "steps": [
-    {
-     "id": "create-pool",
-     "who_kind": "ask",
-     "h": "Create the pool with GPU settings",
-     "who": "You approve the spend limit",
-     "d": "Replace <cloud-account-id> with your cloud-account ID. The settings allow L4 or A10G only, on-demand only (no interruptions), and a 100 GB disk for the model. A cap of $1.50 per hour allows both GPU types.",
-     "in": [
-      "Pool name: poc-gpu",
-      "Max servers: 2",
-      "Max cost per hour: $1.50"
-     ],
-     "c": "cat > poc-gpu.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"], \"accelerator_names\": [\"L4\", \"A10G\"],\n              \"max_risk\": 0, \"min_storage_gb\": 100,\n              \"max_memory_gb\": 16}}\nEOF\nmctl extend create poc-gpu --cloud-account <cloud-account-id> --max-servers 2 \\\n  --max-cost-per-hour 1.5 --from-file poc-gpu.json",
-     "detect": "pool_created",
-     "console": "/console/pools?new=1"
-    },
-    {
-     "id": "wait-ready",
-     "who_kind": "agent",
-     "h": "Wait until the pool is ready",
-     "who": "You, in a terminal",
-     "d": "Run the command every minute. Status: ready means the pool is ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
-     "c": "mctl pool show poc-gpu",
-     "detect": "pool_ready"
-    },
-    {
-     "id": "hibernate",
-     "who_kind": "ask",
-     "h": "Pause the pool when you stop for the day",
-     "who": "You",
-     "d": "A hibernated pool runs no worker and costs nothing. Wake it when you continue.",
-     "c": "mctl pool hibernate poc-gpu\nmctl pool wake poc-gpu --wait",
-     "optional": true
-    }
-   ]
-  },
-  {
-   "id": "pool-cpu",
-   "t": "Create the CPU pool",
-   "note": "A CPU pool for burst work. The pool keeps one worker running while it is awake, and you pay AWS for that worker.",
-   "steps": [
-    {
-     "id": "create-pool",
-     "who_kind": "ask",
-     "h": "Create the pool",
-     "who": "You approve the spend limit",
-     "d": "Replace <cloud-account-id> and the region. Three servers at most, at most $0.50 per hour together.",
-     "in": [
-      "Pool name: burst",
-      "Max servers: 3",
-      "Max cost per hour: $0.50"
-     ],
-     "c": "cat > burst.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"]}}\nEOF\nmctl extend create burst --cloud-account <cloud-account-id> --max-servers 3 \\\n  --max-cost-per-hour 0.5 --from-file burst.json",
-     "detect": "pool_created",
-     "console": "/console/pools?new=1"
-    },
-    {
-     "id": "wait-ready",
-     "who_kind": "agent",
-     "h": "Wait until the pool is ready",
-     "who": "You, in a terminal",
-     "d": "Run it every minute. Status: ready means ready. Still provisioning after 20 minutes: send the output to your Multicloud contact.",
-     "c": "mctl pool show burst",
-     "detect": "pool_ready"
-    }
-   ]
-  },
-  {
-   "id": "peering",
-   "t": "Connect your cluster to the pool",
-   "note": "Your Multicloud contact joins you for this stage. Check first that kubectl points at your own cluster (kubectl config current-context).",
-   "dg": "peer",
-   "steps": [
-    {
-     "id": "create-peering",
-     "doors": ["extend-gpu"],
-     "who_kind": "ask",
-     "h": "Create the peering (1 GPU)",
-     "who": "You approve",
-     "in": [
-      "GPU: 1",
-      "CPU: 4 cores",
-      "Memory: 14 GB",
-      "Disk: 50 GB"
-     ],
-     "d": "--gpu 1 lets your cluster use 1 GPU of the pool. Without --gpu, the pool grants no GPU. The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
-     "c": "mctl peering create poc-gpu --gpu 1 --cpu-millicores 4000 --memory-mb 14336 \\\n  --pods 110 --ephemeral-storage-mb 51200",
-     "detect": "peering_created"
-    },
-    {
-     "id": "create-peering-cpu",
-     "doors": ["extend-cpu"],
-     "detect": "peering_created",
-     "who_kind": "ask",
-     "page": false,
-     "h": "Create the peering",
-     "who": "You approve",
-     "d": "The pool default grant. The output starts with Peering <id> created and has an Install command line. Then continue with install-connector.",
-     "c": "mctl peering create burst"
-    },
-    {
-     "id": "install-connector",
-     "who_kind": "ask",
-     "h": "Install the connector",
-     "who": "You run it, with your CIDRs",
-     "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs. The chart must be 0.3.1 or later (this command uses 0.3.1). The --set-string reflectionKick.remoteClusterID line (your pool slug) is required. This chart change applies to every Extend customer, with or without the proxy: offloaded pods that already run keep an empty IP until they restart.",
-     "in": [
-      {
-       "label": "Pod CIDR",
-       "placeholder": "<POD_CIDR>"
-      },
-      {
-       "label": "Service CIDR",
-       "placeholder": "<SERVICE_CIDR>"
-      }
-     ],
-     "c": "helm install liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --create-namespace \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR> \\\n  --set liqo.discovery.config.clusterID=c-…  --set-string reflectionKick.remoteClusterID=…"
-    },
-    {
-     "id": "save-bundle",
-     "who_kind": "agent",
-     "h": "Save the connection file",
-     "who": "You, in a terminal",
-     "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
-     "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      status=$(jq -r .status peering.json); echo \"Status: $status\"\n      [ \"$status\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
-     "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again.",
-     "detect": "peering_ready",
-     "in": [
-      {
-       "label": "Peering connection file (shown once)",
-       "secret": true
-      }
-     ]
-    },
-    {
-     "id": "apply-bundle",
-     "who_kind": "ask",
-     "h": "Apply the connection file",
-     "who": "You, in a terminal",
-     "d": "The check Job name ends with your consumer cluster ID (c- and 8 characters), not the peering ID. Find it in the line Consumer cluster of mctl peering show poc-gpu <peering-id>, or in the clusterID value of your helm command.",
-     "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<consumer-cluster-id>"
-    },
-    {
-     "id": "check-gpu",
-     "doors": ["extend-gpu"],
-     "who_kind": "agent",
-     "h": "Check that the GPU shows up",
-     "who": "You, in a terminal",
-     "d": "The virtual node needs about 2 minutes. The output must be 1. An empty output in the first minutes is normal: run it again.",
-     "c": "kubectl get node -l liqo.io/type=virtual-node \\\n  -o jsonpath='{..allocatable.nvidia\\.com/gpu}'"
-    },
-    {
-     "id": "install-connector-upgrade",
-     "doors": ["extend-gpu", "extend-cpu"],
-     "who_kind": "ask",
-     "h": "Upgrade an older connector install",
-     "who": "You run it, with your CIDRs",
-     "d": "Only if liqo-consumer is already installed below chart 0.3.1. Keep the same values, then restart the offloaded workloads (step proxy-restart).",
-     "in": [
-      {
-       "label": "Pod CIDR",
-       "placeholder": "<POD_CIDR>"
-      },
-      {
-       "label": "Service CIDR",
-       "placeholder": "<SERVICE_CIDR>"
-      }
-     ],
-     "c": "helm upgrade liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --reset-then-reuse-values \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR>",
-     "optional": true
-    },
-    {
-     "id": "check-virtual-node",
-     "doors": ["extend-cpu"],
-     "who_kind": "agent",
-     "page": false,
-     "h": "Check the virtual node",
-     "who": "You, in a terminal",
-     "d": "The virtual node must be Ready and show the pool slug in the last column. It needs about 2 minutes after the bundle.",
-     "c": "kubectl get nodes -l liqo.io/type=virtual-node -L multicloud.io/pool"
-    }
-   ]
-  },
-  {
-   "id": "proxy",
-   "t": "Reach the pool from your cluster (Extend proxy)",
-   "note": "Required for every Extend use case. Without the proxy, a pod in your cluster cannot call a pod on the pool. Multicloud gives you the manifest and turns on the pool network for your pool.",
-   "steps": [
-    {
-     "id": "proxy-key",
-     "who_kind": "user",
-     "owner_only": true,
-     "h": "Create the proxy API key (you, secret)",
-     "who": "You, an organization owner, in a terminal",
-     "d": "This key can only run the proxy. The API shows it once. It is secret: the agent never sees or stores it. Replace <org-slug>. Use $API and $TOKEN as in the connector setup. Paste the key only at the prompt of the next step, in your own terminal.",
-     "c": "curl -fsS -X POST \"$API/api/v1/orgs/<org-slug>/keys\" \\\n  -H \"Authorization: Bearer $TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"name\":\"extend-proxy\",\"scopes\":[\"extend:proxy\"]}'"
-    },
-    {
-     "id": "proxy-manifest",
-     "who_kind": "ask",
-     "h": "Apply the proxy manifest",
-     "who": "You, with the file from Multicloud",
-     "d": "Multicloud gives you extend-proxy.yaml. There is no public download. Ask for its path; do not guess one. Before you apply it, Multicloud sets the values named at the top of the file: image tag, pool, peering ID, the routes, one Role and RoleBinding per route namespace, and one Service per route. The file creates the namespace multicloud-extend-proxy. Never label that namespace for Liqo offloading. A second proxy in the same cluster needs its own copy of the file with its own namespace.",
-     "in": [
-      {
-       "label": "Path to extend-proxy.yaml (from Multicloud)",
-       "placeholder": "<path-to-extend-proxy.yaml>"
-      }
-     ],
-     "c": "kubectl apply -f <path-to-extend-proxy.yaml>",
-     "g": "An install from an older copy of the file used the names extend-proxy-discovery. After you apply the new file, delete the old objects in each route namespace: kubectl -n <route namespace> delete rolebinding,role extend-proxy-discovery"
-    },
-    {
-     "id": "proxy-secret",
-     "who_kind": "user",
-     "owner_only": true,
-     "h": "Create the key Secret (you, secret)",
-     "who": "You, in your own terminal",
-     "d": "Type or paste the extend:proxy key from the first step at the prompt. The prompt does not show it. The agent never asks for the key and never writes a file with it. The Secret name must match the manifest: extend-proxy-api-key.",
-     "in": [
-      {
-       "label": "extend:proxy key (typed at the prompt, never in chat)",
-       "secret": true
-      }
-     ],
-     "c": "read -rs -p 'extend:proxy key: ' PK; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
-    },
-    {
-     "id": "proxy-check",
-     "who_kind": "agent",
-     "h": "Check that both replicas are ready",
-     "who": "You, in a terminal",
-     "d": "Both replicas must show READY 1/1. A replica is Ready when Multicloud has registered it and a pool node has answered it in the last 3 minutes. If the pool sleeps, the replicas show NotReady: do not act, they become Ready when the pool wakes. If the log shows HOST_FIREWALL_OFF, ask Multicloud to turn on the pool network; the proxy retries by itself. When both show 1/1, hand back proxy=ready.",
-     "c": "kubectl -n multicloud-extend-proxy get pods\nkubectl -n multicloud-extend-proxy logs deploy/extend-proxy --tail=20"
-    },
-    {
-     "id": "proxy-restart",
-     "who_kind": "ask",
-     "h": "Restart offloaded workloads that already run",
-     "who": "You, in a terminal",
-     "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
-     "c": "kubectl -n my-apps rollout restart deployment/<name>      # also statefulset\nkubectl -n my-apps get pods -o wide                        # the IP column shows an fd00:244:... address",
-     "optional": true
-    },
-    {
-     "id": "proxy-test",
-     "who_kind": "agent",
-     "h": "Test from a pod in your cluster",
-     "who": "You, in a terminal",
-     "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or burst-pod in run-cpu-burst). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
-     "c": "kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \\\n  curl -sS -m 10 -o /dev/null -w '%{http_code}\\n' http://vllm-pool.multicloud-extend-proxy.svc:8000/"
-    }
-   ]
-  },
-  {
-   "id": "run-gpu-llm",
-   "t": "Run the LLM",
-   "note": "Qwen2.5-7B-Instruct fits the 24 GB of an L4 or A10G.",
-   "dg": "run",
-   "steps": [
-    {
-     "id": "offload-namespace",
-     "who_kind": "ask",
-     "h": "Create and offload the namespace",
-     "who": "You, in a terminal",
-     "d": "Only pods in an offloaded namespace can use the pool. Other pods in my-apps still run on your own nodes.",
-     "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
-    },
-    {
-     "id": "model-api-key",
-     "who_kind": "ask",
-     "h": "Create the model API key",
-     "who": "You, in a terminal",
-     "d": "vLLM refuses a request without this key. The key stays in your cluster.",
-     "c": "kubectl -n my-apps create secret generic vllm-api-key \\\n  --from-literal=key=\"$(openssl rand -hex 16)\""
-    },
-    {
-     "id": "save-manifest",
-     "who_kind": "agent",
-     "h": "Save the vLLM manifest",
-     "who": "You, in a terminal",
-     "d": "Copy this block into a file named vllm-gpu.yaml in your current folder. On the command line: run cat > vllm-gpu.yaml, paste the block, press Enter, then Ctrl+D.",
-     "c_file": "assets/vllm-gpu.yaml"
-    },
-    {
-     "id": "deploy-vllm",
-     "who_kind": "ask",
-     "h": "Deploy vLLM and wait",
-     "who": "You, in a terminal",
-     "d": "The first start takes up to about 20 minutes: a new GPU worker, the image and a 15 GB model download. The wait command returns when the model is loaded.",
-     "c": "kubectl -n my-apps apply -f vllm-gpu.yaml\nkubectl -n my-apps wait --for=condition=available deploy/vllm --timeout=30m",
-     "g": "To watch the progress, run kubectl -n my-apps get pod -l app=vllm -o wide -w in another terminal. Press Ctrl+C to stop the watch."
-    },
-    {
-     "id": "port-forward",
-     "who_kind": "agent",
-     "h": "Open the local port",
-     "who": "You, in a second terminal",
-     "d": "Open a new terminal (on Windows: a new Ubuntu window), point it at your cluster again (export KUBECONFIG=…), and run the command. Keep this terminal open while you send queries. Send the queries from your first terminal.",
-     "c": "kubectl -n my-apps port-forward deploy/vllm 8000:8000",
-     "c_agent": "mkdir -p ~/multicloud-onboarding && chmod 700 ~/multicloud-onboarding\nnohup kubectl -n my-apps port-forward deploy/vllm 8000:8000 >~/multicloud-onboarding/port-forward.log 2>&1 &\necho $! > ~/multicloud-onboarding/port-forward.pid"
-    },
-    {
-     "id": "first-query",
-     "who_kind": "agent",
-     "h": "Send your first query",
-     "who": "You",
-     "d": "See “Send a query to the model” below.",
-     "in": [
-      "Your prompt"
-     ],
-     "c_agent": "KEY=$(kubectl -n my-apps get secret vllm-api-key -o jsonpath='{.data.key}' | base64 -d)\ncurl -s http://localhost:8000/v1/chat/completions -H \"Authorization: Bearer $KEY\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\":\"qwen\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello.\"}]}' | jq -r '.choices[0].message.content'\nunset KEY"
-    }
-   ]
-  },
-  {
-   "id": "run-cpu-burst",
-   "t": "Run a first burst pod",
-   "note": "A small pod on the pool proves the path.",
-   "steps": [
-    {
-     "id": "offload-namespace",
-     "who_kind": "ask",
-     "h": "Create and offload the namespace",
-     "who": "You, in a terminal",
-     "d": "Only pods in an offloaded namespace can use the pool.",
-     "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
-    },
-    {
-     "id": "burst-pod",
-     "who_kind": "ask",
-     "h": "Run the test pod",
-     "who": "You, in a terminal",
-     "d": "Replace <slug> with the pool slug from the virtual node check (the multicloud.io/pool value). The NODE column must show the virtual node. A cold pool needs about 5 minutes to add a worker.",
-     "c": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: Pod\nmetadata: {name: burst-hello, namespace: my-apps}\nspec:\n  tolerations:\n  - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n  nodeSelector: {multicloud.io/pool: <slug>}\n  restartPolicy: Never\n  containers:\n  - name: hello\n    image: busybox:1.36\n    command: [\"sh\", \"-c\", \"echo hello from the pool; uname -n; sleep 30\"]\n    resources:\n      requests: {cpu: 100m, memory: 64Mi}\nEOF\nkubectl -n my-apps wait --for=jsonpath='{.status.phase}'=Succeeded pod/burst-hello --timeout=15m\nkubectl -n my-apps get pod burst-hello -o wide\nkubectl -n my-apps logs burst-hello\nkubectl -n my-apps delete pod burst-hello"
-    }
-   ]
-  },
-  {
-   "id": "cleanup",
-   "t": "Clean up",
-   "note": "A GPU worker costs about $0.80–$1.20 per hour while it runs. To pause instead of delete, use mctl pool hibernate poc-gpu. Delete in this order.",
-   "dg": "clean",
-   "steps": [
-    {
-     "id": "remove",
-     "who_kind": "ask",
-     "h": "Remove the PoC from your cluster and Multicloud",
-     "who": "You confirm each delete",
-     "d": "Stop the port-forward first (Ctrl+C). Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
-     "in": [
-      "Confirm delete"
-     ],
-     "c": "kubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes",
-     "detect": "cleanup"
-    },
-    {
-     "id": "check-nothing-left",
-     "who_kind": "agent",
-     "h": "Check that nothing is left",
-     "who": "You, in a terminal",
-     "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with an AWS sign-in to the account (export AWS_PROFILE=<profile>). A new account that Multicloud's Terraform made: skip the aws command if you have no sign-in there; closing the account in the next step removes everything in it.",
-     "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region <region> \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
-    },
-    {
-     "id": "aws-connection-new",
-     "who_kind": "ask",
-     "h": "Path A: close the new AWS account",
-     "who": "You approve the close",
-     "d": "Only for a new account that Multicloud's Terraform created, and only when you do not keep it after the PoC. Run it in the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile (the management account). It disconnects the account, waits until Multicloud has cleaned up, removes the role and closes the AWS account. AWS keeps a closed account for 90 days, and its email cannot be used for a new AWS account again. mctl asks you to confirm: type y. Path B of “Set up your AWS account” (an IAM user with an access key): after the PoC, deactivate and delete the key (IAM › Users › poc-admin › Security credentials › Actions › Deactivate, then Delete).",
-     "in": [
-      "Approve: close the AWS account"
-     ],
-     "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account destroy <cloud-account-id>",
-     "optional": true
-    },
-    {
-     "id": "aws-connection-existing",
-     "who_kind": "ask",
-     "h": "Path B: remove Multicloud from an account you have",
-     "who": "You approve each command",
-     "d": "Only for an account you have, and only when you do not keep the connection after the PoC. Run the commands one at a time, in the folder you made when you connected AWS, with the same AWS profile. The disconnect stops Multicloud and removes what it created in your account. If tofu state list prints only data.* and random_id lines, there is nothing to destroy: stop there. Otherwise tofu destroy removes the role; type yes. The destroy does not use the connect token, so any value works for it. Path B of “Set up your AWS account” (an IAM user with an access key): after the PoC, deactivate and delete the key (IAM › Users › poc-admin › Security credentials › Actions › Deactivate, then Delete).",
-     "in": [
-      "Approve: disconnect and remove the role"
-     ],
-     "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\nTF_VAR_multicloud_connect_token=unused tofu destroy",
-     "optional": true
-    }
-   ]
-  }
- ]
+  ]
 }

@@ -912,7 +912,7 @@ const STAGES = [
    {
     "h": "Install the connector",
     "who": "You run it, with your CIDRs",
-    "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs.",
+    "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs. The chart must be 0.3.1 or later (this command uses 0.3.1). The --set-string reflectionKick.remoteClusterID line (your pool slug) is required. This chart change applies to every Extend customer, with or without the proxy: offloaded pods that already run keep an empty IP until they restart.",
     "in": [
      "Pod CIDR",
      "Service CIDR"
@@ -940,6 +940,16 @@ const STAGES = [
     "who": "You, in a terminal",
     "d": "The virtual node needs about 2 minutes. The output must be 1. An empty output in the first minutes is normal: run it again.",
     "c": "kubectl get node -l liqo.io/type=virtual-node \\\n  -o jsonpath='{..allocatable.nvidia\\.com/gpu}'"
+   },
+   {
+    "h": "Upgrade an older connector install",
+    "who": "You run it, with your CIDRs",
+    "d": "Only if liqo-consumer is already installed below chart 0.3.1. Keep the same values, then restart the offloaded workloads (step proxy-restart).",
+    "in": [
+     "Pod CIDR",
+     "Service CIDR"
+    ],
+    "c": "helm upgrade liqo-consumer oci://registry-1.docker.io/multicloud/liqo-consumer-chart \\\n  --version 0.3.1 -n liqo --reset-then-reuse-values \\\n  --set liqo.ipam.podCIDR=<POD_CIDR> --set liqo.ipam.serviceCIDR=<SERVICE_CIDR>"
    }
   ]
  },

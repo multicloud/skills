@@ -31,8 +31,8 @@ Every Extend use case runs the proxy stage. The flow runs these stages in this o
 
 | Profile | Stages, in order |
 |---|---|
-| `gpu-llm` | `cluster` → `pool-gpu` → `peering` → `proxy` → `run-gpu-llm` → (`cleanup` on request) |
-| `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `proxy` → `run-cpu-burst` → (`cleanup` on request) |
+| `gpu-llm` | `cluster` → `pool-gpu` → `peering` → `run-gpu-llm` → `proxy` → (`cleanup` on request) |
+| `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `run-cpu-burst` → `proxy` → (`cleanup` on request) |
 
 ## Rules that do not bend
 
@@ -117,11 +117,16 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 ## Step 4: Reach the pool from your cluster (stage `proxy`)
 
 The Extend proxy lets a pod or Service in the cluster call a pod on the pool. It runs for **every**
-use case, after `peering` and before the first workload. Steps in order:
+use case, after the first workload (`run-gpu-llm` or `run-cpu-burst`), because its route points at
+that workload's namespace (`my-apps`) and Service (`vllm`). That namespace must already be offloaded.
+Steps in order:
 1. `proxy-key` (user, owner, secret): the user creates an API key with scope `extend:proxy` only.
    Wait for the user to say it is done. Never ask for the key.
-2. `proxy-manifest` (ask): ask for the path of `extend-proxy.yaml`. Multicloud gives it to the user;
-   there is no public download, so do not invent a path. Show the apply command, then run it on a yes.
+2. `proxy-manifest` (ask): ask for the path of `extend-proxy.yaml` and the release image tag. Both come
+   from Multicloud; there is no public download, so do not invent either. The agent copies the file to
+   `~/multicloud-onboarding/`, fills in the image tag, pool, peering ID and the route (`my-apps`,
+   `vllm`, port 8000), checks no placeholder is left, dry-runs the apply, shows you the result, and
+   applies only on your yes. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
 3. `proxy-secret` (user, secret): the user types the key at the prompt of their own terminal (the
    command reads it without echo). Wait for the user to say it is done.
 4. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.
