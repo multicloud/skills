@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "multicloud-workstation",
   "description": "Prepare your computer for Multicloud: WSL2 on Windows, mctl, the AWS CLI, OpenTofu, kubectl and helm, the multicloud.io account and the mctl sign-in. You type every password yourself.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Multicloud",
     "url": "https://multicloud.io"

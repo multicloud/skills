@@ -122,8 +122,10 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
   (from the onboarding ledger or skill `multicloud-connect-aws`) into the `<…>` placeholders. Ask once for the whole list and say that the pool delete
   cannot be undone. Stop the background port-forward first:
   `kill "$(cat ~/multicloud-onboarding/port-forward.pid)"`. Then `check-nothing-left` (its `aws`
-  command needs the AWS profile of the connection: put `AWS_PROFILE=<profile>` before it).
-- The AWS connection stays unless the user asks to remove it (step `aws-connection`, skill
+  command needs an AWS sign-in to the account: put `AWS_PROFILE=<profile>` before it; for a new
+  account without a sign-in there, skip it, because closing the account removes everything in it).
+- The AWS connection stays unless the user asks to remove it (steps `aws-connection-new` for a new
+  account Multicloud's Terraform created, `aws-connection-existing` for an account the user has; skill
   `multicloud-connect-aws`, section Disconnect). If the onboarding used an IAM user access key
   (path B), remind the user to delete it.
 

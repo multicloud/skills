@@ -158,9 +158,14 @@ an exit code 3 on those steps later means this sign-in is not the owner.
 ## Step 5: Connect the AI (stage `connect-ai`, optional)
 
 Only when the user wants their AI to use the Multicloud MCP server (`https://mcp.multicloud.io/mcp`).
-`mctl` covers every onboarding step without it. The user makes the API key and puts it into their
-AI tool's MCP settings themselves (step `create-api-key` is `user`). You may show the JSON shape
-from the flow, with `mca_…` as the placeholder, never a real key.
+`mctl` covers every onboarding step without it. Step `add-mcp-server` lists the setup for each AI
+tool (`tools`: Claude Code, Claude desktop and web, Cursor, GitHub Copilot, OpenAI Codex, Gemini CLI,
+another tool). Ask which tool the user has, and give only that entry. Each one signs in through the
+browser with the multicloud.io account: no key. You may run a terminal command of that entry for the
+user after a yes (for example `claude mcp add ...`); the sign-in itself is theirs. Only when the tool
+cannot sign in through a browser: the user makes an API key and puts it into the tool's MCP settings
+themselves (step `create-api-key` is `user`). You may show the header shape with `mca_…` as the
+placeholder, never a real key.
 
 ## Hand back
 

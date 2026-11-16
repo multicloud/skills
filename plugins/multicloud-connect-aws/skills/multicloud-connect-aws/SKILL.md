@@ -42,7 +42,8 @@ missing permissions.
    > apart from your current work.
 
    Ask one question: "Use a new dedicated account (recommended), or connect the existing account
-   `<id>` after this warning?" Record the answer in the ledger as `aws_account_choice=new|existing`
+   `<id>` after this warning?" A new account that the user made by hand for the PoC holds no other
+   work: it counts as new. Record the answer in the ledger as `aws_account_choice=new|existing`
    and `aws_existing_approved=yes` only on an explicit yes. A "yes" to another question is not an
    approval. No approval: stop with `status=blocked who=user`.
 
@@ -89,9 +90,10 @@ default region. `AWS_PROFILE=<name>` selects it. Then go through these steps, on
      IAM Identity Center console, under **Settings**.
    - **SSO region:** the region of IAM Identity Center, on the same page.
    - **Registration scopes:** keep the default.
-   - The browser opens. They sign in, then select the AWS account and a role that can create IAM
-     roles and policies: for example `AdministratorAccess`, or a narrower role from their AWS
-     administrator.
+   - Run it as `aws configure sso --use-device-code`: it prints a link and a code; they open the link
+     in any browser and sign in. Then they select the AWS account and a role that can create IAM
+     roles and policies: `AdministratorAccess`, or a narrower role from their AWS administrator. Not
+     `SystemAdministrator`: it cannot create IAM roles.
    - **Default client region:** the first region they will give to Multicloud.
    - **Output format:** keep the default.
    - **Profile name:** a name that `aws configure list-profiles` does not show yet (an existing
@@ -134,6 +136,10 @@ the console (or asks Multicloud support).
 
 Run `mctl cloud-account list`.
 
+A new AWS account that Multicloud's Terraform creates (path A of the flow's `connect` stage): use
+`multicloud-aws-account-setup`, Step 0 (`create --new-account-email`, then `apply --plan-only`, one
+yes, `apply --yes`). Then continue here at step 5.
+
 - The AWS account is listed: note its number (first column). Find its folder (the one with
   `multicloud.tf` whose `account_row_id` is that number). Ask the user if you cannot find it.
   Status `verified`: run `mctl cloud-account verify <n> --wait` and go to step 5 (the user may
@@ -158,9 +164,9 @@ Run `mctl cloud-account list`.
   When the owner confirms a re-connect of an account that is not dedicated, the user runs this in
   their own terminal (an owner's sign-in, `mctl auth login`; never an API key):
   `mctl cloud-account accept-shared-account <n> --org <org-id>`, where `<n>` is the **cloud account
-  number** from `mctl cloud-account list` (the ID column, for example 19), not the 12-digit AWS
-  account ID. The command shows the warning and asks the user to type that same number. The typed
-  number is the approval. You do not type it for them. Then `mctl cloud-account show <n>` and continue with step 4.
+  number** from `mctl cloud-account list` (the ID column, for example 19). The command shows the
+  warning and asks the user to type the account's **12-digit AWS account ID** (its cloud id, as
+  `--help` says). The typed ID is the approval. You do not type it for them. Then `mctl cloud-account show <n>` and continue with step 4.
   Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
   may use (it starts machines only there). Name the regions again in the apply question.
@@ -174,7 +180,7 @@ Run `mctl cloud-account list`.
     them, tell the user that this `mctl` cannot record the choice, and ask them to upgrade
     (`pipx upgrade multicloud-cli`). Do not run `create` without the flag after a "no".
 - Ask also: "Allow Multicloud to request higher AWS quotas in this account later, after you approve
-  each request?" (default no). Yes lets skill `multicloud-quota` file the requests you approve; no
+  each request?" (recommend yes: the guide's quota stage uses this path; the CLI's own default is no). Yes lets skill `multicloud-quota` file the requests you approve; no
   means you file them yourself with your own AWS sign-in. Only an organization owner can allow it. Yes: pass
   `--allow-quota-requests`; no: pass `--no-allow-quota-requests`. Always pass one: without a
   terminal, `mctl` takes no. The user can change it later with
@@ -262,8 +268,9 @@ again only when the target or the effect changes. Do not hand these commands to 
    terminal). Multicloud stops its machines, deletes what it created in the account, and disables
    the pools that use it. Wait for the status `revoked`; report any `leftovers` it lists.
 2. Then run `tofu state list` in the connection folder. If it lists managed resources (for example
-   `aws_iam_role`, `aws_iam_policy`), run `tofu destroy` there; it needs the connect token, so give
-   it through `mctl cloud-account apply <n>` (or the token step it prints), never by hand. If the
+   `aws_iam_role`, `aws_iam_policy`), run `TF_VAR_multicloud_connect_token=unused tofu destroy`
+   there. The variable has no default, so a bare `tofu destroy` asks for it; the module uses the
+   token only when it creates the connection (no destroy-time step), so any valid value works. If the
    state lists only `data.*` and `random_id` (an apply that failed before creating anything), there
    is nothing to destroy: remove the local folder after the user's yes, and say so.
 3. **New account (created by Multicloud's Terraform):** the cleanup closes the AWS account, which is

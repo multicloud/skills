@@ -37,15 +37,25 @@ work, and you can close it later."
 - **Using AWS Organizations** (the management account of the organization): the product's own path
   is the one in the Multicloud console (`content/docs/connect-aws.md` in the `website` repo, section
   "Connect a new AWS account"):
-  1. `mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1 --org <org>`
+  1. First ask the questions of `multicloud-connect-aws`, Step 3, one at a time: regions (`us-east-1`
+     for the PoC), opt-in regions (default yes), and quota requests by Multicloud (recommend yes; each
+     filing still needs a yes). Pass the answers as flags; without a terminal `mctl` takes no for
+     quota requests:
+     `mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1
+     <--opt-in-regions | --no-opt-in-regions> <--allow-quota-requests | --no-allow-quota-requests> --org <org>`
      with a new email that no AWS account uses (a plus address such as `you+multicloud@…` usually
      works). Type the email twice; a typo creates an account with the wrong email. This writes
      `multicloud.tf` and `multicloud.auto.tfvars` in the folder (keep both).
-  2. Run Terraform in that folder with the **management account's** profile (for example
-     `AWS_PROFILE=<mgmt>`): `tofu init && tofu apply -target=module.multicloud_account`. This creates
-     the AWS account (a few minutes). Then `tofu apply` creates the Multicloud role in it. Each apply
-     asks for a yes from the user.
-  3. Multicloud gets no access to the management account. Only the user's Terraform run uses it.
+  2. In that folder, with the **management account's** profile (for example `AWS_PROFILE=<mgmt>
+     AWS_REGION=us-east-1`), run `mctl cloud-account apply <n> --plan-only`. It shows the plan of
+     the new AWS account (the role plan can show only after the account exists). Show the plan
+     counts, then ask one yes/no that names both changes: "Create AWS account <email> and the
+     Multicloud role in it?"
+  3. After the yes: `mctl cloud-account apply <n> --yes`. It creates the AWS account (a few
+     minutes), then the role, and waits until Multicloud verifies the account. mctl gives OpenTofu
+     the connect token in the environment of that one process; nobody sees or pastes it. Do not run
+     `tofu apply` by hand here: without the token, OpenTofu asks for `var.multicloud_connect_token`.
+  4. Multicloud gets no access to the management account. Only the user's Terraform run uses it.
   If the CLI and the website differ, the website is the product's current path: check it first.
 - **Without an organization:** the user creates a new AWS account with a new email address
   (aws.amazon.com → Create an AWS account), then continues with Step 1 in that account.
@@ -107,11 +117,13 @@ wait for them to get stuck:
    and go back to Step 2 (path A).
 2. **SSO region** (path A): the region where IAM Identity Center is turned on. Where: the region
    selector at the top right of the IAM Identity Center console. Often `us-east-1`.
-3. **Account** (path A): the account the user chose in Step 0 or Step 1. **Stop here if it is an
-   existing account** that was not approved under `multicloud-connect-aws`, Rule 6. A new account
-   (Step 0) is fine.
-4. **Role**: choose the role with full administrator rights. The name varies: `AdministratorAccess`,
-   or another admin role such as `SystemAdministrator`. Check the name you see in the list. Never the
+3. **Account** (path A): for a new account that Multicloud's Terraform creates (Step 0), the
+   **management account** of the AWS Organization. Otherwise the account the user chose in Step 0 or
+   Step 1. **Stop here if it is an existing account** that was not approved under
+   `multicloud-connect-aws`, Rule 6.
+4. **Role**: choose `AdministratorAccess`, or another role that can create IAM roles. Not
+   `SystemAdministrator`: it was denied `iam:CreateRole` (tested 2026-11-16). Check the name you
+   see in the list. Never the
    root login; Multicloud does not use it. No admin role listed: stop and ask the user's AWS
    administrator (`status=blocked who=aws-admin`). After sign-in, the ARN shows the role name
    (`AWSReservedSSO_<role>_…`).
@@ -123,9 +135,9 @@ wait for them to get stuck:
 The user runs the command in their own terminal (on Windows: the WSL window of the `wsl_distro`), because it asks
 questions you cannot answer for them. Tell them each answer from the flow step:
 
-- Path A, or any single sign-on: `aws configure sso`. If no browser opens (WSL, SSH), the user
-  presses Ctrl+C and runs `aws configure sso --use-device-code` (AWS CLI 2.22 or later; an older
-  CLI rejects the flag and already uses a device code, so run it without the flag).
+- Path A, or any single sign-on: `aws configure sso --use-device-code` (the flow's command; it
+  prints a link and a code, which works on every machine, WSL and SSH included). AWS CLI 2.22 or
+  later; an older CLI rejects the flag and already uses a device code, so run it without the flag.
 - Path B, or an existing IAM user key: `aws configure --profile poc`.
 - Profile name: one that `aws configure list-profiles` does not list yet (an existing name is
   overwritten). The flow uses `poc`.
