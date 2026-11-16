@@ -99,7 +99,13 @@ On a Windows host shell:
 - Keep every file inside the WSL home folder (`~/…`), never under `/mnt/c/…`: Windows ignores
   `chmod 600` there.
 - The user's terminal is the **WSL** window of their distro (Ubuntu, Debian, ...). When a step says
-  "in your own terminal", it means that window.
+  "in your own terminal", it means that window. Tell the user how to use it, once, before the first
+  command: open it from the Start menu (type the distro name) or type `wsl` in PowerShell; paste with
+  Ctrl+Shift+V (or right-click with nothing selected); copy by selecting text and pressing
+  Ctrl+Shift+C, because Ctrl+C stops the running command; passwords show nothing while typed, which is
+  normal.
+- The browser cannot open from WSL. Every sign-in uses `--no-browser`: the command prints a link and
+  a code, and the user opens the link in the Windows browser.
 - Pick the distro: list the WSL2 distros with `wsl.exe -l -v` (VERSION must be 2). If one or more
   exist, ask the user which to use (default: Ubuntu if it is there), and record it as `wsl_distro`.
   Pass that name to every later command. If none exist, do the install step.
