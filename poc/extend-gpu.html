@@ -88,6 +88,7 @@ a { color: var(--accent) }
 :root[data-os="mac"] .os:not(.os-mac), :root[data-os="linux"] .os:not(.os-linux), :root[data-os="win"] .os:not(.os-win) { display: none }
 .gap { margin: 10px 0 0 30px; font-size: 13px; color: var(--muted); border-left: 2px solid var(--accent); padding-left: 10px }
 .panel .gap { margin-left: 0 }
+.tool { margin: 10px 0 0 30px } .tool h4 { margin: 0 0 4px; font-size: 13.5px } .tool p { margin: 0 0 6px; font-size: 13px; color: var(--muted) } .tool .cmd { margin-left: 0 }
 
 /* Diagrams */
 .dg { margin-top: 16px; overflow-x: auto; background: var(--inset); border: 1px solid var(--border); border-radius: 12px; padding: 10px }
@@ -464,28 +465,54 @@ const STAGES = [
   "dg": "ai",
   "steps": [
    {
-    "h": "Create an API key",
-    "who": "You, in the console",
-    "d": "On multicloud.io, open Account › API keys and click Create. Copy the key now: the console shows it only once. Keep it secret.",
-    "in": [
-     "Key name, for example poc-ai",
-     "Catalog",
-     "Pools: Manage",
-     "Extend",
-     "Infrastructure"
-    ]
-   },
-   {
-    "h": "Add the Multicloud MCP server to your AI",
-    "who": "You, in your AI tool's MCP settings",
-    "d": "Use these values. Replace mca_… with your key. The exact place to enter them depends on your AI tool; see its documentation for remote MCP servers.",
-    "in": [
-     "Transport: Streamable HTTP",
-     "URL: https://mcp.multicloud.io/mcp",
-     "Header: Authorization: Bearer mca_…"
+    "h": "Connect your AI tool to Multicloud",
+    "who": "You, in your AI tool",
+    "d": "Pick your AI tool below. Each one adds the Multicloud MCP server (https://mcp.multicloud.io/mcp, Streamable HTTP) and signs you in with your multicloud.io account in the browser. You need no key. Then ask your AI to list the Multicloud tools to check the connection.",
+    "tools": [
+     {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "d": "Run this in a terminal. Then, in Claude Code, run /mcp, select multicloud and sign in.",
+      "c": "claude mcp add --transport http --scope user multicloud https://mcp.multicloud.io/mcp"
+     },
+     {
+      "id": "claude-app",
+      "label": "Claude (desktop and web)",
+      "d": "Open Customize › Connectors › + Add › Add custom connector. Name: Multicloud. URL: the address below. Then click Connect and sign in. On a Team or Enterprise plan, an owner adds the connector in Organization settings › Connectors, and each member clicks Connect.",
+      "c": "https://mcp.multicloud.io/mcp"
+     },
+     {
+      "id": "cursor",
+      "label": "Cursor",
+      "d": "Add this to ~/.cursor/mcp.json (all projects) or .cursor/mcp.json (one project). If the file has other servers, add only the multicloud entry. Cursor asks you to sign in the first time. Cursor CLI: cursor-agent mcp login multicloud.",
+      "c": "{\n  \"mcpServers\": {\n    \"multicloud\": {\n      \"url\": \"https://mcp.multicloud.io/mcp\"\n    }\n  }\n}"
+     },
+     {
+      "id": "copilot",
+      "label": "GitHub Copilot",
+      "d": "Add this to ~/.copilot/mcp-config.json (all projects) or .mcp.json in the workspace root. If the file has other servers, add only the multicloud entry. If Copilot does not open a sign-in, use an API key (last step of this stage) as the header Authorization: Bearer mca_…",
+      "c": "{\n  \"mcpServers\": {\n    \"multicloud\": {\n      \"type\": \"http\",\n      \"url\": \"https://mcp.multicloud.io/mcp\",\n      \"tools\": [\n        \"*\"\n      ]\n    }\n  }\n}"
+     },
+     {
+      "id": "codex",
+      "label": "OpenAI Codex",
+      "d": "Run this in a terminal. The second command opens the browser to sign in.",
+      "c": "codex mcp add multicloud --url https://mcp.multicloud.io/mcp\ncodex mcp login multicloud"
+     },
+     {
+      "id": "gemini",
+      "label": "Gemini CLI",
+      "d": "Run this in a terminal. Then, in Gemini CLI, run /mcp auth multicloud and sign in.",
+      "c": "gemini mcp add --scope user --transport http multicloud https://mcp.multicloud.io/mcp"
+     },
+     {
+      "id": "other",
+      "label": "Another AI tool",
+      "d": "Add a remote MCP server in your tool's MCP settings: URL https://mcp.multicloud.io/mcp, transport Streamable HTTP. Most tools open a browser to sign in. If yours cannot, use an API key (last step of this stage) as the header Authorization: Bearer mca_…. The block below is the common JSON form.",
+      "c": "{\n  \"mcpServers\": {\n    \"multicloud\": {\n      \"type\": \"http\",\n      \"url\": \"https://mcp.multicloud.io/mcp\"\n    }\n  }\n}"
+     }
     ],
-    "c": "{\n  \"mcpServers\": {\n    \"multicloud\": {\n      \"type\": \"http\",\n      \"url\": \"https://mcp.multicloud.io/mcp\",\n      \"headers\": { \"Authorization\": \"Bearer mca_…\" }\n    }\n  }\n}",
-    "g": "The block above is the common JSON form of an MCP configuration. Restart your AI tool after the change, then ask it to list the Multicloud tools to check the connection."
+    "g": "Restart your AI tool after the change if it does not show the Multicloud tools."
    },
    {
     "h": "Add the Multicloud onboarding skill (if your AI supports skills)",
@@ -493,6 +520,18 @@ const STAGES = [
     "d": "Recommended. The multicloud-onboarding skill runs this whole page with you: it asks what you want to run, checks your computer, connects your AWS account, requests quota and runs the first workload. It asks before each change, and keeps a ledger so you can continue after a quota wait. Example for Claude Code (the skills are public at github.com/multicloud/skills):",
     "c": "claude plugin marketplace add multicloud/skills\nclaude plugin install multicloud-onboarding@multicloud",
     "g": "Restart Claude Code after the install (claude --continue), then say: “Run the Multicloud GPU PoC”. To update: claude plugin marketplace update multicloud, then claude plugin update multicloud-onboarding@multicloud, then restart."
+   },
+   {
+    "h": "Only if your AI tool cannot sign in: create an API key",
+    "who": "You, in the console",
+    "d": "On multicloud.io, open Account › API keys and click Create. Copy the key now: the console shows it only once. Put it into your AI tool's MCP settings as the header Authorization: Bearer mca_… and nowhere else. Never paste it into a chat.",
+    "in": [
+     "Key name, for example poc-ai",
+     "Catalog",
+     "Pools: Manage",
+     "Extend",
+     "Infrastructure"
+    ]
    }
   ]
  },
@@ -1017,6 +1056,7 @@ function render(list) {
           ${sp.in ? `<div class="inputs">${sp.in.map(x => `<span><b>›</b> ${X(x)}</span>`).join("")}</div>` : ""}
           ${sp.c ? `<div class="cmd"><pre>${X(sp.c)}</pre><button type="button" data-copy>Copy</button></div>` : ""}
           ${sp.os ? Object.entries(OSL).map(([k, l]) => `<div class="cmd os os-${k}"><span class="tag">${l}</span><pre>${X(sp.os[k])}</pre><button type="button" data-copy>Copy</button></div>`).join("") : ""}
+          ${sp.tools ? sp.tools.map(tl => `<div class="tool"><h4>${X(tl.label)}</h4><p>${X(tl.d)}</p>${tl.c ? `<div class="cmd"><pre>${X(tl.c)}</pre><button type="button" data-copy>Copy</button></div>` : ""}</div>`).join("") : ""}
           ${sp.g ? `<div class="gap">${X(sp.g)}</div>` : ""}
         </article>` }).join("")}</div>
     </div>

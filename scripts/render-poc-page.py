@@ -12,7 +12,8 @@ A page manifest (`poc/<name>.page.json`) lists stages in page order. An entry is
 "<skill>:<stage-id>" (the whole stage), or an object {t, note, dg, steps: ["<skill>:<stage>:<step>"]}
 that composes one page stage from steps of several skills.
 
-Step fields the page shows: h, who, d, in, c, os, g. `c_file` is inlined into `c` (path relative to
+Step fields the page shows: h, who, d, in, c, os, tools, g. `tools` is a list of
+{id, label, d, c?}: one block per AI tool (label, text, command). `c_file` is inlined into `c` (path relative to
 the skill folder). `d_human`, when set, replaces `d` (`d` is agent-voiced there). An `in[]` item is a
 string or {label, secret?, placeholder?}; the page shows the label. Fields only the agent or the
 console reads (id, who_kind, c_agent, agent_note, detect, optional, console, owner_only, ...)
@@ -24,7 +25,7 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PAGE_KEYS = ("h", "who", "d", "in", "c", "os", "g")
+PAGE_KEYS = ("h", "who", "d", "in", "c", "os", "tools", "g")
 MARK = "/*@@FLOW_DATA@@*/"
 
 

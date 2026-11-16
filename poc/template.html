@@ -88,6 +88,7 @@ a { color: var(--accent) }
 :root[data-os="mac"] .os:not(.os-mac), :root[data-os="linux"] .os:not(.os-linux), :root[data-os="win"] .os:not(.os-win) { display: none }
 .gap { margin: 10px 0 0 30px; font-size: 13px; color: var(--muted); border-left: 2px solid var(--accent); padding-left: 10px }
 .panel .gap { margin-left: 0 }
+.tool { margin: 10px 0 0 30px } .tool h4 { margin: 0 0 4px; font-size: 13.5px } .tool p { margin: 0 0 6px; font-size: 13px; color: var(--muted) } .tool .cmd { margin-left: 0 }
 
 /* Diagrams */
 .dg { margin-top: 16px; overflow-x: auto; background: var(--inset); border: 1px solid var(--border); border-radius: 12px; padding: 10px }
@@ -428,6 +429,7 @@ function render(list) {
           ${sp.in ? `<div class="inputs">${sp.in.map(x => `<span><b>›</b> ${X(x)}</span>`).join("")}</div>` : ""}
           ${sp.c ? `<div class="cmd"><pre>${X(sp.c)}</pre><button type="button" data-copy>Copy</button></div>` : ""}
           ${sp.os ? Object.entries(OSL).map(([k, l]) => `<div class="cmd os os-${k}"><span class="tag">${l}</span><pre>${X(sp.os[k])}</pre><button type="button" data-copy>Copy</button></div>`).join("") : ""}
+          ${sp.tools ? sp.tools.map(tl => `<div class="tool"><h4>${X(tl.label)}</h4><p>${X(tl.d)}</p>${tl.c ? `<div class="cmd"><pre>${X(tl.c)}</pre><button type="button" data-copy>Copy</button></div>` : ""}</div>`).join("") : ""}
           ${sp.g ? `<div class="gap">${X(sp.g)}</div>` : ""}
         </article>` }).join("")}</div>
     </div>

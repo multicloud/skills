@@ -5,7 +5,7 @@
 
 Fails when a flow file or doors.json does not parse, a `refs` / `os_stage` entry
 ("<flow-basename>#<stage-id>") names no real stage, a `detect` id is not in the
-contract list, an `in[]` item has a bad shape, or an object repeats a key (JSON keeps
+contract list, an `in[]` or `tools` item has a bad shape, or an object repeats a key (JSON keeps
 only the last one, so the earlier text never reaches the agent, the page or the console).
 """
 import json
@@ -45,6 +45,13 @@ for f in sorted(ROOT.glob("plugins/*/skills/*/flows/*.json")):
         errs.append(f"{where}: unknown detect {s['detect']!r}")
       if "doors" in s:
         step_doors.append((where, s["doors"]))
+      if "tools" in s:
+        tl = s["tools"]
+        ok = isinstance(tl, list) and tl and all(
+          isinstance(x, dict) and isinstance(x.get("id"), str) and isinstance(x.get("label"), str)
+          and isinstance(x.get("d"), str) and set(x) <= {"id", "label", "d", "c"} for x in tl)
+        if not ok or len({x["id"] for x in tl}) != len(tl):
+          errs.append(f"{where}: tools must be a non-empty list of {{id, label, d, c?}} with unique ids")
       if "owner_only" in s and not isinstance(s["owner_only"], bool):
         errs.append(f"{where}: owner_only must be a boolean")
       for i in s.get("in", []):
