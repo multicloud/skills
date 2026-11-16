@@ -43,7 +43,7 @@ Run these and report what is missing, with the install line:
 | `tofu version` or `terraform version` (1.10 or later, which the AWS module 2.0.0 needs; `mctl` uses `tofu` when both exist) | OpenTofu: https://opentofu.org/docs/intro/install/. An older version: stop and ask the user to upgrade. |
 | `aws sts get-caller-identity` | Fails, shows another account, or the user does not know their AWS profile: follow **AWS sign-in help** below. If they use a profile, use `AWS_PROFILE=<p>` in later commands. |
 
-On Windows, run every command inside WSL (`wsl.exe -d Ubuntu -- bash -lc '…'`), and make the
+On Windows, run every command inside WSL (`wsl.exe -d <wsl_distro> -- bash -lc '…'`), and make the
 connection folder in the WSL home folder, never under `/mnt/c` (see skill `multicloud-workstation`).
 
 Tell the user the AWS account ID that `aws sts get-caller-identity` shows. It must equal the

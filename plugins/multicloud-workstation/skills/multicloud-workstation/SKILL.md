@@ -52,7 +52,9 @@ Run `uname -s` alone (no `||` and no `/dev/null`: Windows PowerShell 5.1 rejects
 | `Linux` | Linux | `none` |
 | `MINGW…`, `MSYS…`, `CYGWIN…`, or an error such as "not recognized" (PowerShell, cmd) | Windows host shell | `wsl` |
 
-`run_prefix=wsl` means: wrap every command as `wsl.exe -d Ubuntu -- bash -lc '<command>'`.
+`run_prefix=wsl` means: wrap every command as `wsl.exe -d <wsl_distro> -- bash -lc '<command>'`,
+where `<wsl_distro>` is the WSL2 distro the user has (Ubuntu by default; any WSL2 distro works, for
+example Debian). Record it in the ledger as `wsl_distro`. Never hardcode a distro name.
 
 On a Windows host shell:
 - Check for an Ubuntu WSL2 distro. Run `wsl.exe -l -v`. If it prints a distro list, use it. If it
@@ -76,14 +78,17 @@ On a Windows host shell:
   once and set a Linux user name and password, then restart Claude Code (`claude --continue`) so the
   Multicloud skills load. A restart ends this session, so the next session resumes from the ledger.
   A company policy that blocks WSL: stop with `status=blocked who=it`.
-- Run every later command as `wsl.exe -d Ubuntu -- bash -lc '<command>'`. For more than one line,
-  write the lines to a script inside WSL (`~/multicloud-onboarding/run/<step>.sh`, by a heredoc in
-  the same wrapper) and run `wsl.exe -d Ubuntu -- bash -l ~/multicloud-onboarding/run/<step>.sh`.
+- Run every later command as `wsl.exe -d <wsl_distro> -- bash -lc '<command>'`. For more than one
+  line, write the lines to a script inside WSL (`~/multicloud-onboarding/run/<step>.sh`, by a
+  heredoc in the same wrapper) and run `wsl.exe -d <wsl_distro> -- bash -l ~/multicloud-onboarding/run/<step>.sh`.
   This avoids PowerShell quoting.
 - Keep every file inside the WSL home folder (`~/…`), never under `/mnt/c/…`: Windows ignores
   `chmod 600` there.
-- The user's terminal is the **Ubuntu** window. When a step says "in your own terminal", it means
-  that window.
+- The user's terminal is the **WSL** window of their distro (Ubuntu, Debian, ...). When a step says
+  "in your own terminal", it means that window.
+- Pick the distro: list the WSL2 distros with `wsl.exe -l -v` (VERSION must be 2). If one or more
+  exist, ask the user which to use (default: Ubuntu if it is there), and record it as `wsl_distro`.
+  Pass that name to every later command. If none exist, do the install step.
 
 ## Step 2: Multicloud account (stage `multicloud-account`)
 

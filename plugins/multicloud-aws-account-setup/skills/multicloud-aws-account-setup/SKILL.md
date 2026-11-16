@@ -55,7 +55,7 @@ stay outside an organization takes path B.
 
 ## Step 3: CLI sign-in (stage `aws-cli-signin`)
 
-The user runs the command in their own terminal (on Windows: the Ubuntu window), because it asks
+The user runs the command in their own terminal (on Windows: the WSL window of the `wsl_distro`), because it asks
 questions you cannot answer for them. Tell them each answer from the flow step:
 
 - Path A, or any single sign-on: `aws configure sso`. If no browser opens (WSL, SSH), the user

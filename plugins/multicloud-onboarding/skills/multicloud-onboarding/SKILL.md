@@ -64,11 +64,12 @@ every result line into the ledger before you start the next skill.
 
 ## Step 1: Find or start the ledger
 
-**Windows without WSL first.** On a Windows host shell where there is no Ubuntu WSL2 distro (see the
-check in `multicloud-workstation`, Step 1; `wsl.exe -l -v` printing usage text counts as "none"),
+**Windows without WSL first.** On a Windows host shell where there is no WSL2 distro (any distro
+works; see the check in `multicloud-workstation`, Step 1; `wsl.exe -l -v` printing usage text
+counts as "none"),
 run only the `windows` stage of `multicloud-workstation` first: the ledger lives inside
 WSL, and the WSL install ends with a Windows restart. Tell the user, in this order: (1) "Restart
-Windows now." (2) "After it restarts, open Ubuntu once and set a Linux user name and password."
+Windows now." (2) "After it restarts, open your WSL distro once (Ubuntu from the Start menu, or the one you chose) and set a Linux user name and password."
 (3) "Then quit Claude Code and start it again with `claude --continue` in PowerShell, so the
 Multicloud skills load. The skills are only loaded at the start of a session." (4) "Then say:
 continue my Multicloud onboarding." Then stop.
@@ -93,7 +94,7 @@ Format (IDs and states only, nothing secret):
   "version": 1,
   "answers": {"door": "extend", "cloud": "aws", "aws_account": "new", "os": "windows",
               "cluster": "kubectl-works", "workload": "gpu-llm"},
-  "facts": {"org_id": "acme", "aws_profile": "poc", "aws_account_id": "123456789012",
+  "facts": {"org_id": "acme", "wsl_distro": "Ubuntu", "aws_profile": "poc", "aws_account_id": "123456789012",
             "region": "us-east-1", "cloud_account_id": 7,
             "connection_dir": "/home/ana/multicloud-aws", "kubeconfig": "/home/ana/.kube/config-poc",
             "kube_context": "default", "pool": "poc-gpu", "peering_id": 31},

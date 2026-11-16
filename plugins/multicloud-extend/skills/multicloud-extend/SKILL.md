@@ -21,7 +21,7 @@ You need (ask the user, or take it from the onboarding ledger):
   skill `multicloud-quota` first. Never create the GPU pool before the quota is there.
 - `kubectl`, `helm` 3.14+, `jq`, and a kubeconfig with cluster-admin rights.
 
-On Windows, run every command inside WSL (`wsl.exe -d Ubuntu -- bash -lc '…'`, or a script in the
+On Windows, run every command inside WSL (`wsl.exe -d <wsl_distro> -- bash -lc '…'`, or a script in the
 WSL home folder; see skill `multicloud-workstation`). Keep every file of this skill in a folder in
 the WSL home, never under `/mnt/c`.
 
