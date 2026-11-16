@@ -258,8 +258,8 @@
      "who_kind": "ask",
      "h": "Create and offload the namespace",
      "who": "You, in a terminal",
-     "d": "Only pods in an offloaded namespace can use the pool. Other pods in my-team still run on your own nodes.",
-     "c": "kubectl create namespace my-team\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-team}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
+     "d": "Only pods in an offloaded namespace can use the pool. Other pods in my-apps still run on your own nodes.",
+     "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
     },
     {
      "id": "model-api-key",
@@ -267,7 +267,7 @@
      "h": "Create the model API key",
      "who": "You, in a terminal",
      "d": "vLLM refuses a request without this key. The key stays in your cluster.",
-     "c": "kubectl -n my-team create secret generic vllm-api-key \\\n  --from-literal=key=\"$(openssl rand -hex 16)\""
+     "c": "kubectl -n my-apps create secret generic vllm-api-key \\\n  --from-literal=key=\"$(openssl rand -hex 16)\""
     },
     {
      "id": "save-manifest",
@@ -283,8 +283,8 @@
      "h": "Deploy vLLM and wait",
      "who": "You, in a terminal",
      "d": "The first start takes up to about 20 minutes: a new GPU worker, the image and a 15 GB model download. The wait command returns when the model is loaded.",
-     "c": "kubectl -n my-team apply -f vllm-gpu.yaml\nkubectl -n my-team wait --for=condition=available deploy/vllm --timeout=30m",
-     "g": "To watch the progress, run kubectl -n my-team get pod -l app=vllm -o wide -w in another terminal. Press Ctrl+C to stop the watch."
+     "c": "kubectl -n my-apps apply -f vllm-gpu.yaml\nkubectl -n my-apps wait --for=condition=available deploy/vllm --timeout=30m",
+     "g": "To watch the progress, run kubectl -n my-apps get pod -l app=vllm -o wide -w in another terminal. Press Ctrl+C to stop the watch."
     },
     {
      "id": "port-forward",
@@ -292,8 +292,8 @@
      "h": "Open the local port",
      "who": "You, in a second terminal",
      "d": "Open a new terminal (on Windows: a new Ubuntu window), point it at your cluster again (export KUBECONFIG=…), and run the command. Keep this terminal open while you send queries. Send the queries from your first terminal.",
-     "c": "kubectl -n my-team port-forward deploy/vllm 8000:8000",
-     "c_agent": "mkdir -p ~/multicloud-onboarding && chmod 700 ~/multicloud-onboarding\nnohup kubectl -n my-team port-forward deploy/vllm 8000:8000 >~/multicloud-onboarding/port-forward.log 2>&1 &\necho $! > ~/multicloud-onboarding/port-forward.pid"
+     "c": "kubectl -n my-apps port-forward deploy/vllm 8000:8000",
+     "c_agent": "mkdir -p ~/multicloud-onboarding && chmod 700 ~/multicloud-onboarding\nnohup kubectl -n my-apps port-forward deploy/vllm 8000:8000 >~/multicloud-onboarding/port-forward.log 2>&1 &\necho $! > ~/multicloud-onboarding/port-forward.pid"
     },
     {
      "id": "first-query",
@@ -304,7 +304,7 @@
      "in": [
       "Your prompt"
      ],
-     "c_agent": "KEY=$(kubectl -n my-team get secret vllm-api-key -o jsonpath='{.data.key}' | base64 -d)\ncurl -s http://localhost:8000/v1/chat/completions -H \"Authorization: Bearer $KEY\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\":\"qwen\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello.\"}]}' | jq -r '.choices[0].message.content'\nunset KEY"
+     "c_agent": "KEY=$(kubectl -n my-apps get secret vllm-api-key -o jsonpath='{.data.key}' | base64 -d)\ncurl -s http://localhost:8000/v1/chat/completions -H \"Authorization: Bearer $KEY\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\":\"qwen\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello.\"}]}' | jq -r '.choices[0].message.content'\nunset KEY"
     }
    ]
   },
@@ -319,7 +319,7 @@
      "h": "Create and offload the namespace",
      "who": "You, in a terminal",
      "d": "Only pods in an offloaded namespace can use the pool.",
-     "c": "kubectl create namespace my-team\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-team}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
+     "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
     },
     {
      "id": "burst-pod",
@@ -327,7 +327,7 @@
      "h": "Run the test pod",
      "who": "You, in a terminal",
      "d": "Replace <slug> with the pool slug from the virtual node check (the multicloud.io/pool value). The NODE column must show the virtual node. A cold pool needs about 5 minutes to add a worker.",
-     "c": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: Pod\nmetadata: {name: burst-hello, namespace: my-team}\nspec:\n  tolerations:\n  - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n  nodeSelector: {multicloud.io/pool: <slug>}\n  restartPolicy: Never\n  containers:\n  - name: hello\n    image: busybox:1.36\n    command: [\"sh\", \"-c\", \"echo hello from the pool; uname -n; sleep 30\"]\n    resources:\n      requests: {cpu: 100m, memory: 64Mi}\nEOF\nkubectl -n my-team wait --for=jsonpath='{.status.phase}'=Succeeded pod/burst-hello --timeout=15m\nkubectl -n my-team get pod burst-hello -o wide\nkubectl -n my-team logs burst-hello\nkubectl -n my-team delete pod burst-hello"
+     "c": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: Pod\nmetadata: {name: burst-hello, namespace: my-apps}\nspec:\n  tolerations:\n  - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n  nodeSelector: {multicloud.io/pool: <slug>}\n  restartPolicy: Never\n  containers:\n  - name: hello\n    image: busybox:1.36\n    command: [\"sh\", \"-c\", \"echo hello from the pool; uname -n; sleep 30\"]\n    resources:\n      requests: {cpu: 100m, memory: 64Mi}\nEOF\nkubectl -n my-apps wait --for=jsonpath='{.status.phase}'=Succeeded pod/burst-hello --timeout=15m\nkubectl -n my-apps get pod burst-hello -o wide\nkubectl -n my-apps logs burst-hello\nkubectl -n my-apps delete pod burst-hello"
     }
    ]
   },
@@ -346,7 +346,7 @@
      "in": [
       "Confirm delete"
      ],
-     "c": "kubectl -n my-team delete -f vllm-gpu.yaml\nkubectl -n my-team delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-team\nmctl pool delete poc-gpu --yes",
+     "c": "kubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes",
      "detect": "cleanup"
     },
     {
@@ -354,7 +354,7 @@
      "who_kind": "agent",
      "h": "Check that nothing is left",
      "who": "You, in a terminal",
-     "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with the AWS profile of the connection (export AWS_PROFILE=<profile>).",
+     "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with an AWS sign-in to the account (export AWS_PROFILE=<profile>). A new account that Multicloud's Terraform made: skip the aws command if you have no sign-in there; closing the account in the next step removes everything in it.",
      "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region <region> \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
     },
     {
@@ -362,11 +362,11 @@
      "who_kind": "ask",
      "h": "Keep or remove the AWS connection",
      "who": "You decide",
-     "d": "To continue after the PoC, keep it. To remove it: disconnect the account, which stops Multicloud and removes what it created in your account. Then remove the IAM role from the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile. Type yes when OpenTofu asks.",
+     "d": "To continue after the PoC, keep it. To remove it, run the commands in the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile. Path A (a new account that Multicloud's Terraform created): mctl cloud-account destroy disconnects the account, waits until Multicloud has cleaned up, removes the role and closes the AWS account. AWS keeps a closed account for 90 days, and its email cannot be used for a new AWS account again. Path B (an account you have): disconnect first, then tofu state list: if it lists only data.* and random_id, there is nothing to destroy; otherwise run tofu destroy and type yes. Each path asks you to confirm.",
      "in": [
       "Keep or remove"
      ],
-     "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\ntofu destroy",
+     "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\n# Path A: a new account that Multicloud's Terraform created (closes the account)\nmctl cloud-account destroy <cloud-account-id>\n# Path B: an account you have (removes the role)\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\ntofu destroy",
      "optional": true
     }
    ]

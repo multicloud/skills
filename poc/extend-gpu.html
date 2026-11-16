@@ -196,7 +196,7 @@ footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px
     <figure class="dg" id="d-path"><figcaption>The path of one request with port-forward.</figcaption></figure>
 
     <div class="twocol">
-      <div class="cmd"><span class="tag">curl (in your first terminal)</span><pre>export KEY=$(kubectl -n my-team get secret vllm-api-key \
+      <div class="cmd"><span class="tag">curl (in your first terminal)</span><pre>export KEY=$(kubectl -n my-apps get secret vllm-api-key \
   -o jsonpath='{.data.key}' | base64 -d)
 
 curl -s http://localhost:8000/v1/chat/completions \
@@ -345,7 +345,7 @@ const DIAGRAMS = {
 
   run: svg(270, [
     zone(10, 12, 300, 240, "Your cluster"),
-    box(30, 46, 260, 58, "Deployment vllm", "namespace my-team · 1 GPU", "you"),
+    box(30, 46, 260, 58, "Deployment vllm", "namespace my-apps · 1 GPU", "you"),
     box(30, 160, 260, 58, "Virtual node: poc-gpu", "the pod is placed here", "you"),
     edge([[160, 104], [160, 160]], "scheduled", { at: [200, 136] }),
     zone(410, 12, 300, 152, "Your AWS account"),
@@ -418,7 +418,7 @@ const STAGES = [
    {
     "h": "Open Ubuntu",
     "who": "You",
-    "d": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window.",
+    "d": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window. How to use the Ubuntu window: Open it from the Start menu (type Ubuntu), or type wsl in PowerShell. Paste with a right-click (Ctrl+V and Ctrl+Shift+V may print ^V and do nothing in this window). Copy by selecting the text with the mouse, then right-click or press Enter. Ctrl+C does NOT copy: it stops the running command. If the right-click paste fails: right-click the PowerShell title bar, Properties, Options, tick 'Use Ctrl+Shift+C/V as Copy/Paste', OK, then reopen the window; paste with Ctrl+Shift+V. Passwords do not show on screen while you type; that is normal. Press Enter after the password.",
     "in": [
      "Linux user name",
      "Linux password"
@@ -488,17 +488,26 @@ const STAGES = [
     "g": "The block above is the common JSON form of an MCP configuration. Restart your AI tool after the change, then ask it to list the Multicloud tools to check the connection."
    },
    {
-    "h": "Add the Multicloud skills (if your AI supports skills)",
+    "h": "Add the Multicloud onboarding skill (if your AI supports skills)",
     "who": "You, in a terminal",
-    "d": "The skills teach your AI the steps for connecting AWS and getting GPU quota. They are public at github.com/multicloud/skills. Example for Claude Code:",
-    "c": "claude plugin marketplace add multicloud/skills\nclaude plugin install multicloud-connect-aws@multicloud\nclaude plugin install multicloud-quota@multicloud"
+    "d": "Recommended. The multicloud-onboarding skill runs this whole page with you: it asks what you want to run, checks your computer, connects your AWS account, requests quota and runs the first workload. It asks before each change, and keeps a ledger so you can continue after a quota wait. Example for Claude Code (the skills are public at github.com/multicloud/skills):",
+    "c": "claude plugin marketplace add multicloud/skills\nclaude plugin install multicloud-onboarding@multicloud",
+    "g": "Restart Claude Code after the install (claude --continue), then say: “Run the Multicloud GPU PoC”. To update: claude plugin marketplace update multicloud, then claude plugin update multicloud-onboarding@multicloud, then restart."
    }
   ]
  },
  {
   "t": "Set up your AWS account",
-  "note": "Skip this stage if you already have an AWS identity that can create IAM roles and that is not the root user. A new AWS account has only the root user. Do not use the root user for the PoC: make a separate identity. Choose path A (single sign-on, recommended for teams) or path B (one IAM user with an access key, faster).",
+  "note": "Multicloud runs in a separate AWS account for the PoC. Pick the account first. Then, if you have no AWS identity yet that can create IAM roles and is not the root user, make one: path A (single sign-on, recommended for organizations with several people; it also turns on AWS Organizations) or path B (one IAM user with an access key, faster). Skip what you already have.",
   "steps": [
+   {
+    "h": "Choose the AWS account for Multicloud",
+    "who": "You decide",
+    "d": "Recommended: a new AWS account only for Multicloud. Multicloud's Terraform creates it in your AWS Organization in the stage “Connect AWS to Multicloud”; you need a sign-in to the management account of the organization (path A below turns on AWS Organizations) and an email address that no AWS account uses. A new account keeps the PoC apart from your other work, and you can close it later. Without AWS Organizations: create a new AWS account yourself at aws.amazon.com (it needs a payment card and its root login, so only you can do it), then use it as an account you have. An account that already holds other work: possible, but only after the warning in the stage “Connect AWS to Multicloud”.",
+    "in": [
+     "Choice: new account (recommended), new account made by hand, or an account you have"
+    ]
+   },
    {
     "h": "Protect the root user",
     "who": "You, in the AWS console as root",
@@ -609,79 +618,123 @@ const STAGES = [
    {
     "h": "Sign in to AWS from the terminal",
     "who": "You, in a terminal and the browser",
-    "d": "Use the identity from the stage “Set up your AWS account”. Path A (single sign-on): run aws configure sso --use-device-code (on Windows the browser cannot open from WSL; the command prints a link and a code: open the link in your Windows browser, sign in, enter the code). Answers: SSO session name: any name. SSO start URL: your AWS access portal URL (in the AWS console, IAM Identity Center, dashboard). SSO region: the region where you turned on IAM Identity Center (the region selector at the top right of that console). Registration scopes: press Enter. Then select the account you chose for the PoC (a new dedicated account; an existing account only after the approval in Multicloud connect-aws, Rule 6) and the role with full administrator rights (AdministratorAccess, or another admin role such as SystemAdministrator). Never choose the root login. Default client region: us-east-1. Output format: json (press Enter). Profile name: poc. Path B (access key): run aws configure --profile poc and paste the access key ID and secret access key; region us-east-1; output json.",
+    "d": "Use the identity from the stage “Set up your AWS account”. Path A (single sign-on): run aws configure sso --use-device-code (on Windows the browser cannot open from WSL; the command prints a link and a code: open the link in your Windows browser, sign in, enter the code). Answers: SSO session name: any name. SSO start URL: your AWS access portal URL (in the AWS console, IAM Identity Center, dashboard). SSO region: the region where you turned on IAM Identity Center (the region selector at the top right of that console). Registration scopes: press Enter. Then select the account: for a new account that Multicloud's Terraform creates, the management account of your AWS Organization; otherwise the account you chose for the PoC (an account with other work only after the warning in the next stage) and the role AdministratorAccess (it must be able to create IAM roles; SystemAdministrator cannot, and the apply then fails with AccessDenied on iam:CreateRole). Never choose the root login. Default client region: us-east-1. Output format: json (press Enter). Profile name: poc. Path B (access key): run aws configure --profile poc and paste the access key ID and secret access key; region us-east-1; output json.",
     "in": [
      "Path A: access portal URL",
      "Path B: access key ID and secret",
      "Profile name: poc"
     ],
     "os": {
-     "mac": "aws configure sso          # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
-     "linux": "aws configure sso          # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
-     "win": "# In the Ubuntu window\naws configure sso          # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity"
+     "mac": "aws configure sso --use-device-code   # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
+     "linux": "aws configure sso --use-device-code   # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
+     "win": "# In the Ubuntu window\naws configure sso --use-device-code   # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity"
     },
-    "g": "The Account value in the output is your 12-digit AWS account ID. You need it in the next stage. Never paste keys into an AI chat. Path A: if your sign-in expires later, run aws sso login --profile poc. No browser opens (Windows with WSL, SSH): press Ctrl+C and run aws configure sso --use-device-code (later: aws sso login --profile poc --use-device-code)."
+    "g": "The Account value in the output is your 12-digit AWS account ID. You need it in the next stage. Never paste keys into an AI chat. Path A: if your sign-in expires later, run aws sso login --profile poc. With --use-device-code the command prints a link and a code: open the link in any browser, sign in, enter the code. Later sign-ins: aws sso login --profile poc --use-device-code."
    }
   ]
  },
  {
   "t": "Connect your AWS account",
-  "note": "Multicloud gets a role in your account. No access key leaves your laptop. Run every command of this stage in the same terminal and folder.",
+  "note": "Multicloud gets a role in the AWS account. No access key leaves your laptop. Path A creates a new AWS account for Multicloud (recommended); path B connects an account you have. Run every command of this stage in the same terminal and folder. Each change shows its plan first and runs only after your yes.",
   "dg": "connect",
   "steps": [
    {
     "h": "Sign in to Multicloud from the CLI",
     "who": "You, in the browser",
-    "d": "The browser opens. Sign in with the same account as on multicloud.io. You must be the organization owner. If you belong to more than one organization, add --org <organization-id> to every mctl command.",
+    "d": "The command prints a link and a code. Open the link in any browser on your computer, sign in with the same account as on multicloud.io, and enter the code. You must be the organization owner. If you belong to more than one organization, add --org <organization-id> to every mctl command.",
     "c": "mctl auth login --no-browser\nmctl auth status",
     "g": "Use --no-browser on every machine, Windows with WSL included: the browser cannot open from the Linux terminal. It prints a link and a code; open the link in any browser on your computer, sign in, and enter the code."
    },
    {
     "h": "Make a folder for the connection",
     "who": "You, in a terminal",
-    "d": "mctl writes the role definition (multicloud.tf) and the OpenTofu state into this folder. Keep the folder after the PoC: you need it to remove the role later.",
+    "d": "mctl writes the role definition (multicloud.tf) and the OpenTofu state into this folder. Keep the folder after the PoC: you need it to remove the role or close the account later. Use the AWS profile from the previous stage (for path A, the management account).",
     "c": "mkdir multicloud-aws && cd multicloud-aws\nexport AWS_PROFILE=poc\nexport AWS_REGION=us-east-1"
    },
    {
-    "h": "Register the AWS account",
+    "h": "Path A: register a new AWS account",
     "who": "You confirm the values",
-    "d": "Replace <account-id> with your 12-digit AWS account ID. The two flags at the end answer two questions for you: do not turn on other AWS regions, and do not file quota requests automatically (you do that in the next stage).",
+    "d": "Replace <email> with an email address that no AWS account uses (a plus address such as you+multicloud@company.com usually works). Type it twice and compare: a typo creates an account with the wrong email. --allow-quota-requests lets Multicloud file the GPU quota request for you in the next stage; it files each request only after your yes. To file quota yourself, use --no-allow-quota-requests (then you need your own sign-in to the new account).",
     "in": [
-     "AWS account ID",
-     "Region: us-east-1"
+     "Email for the new AWS account",
+     "Region: us-east-1",
+     "Quota requests by Multicloud: yes (recommended) or no"
     ],
-    "c": "mctl cloud-account create --cloud AWS --account <account-id> --region us-east-1 \\\n  --no-opt-in-regions --no-allow-quota-requests",
-    "g": "The output has a line like: Next: mctl cloud-account apply 7. (The line By hand: … after it is for people who apply without mctl; skip it.) The number (here 7) is your cloud-account ID. It is not your AWS account ID. Write it down: you need it in this stage and when you create the pool. To see it again, run: mctl cloud-account list"
+    "c": "mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1 \\\n  --allow-quota-requests",
+    "g": "This writes multicloud.tf and multicloud.auto.tfvars (the email only) in the folder: keep both. The output has a line like: Next: mctl cloud-account apply 7. The number (here 7) is your cloud-account ID, not an AWS account ID. Write it down. To see it again: mctl cloud-account list"
    },
    {
-    "h": "Create the role in your account",
-    "who": "You review the plan and type yes",
-    "d": "Replace <cloud-account-id> with the number from the previous step. OpenTofu shows the IAM role it creates and asks you to confirm. After the apply, mctl waits until Multicloud can use the account.",
+    "h": "Path B: approve the use of an account you have",
+    "who": "You decide",
+    "d": "Only for an AWS account that you made yourself or that holds other work. Multicloud starts and deletes machines, networks and security groups in this account, in the regions you allow. Other work in the account shares its quotas and limits with Multicloud. A new account only for Multicloud (path A) avoids this. A new account that you made by hand for the PoC holds no other work: say so and continue. Multicloud may report ACCOUNT_NOT_DEDICATED later: then the organization owner runs mctl cloud-account accept-shared-account <cloud-account-id> and types the number it asks for. Nobody else types it.",
+    "in": [
+     "Approve: connect this account"
+    ]
+   },
+   {
+    "h": "Path B: register the AWS account you have",
+    "who": "You confirm the values",
+    "d": "Replace <account-id> with your 12-digit AWS account ID. Answer two questions: turn on the AWS opt-in regions (for us-east-1 alone this changes nothing; yes is the default), and let Multicloud file quota requests (recommended: yes; it files each request only after your yes). Write your answers as flags: --no-opt-in-regions for no, --no-allow-quota-requests for no.",
+    "in": [
+     "AWS account ID",
+     "Region: us-east-1",
+     "Opt-in regions: yes or no",
+     "Quota requests by Multicloud: yes (recommended) or no"
+    ],
+    "c": "mctl cloud-account create --cloud AWS --account <account-id> --region us-east-1 \\\n  --opt-in-regions --allow-quota-requests",
+    "g": "The output has a line like: Next: mctl cloud-account apply 7. (The line By hand: … after it is for people who apply without mctl; skip it.) The number (here 7) is your cloud-account ID, not your AWS account ID. Write it down. To see it again: mctl cloud-account list. A disconnected (revoked) account: run the same command again; it gets a new number. Reconnect it only with the organization owner's yes."
+   },
+   {
+    "h": "Show the plan",
+    "who": "You, or your AI",
+    "d": "Replace <cloud-account-id> with the number from the register step. The plan changes nothing. Path B: it shows the IAM role and policy that OpenTofu creates in your account. Path A: it shows the new AWS account; the plan of the role can show only after the account exists.",
+    "c": "mctl cloud-account apply <cloud-account-id> --plan-only"
+   },
+   {
+    "h": "Apply: create the account and the role",
+    "who": "You approve the plan",
+    "d": "Run it after you read the plan. mctl asks one question: type y. Path A: it creates the AWS account (a few minutes), then the Multicloud role in it; your one yes covers both. Path B: it creates the role. mctl gives OpenTofu a one-time connect token by itself (you never see or paste it), then waits until Multicloud can use the account.",
     "in": [
      "Approve plan"
     ],
-    "c": "mctl cloud-account apply <cloud-account-id>"
+    "c": "mctl cloud-account apply <cloud-account-id>",
+    "g": "AccessDenied on iam:CreateRole: your AWS role cannot create IAM roles. Sign in with AdministratorAccess (aws configure sso --use-device-code) and run the apply again."
    }
   ]
  },
  {
   "t": "Get GPU quota",
-  "note": "New AWS accounts often have 0 vCPU for GPU instances. You file the request from your own AWS sign-in. Do not create the pool before the quota is 4 or more. You may prepare your cluster while you wait.",
+  "note": "New AWS accounts often have 0 vCPU for GPU instances. Path A (recommended): Multicloud files the request for you, after your yes. Path B: you file it with your own AWS sign-in to the account. Do not create the pool before the quota is 4 or more. While you wait, continue with “Prepare your cluster”.",
   "dg": "quota",
   "steps": [
    {
     "h": "Optional: ask your AI for GPU quota",
     "who": "You, to your AI",
-    "d": "After your AWS account is connected, say: “Request AWS quota for one on-demand L4 or A10G GPU in us-east-1 for my connected account.” Your AI files the request through Multicloud only after the organization owner allows it: mctl cloud-account allow-quota-requests <cloud-account-id>. Without that, or if you prefer, run the commands below yourself."
+    "d": "Say: “Request AWS quota for one on-demand L4 or A10G GPU in us-east-1 for my connected account.” Your AI shows the plan and files each request only after your yes. For a production workload it can plan, file and track every quota the workload needs, in each region."
    },
    {
-    "h": "Read your current GPU quota",
+    "h": "Path A: read the quota through Multicloud",
+    "who": "You, or your AI",
+    "d": "Shows the current limit, any open request and any recent denial for each GPU quota. It files nothing. L-DB2E81BA (on-demand G and VT instances) must be 8 or more: 8 or more, skip the request.",
+    "c": "mctl cloud-account quota-plan <cloud-account-id> --region us-east-1"
+   },
+   {
+    "h": "Path A: Multicloud files 8 vCPU of GPU quota",
+    "who": "You approve the request",
+    "d": "8 vCPU covers one g6.2xlarge (L4) or g5.2xlarge (A10G). 4 vCPU is the minimum. The first line is needed only if you answered no to quota requests when you connected the account (organization owner only).",
+    "in": [
+     "Desired value: 8"
+    ],
+    "c": "mctl cloud-account allow-quota-requests <cloud-account-id>   # only if not allowed yet\nmctl cloud-account quota-request <cloud-account-id> --region us-east-1 \\\n  --code L-DB2E81BA --desired 8"
+   },
+   {
+    "h": "Path B: read your current GPU quota",
     "who": "You, in a terminal",
-    "d": "The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 8: request 8 (one g6.2xlarge or g5.2xlarge needs 8; 4 fits only the smallest L4 or A10G size).",
+    "d": "Only with your own AWS sign-in to the account. The command prints one number: your vCPU limit for on-demand G and VT instances. 8 or more: skip the request. Less than 8: request 8 (one g6.2xlarge or g5.2xlarge needs 8; 4 fits only the smallest L4 or A10G size).",
     "c": "aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA \\\n  --region us-east-1 --query Quota.Value --output text"
    },
    {
-    "h": "Request 8 vCPU of GPU quota",
+    "h": "Path B: request 8 vCPU of GPU quota",
     "who": "You approve the request",
     "d": "8 vCPU covers one g6.2xlarge (L4) or g5.2xlarge (A10G). 4 vCPU is the minimum.",
     "in": [
@@ -700,8 +753,9 @@ const STAGES = [
    {
     "h": "Wait for approval",
     "who": "You, or your AI",
-    "d": "This takes hours to a few days. CASE_OPENED or PENDING: wait. APPROVED: read your quota again with the first command; it must be 4 or more. DENIED: tell your Multicloud contact.",
-    "c": "aws service-quotas list-requested-service-quota-change-history-by-quota \\\n  --service-code ec2 --quota-code L-DB2E81BA --region us-east-1 \\\n  --query 'RequestedQuotas[].[Status,DesiredValue,Created]' --output table"
+    "d": "This takes hours to a few days. Your AI can check every 2 hours and tell you when AWS answers. Meanwhile continue with “Prepare your cluster”, but do not create the GPU pool yet: it costs while it waits. Open request: wait. Limit 8 or more: done. Denied: tell your Multicloud contact.",
+    "c": "mctl cloud-account quota-plan <cloud-account-id> --region us-east-1",
+    "g": "Path B, with your own AWS sign-in: aws service-quotas list-requested-service-quota-change-history-by-quota --service-code ec2 --quota-code L-DB2E81BA --region us-east-1 --query 'RequestedQuotas[].[Status,DesiredValue,Created]' --output table"
    }
   ]
  },
@@ -857,33 +911,33 @@ const STAGES = [
    {
     "h": "Create and offload the namespace",
     "who": "You, in a terminal",
-    "d": "Only pods in an offloaded namespace can use the pool. Other pods in my-team still run on your own nodes.",
-    "c": "kubectl create namespace my-team\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-team}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
+    "d": "Only pods in an offloaded namespace can use the pool. Other pods in my-apps still run on your own nodes.",
+    "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
    },
    {
     "h": "Create the model API key",
     "who": "You, in a terminal",
     "d": "vLLM refuses a request without this key. The key stays in your cluster.",
-    "c": "kubectl -n my-team create secret generic vllm-api-key \\\n  --from-literal=key=\"$(openssl rand -hex 16)\""
+    "c": "kubectl -n my-apps create secret generic vllm-api-key \\\n  --from-literal=key=\"$(openssl rand -hex 16)\""
    },
    {
     "h": "Save the vLLM manifest",
     "who": "You, in a terminal",
     "d": "Copy this block into a file named vllm-gpu.yaml in your current folder. On the command line: run cat > vllm-gpu.yaml, paste the block, press Enter, then Ctrl+D.",
-    "c": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: vllm\n  namespace: my-team\n  labels: {app: vllm}\nspec:\n  replicas: 1\n  strategy: {type: Recreate}\n  selector:\n    matchLabels: {app: vllm}\n  template:\n    metadata:\n      labels: {app: vllm}\n    spec:\n      enableServiceLinks: false\n      tolerations:\n        - {key: multicloud.io/pool, operator: Exists, effect: NoSchedule}\n        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}\n      affinity:\n        nodeAffinity:\n          requiredDuringSchedulingIgnoredDuringExecution:\n            nodeSelectorTerms:\n              - matchExpressions:\n                  - {key: multicloud.io/pool, operator: Exists}\n      containers:\n        - name: vllm\n          image: vllm/vllm-openai:v0.31.0@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3\n          args: [\"--model\", \"Qwen/Qwen2.5-7B-Instruct\", \"--served-model-name\", \"qwen\",\n                 \"--dtype\", \"bfloat16\",\n                 \"--max-model-len\", \"8192\", \"--gpu-memory-utilization\", \"0.90\",\n                 \"--enforce-eager\", \"--api-key\", \"$(VLLM_API_KEY)\", \"--host\", \"::\", \"--port\", \"8000\"]\n          env:\n            - {name: VLLM_API_KEY, valueFrom: {secretKeyRef: {name: vllm-api-key, key: key}}}\n            - {name: HF_HOME, value: /cache}\n          ports:\n            - {name: http, containerPort: 8000}\n          resources:\n            requests: {cpu: \"3\", memory: 12Gi, ephemeral-storage: 40Gi}\n            limits: {memory: 13Gi, nvidia.com/gpu: 1}\n          startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 180}\n          readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10}\n          volumeMounts:\n            - {name: shm, mountPath: /dev/shm}\n            - {name: cache, mountPath: /cache}\n      volumes:\n        - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}\n        - {name: cache, emptyDir: {}}\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: vllm\n  namespace: my-team\n  labels: {app: vllm}\nspec:\n  type: ClusterIP\n  selector: {app: vllm}\n  ports:\n    - {name: http, port: 8000, targetPort: http}"
+    "c": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: vllm\n  namespace: my-apps\n  labels: {app: vllm}\nspec:\n  replicas: 1\n  strategy: {type: Recreate}\n  selector:\n    matchLabels: {app: vllm}\n  template:\n    metadata:\n      labels: {app: vllm}\n    spec:\n      enableServiceLinks: false\n      tolerations:\n        - {key: multicloud.io/pool, operator: Exists, effect: NoSchedule}\n        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}\n      affinity:\n        nodeAffinity:\n          requiredDuringSchedulingIgnoredDuringExecution:\n            nodeSelectorTerms:\n              - matchExpressions:\n                  - {key: multicloud.io/pool, operator: Exists}\n      containers:\n        - name: vllm\n          image: vllm/vllm-openai:v0.31.0@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3\n          args: [\"--model\", \"Qwen/Qwen2.5-7B-Instruct\", \"--served-model-name\", \"qwen\",\n                 \"--dtype\", \"bfloat16\",\n                 \"--max-model-len\", \"8192\", \"--gpu-memory-utilization\", \"0.90\",\n                 \"--enforce-eager\", \"--api-key\", \"$(VLLM_API_KEY)\", \"--host\", \"::\", \"--port\", \"8000\"]\n          env:\n            - {name: VLLM_API_KEY, valueFrom: {secretKeyRef: {name: vllm-api-key, key: key}}}\n            - {name: HF_HOME, value: /cache}\n          ports:\n            - {name: http, containerPort: 8000}\n          resources:\n            requests: {cpu: \"3\", memory: 12Gi, ephemeral-storage: 40Gi}\n            limits: {memory: 13Gi, nvidia.com/gpu: 1}\n          startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 180}\n          readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10}\n          volumeMounts:\n            - {name: shm, mountPath: /dev/shm}\n            - {name: cache, mountPath: /cache}\n      volumes:\n        - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}\n        - {name: cache, emptyDir: {}}\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: vllm\n  namespace: my-apps\n  labels: {app: vllm}\nspec:\n  type: ClusterIP\n  selector: {app: vllm}\n  ports:\n    - {name: http, port: 8000, targetPort: http}"
    },
    {
     "h": "Deploy vLLM and wait",
     "who": "You, in a terminal",
     "d": "The first start takes up to about 20 minutes: a new GPU worker, the image and a 15 GB model download. The wait command returns when the model is loaded.",
-    "c": "kubectl -n my-team apply -f vllm-gpu.yaml\nkubectl -n my-team wait --for=condition=available deploy/vllm --timeout=30m",
-    "g": "To watch the progress, run kubectl -n my-team get pod -l app=vllm -o wide -w in another terminal. Press Ctrl+C to stop the watch."
+    "c": "kubectl -n my-apps apply -f vllm-gpu.yaml\nkubectl -n my-apps wait --for=condition=available deploy/vllm --timeout=30m",
+    "g": "To watch the progress, run kubectl -n my-apps get pod -l app=vllm -o wide -w in another terminal. Press Ctrl+C to stop the watch."
    },
    {
     "h": "Open the local port",
     "who": "You, in a second terminal",
     "d": "Open a new terminal (on Windows: a new Ubuntu window), point it at your cluster again (export KUBECONFIG=…), and run the command. Keep this terminal open while you send queries. Send the queries from your first terminal.",
-    "c": "kubectl -n my-team port-forward deploy/vllm 8000:8000"
+    "c": "kubectl -n my-apps port-forward deploy/vllm 8000:8000"
    },
    {
     "h": "Send your first query",
@@ -909,22 +963,22 @@ const STAGES_B = [
     "in": [
      "Confirm delete"
     ],
-    "c": "kubectl -n my-team delete -f vllm-gpu.yaml\nkubectl -n my-team delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-team\nmctl pool delete poc-gpu --yes"
+    "c": "kubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes"
    },
    {
     "h": "Check that nothing is left",
     "who": "You, in a terminal",
-    "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with the AWS profile of the connection (export AWS_PROFILE=<profile>).",
+    "d": "Wait a few minutes after the pool delete. Both commands must print nothing. If a Multicloud instance still shows after 15 minutes, tell your Multicloud contact. Replace <region> with the pool region (repeat the command for each region of the pool), and run it with an AWS sign-in to the account (export AWS_PROFILE=<profile>). A new account that Multicloud's Terraform made: skip the aws command if you have no sign-in there; closing the account in the next step removes everything in it.",
     "c": "kubectl get mutatingwebhookconfigurations,validatingwebhookconfigurations | grep liqo\naws ec2 describe-instances --region <region> \\\n  --filters Name=instance-state-name,Values=pending,running Name=tag-key,Values=multicloud-cluster-id \\\n  --query 'Reservations[].Instances[].[InstanceId,InstanceType]' --output text"
    },
    {
     "h": "Keep or remove the AWS connection",
     "who": "You decide",
-    "d": "To continue after the PoC, keep it. To remove it: disconnect the account, which stops Multicloud and removes what it created in your account. Then remove the IAM role from the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile. Type yes when OpenTofu asks.",
+    "d": "To continue after the PoC, keep it. To remove it, run the commands in the folder you made when you connected AWS (the folder with multicloud.tf), with the same AWS profile. Path A (a new account that Multicloud's Terraform created): mctl cloud-account destroy disconnects the account, waits until Multicloud has cleaned up, removes the role and closes the AWS account. AWS keeps a closed account for 90 days, and its email cannot be used for a new AWS account again. Path B (an account you have): disconnect first, then tofu state list: if it lists only data.* and random_id, there is nothing to destroy; otherwise run tofu destroy and type yes. Each path asks you to confirm.",
     "in": [
      "Keep or remove"
     ],
-    "c": "mctl cloud-account disconnect <cloud-account-id> --wait\ncd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\ntofu destroy"
+    "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\n# Path A: a new account that Multicloud's Terraform created (closes the account)\nmctl cloud-account destroy <cloud-account-id>\n# Path B: an account you have (removes the role)\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\ntofu destroy"
    }
   ]
  }

@@ -5,7 +5,8 @@
 
 Fails when a flow file or doors.json does not parse, a `refs` / `os_stage` entry
 ("<flow-basename>#<stage-id>") names no real stage, a `detect` id is not in the
-contract list, or an `in[]` item has a bad shape.
+contract list, an `in[]` item has a bad shape, or an object repeats a key (JSON keeps
+only the last one, so the earlier text never reaches the agent, the page or the console).
 """
 import json
 import pathlib
@@ -16,10 +17,20 @@ DETECT = {"organization", "cloud_account", "pool_created", "pool_ready",
           "peering_created", "peering_ready", "cleanup", "quota_gpu"}
 errs = []
 stages = {}
+
+
+def no_dup_keys(pairs):
+  keys = [k for k, _ in pairs]
+  dups = sorted({k for k in keys if keys.count(k) > 1})
+  if dups:
+    raise ValueError(f"duplicate key(s) {dups} in an object with id {dict(pairs).get('id')!r}")
+  return dict(pairs)
+
+
 step_doors = []
 for f in sorted(ROOT.glob("plugins/*/skills/*/flows/*.json")):
   try:
-    d = json.loads(f.read_text())
+    d = json.loads(f.read_text(), object_pairs_hook=no_dup_keys)
   except ValueError as e:
     errs.append(f"{f.name}: {e}")
     continue

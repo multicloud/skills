@@ -21,7 +21,7 @@
      "h": "Open Ubuntu",
      "who": "You",
      "d": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password; the agent cannot run commands in Ubuntu until you do this. Then say \"done\". Run every later command on this page in this Ubuntu window.",
-     "d_human": "How to use the Ubuntu window: Open it from the Start menu (type Ubuntu), or type wsl in PowerShell. Paste with a right-click (Ctrl+V and Ctrl+Shift+V may print ^V and do nothing in this window). Copy by selecting the text with the mouse, then right-click or press Enter. Ctrl+C does NOT copy: it stops the running command. If the right-click paste fails: right-click the PowerShell title bar, Properties, Options, tick 'Use Ctrl+Shift+C/V as Copy/Paste', OK, then reopen the window; paste with Ctrl+Shift+V. Passwords do not show on screen while you type; that is normal. Press Enter after the password.",
+     "d_human": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window. How to use the Ubuntu window: Open it from the Start menu (type Ubuntu), or type wsl in PowerShell. Paste with a right-click (Ctrl+V and Ctrl+Shift+V may print ^V and do nothing in this window). Copy by selecting the text with the mouse, then right-click or press Enter. Ctrl+C does NOT copy: it stops the running command. If the right-click paste fails: right-click the PowerShell title bar, Properties, Options, tick 'Use Ctrl+Shift+C/V as Copy/Paste', OK, then reopen the window; paste with Ctrl+Shift+V. Passwords do not show on screen while you type; that is normal. Press Enter after the password.",
      "in": [
       "Linux user name",
       {
@@ -29,8 +29,7 @@
        "secret": true
       }
      ],
-     "c": "sudo apt update && sudo apt install -y curl unzip jq openssl ca-certificates",
-     "d_human": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window."
+     "c": "sudo apt update && sudo apt install -y curl unzip jq openssl ca-certificates"
     }
    ]
   },
@@ -117,10 +116,11 @@
     {
      "id": "add-skills",
      "who_kind": "ask",
-     "h": "Add the Multicloud skills (if your AI supports skills)",
+     "h": "Add the Multicloud onboarding skill (if your AI supports skills)",
      "who": "You, in a terminal",
-     "d": "The skills teach your AI the steps for connecting AWS and getting GPU quota. They are public at github.com/multicloud/skills. Example for Claude Code:",
-     "c": "claude plugin marketplace add multicloud/skills\nclaude plugin install multicloud-connect-aws@multicloud\nclaude plugin install multicloud-quota@multicloud"
+     "d": "Recommended. The multicloud-onboarding skill runs this whole page with you: it asks what you want to run, checks your computer, connects your AWS account, requests quota and runs the first workload. It asks before each change, and keeps a ledger so you can continue after a quota wait. Example for Claude Code (the skills are public at github.com/multicloud/skills):",
+     "c": "claude plugin marketplace add multicloud/skills\nclaude plugin install multicloud-onboarding@multicloud",
+     "g": "Restart Claude Code after the install (claude --continue), then say: “Run the Multicloud GPU PoC”. To update: claude plugin marketplace update multicloud, then claude plugin update multicloud-onboarding@multicloud, then restart."
     }
    ]
   },

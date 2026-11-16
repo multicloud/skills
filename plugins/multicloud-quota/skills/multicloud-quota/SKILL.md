@@ -120,8 +120,9 @@ limits and regions do not change. Ask which of the two they want before any fili
 ## Without consent: the customer files
 
 When the owner does not allow quota requests, the customer files the same plan with their own AWS
-sign-in. The steps are in `flows/gpu-quota-own-cli.json` next to this file (the GPU PoC form:
-on-demand G and VT vCPUs in one region).
+sign-in. The steps are the path B steps (`read-quota`, `request-quota`) in
+`flows/gpu-quota-own-cli.json` next to this file (the GPU PoC form: on-demand G and VT vCPUs in one
+region). Path A of that flow is the consent path above (`quota-plan`, then `quota-request` after a yes).
 
 1. Plan as in steps 1 to 3. Take the quota code, the region and the new limit from the plan data,
    not from memory. The flow's code is the one for on-demand G and VT instances; for another quota,

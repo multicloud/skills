@@ -89,9 +89,10 @@ default region. `AWS_PROFILE=<name>` selects it. Then go through these steps, on
      IAM Identity Center console, under **Settings**.
    - **SSO region:** the region of IAM Identity Center, on the same page.
    - **Registration scopes:** keep the default.
-   - The browser opens. They sign in, then select the AWS account and a role that can create IAM
-     roles and policies: for example `AdministratorAccess`, or a narrower role from their AWS
-     administrator.
+   - Run it as `aws configure sso --use-device-code`: it prints a link and a code; they open the link
+     in any browser and sign in. Then they select the AWS account and a role that can create IAM
+     roles and policies: `AdministratorAccess`, or a narrower role from their AWS administrator. Not
+     `SystemAdministrator`: it cannot create IAM roles.
    - **Default client region:** the first region they will give to Multicloud.
    - **Output format:** keep the default.
    - **Profile name:** a name that `aws configure list-profiles` does not show yet (an existing
@@ -134,6 +135,10 @@ the console (or asks Multicloud support).
 
 Run `mctl cloud-account list`.
 
+A new AWS account that Multicloud's Terraform creates (path A of the flow's `connect` stage): use
+`multicloud-aws-account-setup`, Step 0 (`create --new-account-email`, then `apply --plan-only`, one
+yes, `apply --yes`). Then continue here at step 5.
+
 - The AWS account is listed: note its number (first column). Find its folder (the one with
   `multicloud.tf` whose `account_row_id` is that number). Ask the user if you cannot find it.
   Status `verified`: run `mctl cloud-account verify <n> --wait` and go to step 5 (the user may
@@ -174,7 +179,7 @@ Run `mctl cloud-account list`.
     them, tell the user that this `mctl` cannot record the choice, and ask them to upgrade
     (`pipx upgrade multicloud-cli`). Do not run `create` without the flag after a "no".
 - Ask also: "Allow Multicloud to request higher AWS quotas in this account later, after you approve
-  each request?" (default no). Yes lets skill `multicloud-quota` file the requests you approve; no
+  each request?" (recommend yes: the guide's quota stage uses this path; the CLI's own default is no). Yes lets skill `multicloud-quota` file the requests you approve; no
   means you file them yourself with your own AWS sign-in. Only an organization owner can allow it. Yes: pass
   `--allow-quota-requests`; no: pass `--no-allow-quota-requests`. Always pass one: without a
   terminal, `mctl` takes no. The user can change it later with

@@ -196,7 +196,7 @@ footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px
     <figure class="dg" id="d-path"><figcaption>The path of one request with port-forward.</figcaption></figure>
 
     <div class="twocol">
-      <div class="cmd"><span class="tag">curl (in your first terminal)</span><pre>export KEY=$(kubectl -n my-team get secret vllm-api-key \
+      <div class="cmd"><span class="tag">curl (in your first terminal)</span><pre>export KEY=$(kubectl -n my-apps get secret vllm-api-key \
   -o jsonpath='{.data.key}' | base64 -d)
 
 curl -s http://localhost:8000/v1/chat/completions \
@@ -345,7 +345,7 @@ const DIAGRAMS = {
 
   run: svg(270, [
     zone(10, 12, 300, 240, "Your cluster"),
-    box(30, 46, 260, 58, "Deployment vllm", "namespace my-team · 1 GPU", "you"),
+    box(30, 46, 260, 58, "Deployment vllm", "namespace my-apps · 1 GPU", "you"),
     box(30, 160, 260, 58, "Virtual node: poc-gpu", "the pod is placed here", "you"),
     edge([[160, 104], [160, 160]], "scheduled", { at: [200, 136] }),
     zone(410, 12, 300, 152, "Your AWS account"),
