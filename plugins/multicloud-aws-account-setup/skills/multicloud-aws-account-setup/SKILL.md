@@ -28,6 +28,27 @@ Follow them in the order of this file. The `who_kind` field of a step says who d
 4. **Never type into a password or MFA field**, and ask before you accept AWS terms or create an AWS
    organization.
 
+## Step 0: Dedicated sub-account (preferred)
+
+Policy: Multicloud runs in a **separate AWS account** for the PoC. Offer this first, before any
+existing account is used. Explain in one line: "A new account keeps the PoC apart from your current
+work, and you can close it later."
+
+- **Using AWS Organizations** (the user's management account): create a member account named for the
+  PoC (for example `multicloud-poc`) with a new email address that the user owns. Console: AWS
+  Organizations → Accounts → Add an AWS account → Create an AWS account. Or Terraform in the
+  management account: `resource "aws_organizations_account" "poc"` with `name`, `email` and
+  `role_name = "OrganizationAccountAccessRole"`. The Terraform user needs `organizations:CreateAccount`.
+- **Without an organization:** the user creates a new AWS account with a new email address
+  (aws.amazon.com → Create an AWS account), then continues with Step 1 in that account.
+
+Ask before you create anything: an organization, an account, or Terraform apply. The account's
+billing is the user's. Then carry the new account ID into `multicloud-connect-aws` as
+`aws_account_choice=new`.
+
+If the user wants to keep an existing account, skip Step 0 and stop before Step 1: the user must
+approve the warning in `multicloud-connect-aws`, Rule 6, first.
+
 ## Step 1: Choose the path
 
 First ask: "Can you sign in to this AWS account with an identity that is not the root user and can

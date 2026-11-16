@@ -32,6 +32,19 @@ missing permissions.
    account is listed, use that number and its folder. Never `create --force`.
 5. **Keep the folder.** The folder with `multicloud.tf` holds the Terraform state of the role.
    Never delete it, never move the state, never run `destroy` unless the user asks to disconnect.
+6. **Dedicated account first (policy).** Multicloud runs GPU and CPU workloads and creates IAM roles
+   in the account. Prefer a **new dedicated sub-account** for the PoC, created with Terraform or the
+   steps in skill `multicloud-aws-account-setup` (Step 0). Do not connect an **existing** account
+   unless the user has heard this warning and explicitly approves it:
+   > Warning: this account would get a Multicloud IAM role that can start and stop compute and
+   > request quota. Existing workloads and their permissions share the account. Removing the
+   > connection later means `destroy` of the role. Option: a new sub-account, which keeps the PoC
+   > apart from your current work.
+
+   Ask one question: "Use a new dedicated account (recommended), or connect the existing account
+   `<id>` after this warning?" Record the answer in the ledger as `aws_account_choice=new|existing`
+   and `aws_existing_approved=yes` only on an explicit yes. A "yes" to another question is not an
+   approval. No approval: stop with `status=blocked who=user`.
 
 ## Step 1: Check the tools
 

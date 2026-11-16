@@ -31,6 +31,11 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
    names the check). Suggest only what is missing, and say what you found first.
 6. **Use the focused skill for each step.** Do not improvise commands. When a skill and your memory
    disagree, the skill wins; when a tool's live answer and a skill disagree, the live answer wins.
+7. **Dedicated AWS account first.** Multicloud works in a separate sub-account for the PoC. Never
+   connect an existing AWS account without the explicit warning and approval in
+   `multicloud-connect-aws`, Rule 6. Never run a connect step, `create`, or `apply` for an account
+   the user has not chosen in writing. Record `aws_account_choice` in the ledger. Do not skip this
+   because the user "already has SSO": SSO is a sign-in, not a choice of account.
 
 ## The focused skills
 
@@ -127,6 +132,10 @@ laptop", "my k3s cluster"), and write that answer to the ledger. Ask only what i
    user to the customer guide (`mctl cloud-account create --cloud GCE|AZURE`) and stop.
 3. **AWS account.** Brand new (only the root login) · Existing, I sign in with single sign-on ·
    Existing, I have an IAM user or access key · I do not know.
+   Whatever the answer, first offer a **new dedicated sub-account** for the PoC
+   (`multicloud-aws-account-setup`, Step 0). Only if the user keeps an existing account: show the
+   warning in `multicloud-connect-aws`, Rule 6, and continue only after an explicit yes. Write
+   `aws_account_choice` and the approval to the ledger.
 4. **Computer.** macOS · Linux · Windows.
 5. Extend only: **Cluster.** My cluster works with `kubectl` now · I have a cluster but no access yet
    (the administrator must give a kubeconfig file and cluster-admin rights: continue, and stop
