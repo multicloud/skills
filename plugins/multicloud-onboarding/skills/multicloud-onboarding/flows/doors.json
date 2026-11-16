@@ -89,6 +89,13 @@
      ]
     },
     {
+     "id": "proxy",
+     "title": "Reach the pool from your cluster",
+     "refs": [
+      "extend#proxy"
+     ]
+    },
+    {
      "id": "cleanup",
      "title": "Clean up",
      "refs": [
@@ -183,6 +190,13 @@
      "title": "Burst a pod to the pool",
      "refs": [
       "extend#run-cpu-burst"
+     ]
+    },
+    {
+     "id": "proxy",
+     "title": "Reach the pool from your cluster",
+     "refs": [
+      "extend#proxy"
      ]
     },
     {

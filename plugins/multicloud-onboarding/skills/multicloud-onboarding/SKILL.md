@@ -113,7 +113,7 @@ Format (IDs and states only, nothing secret):
   "facts": {"org_id": "acme", "wsl_distro": "Ubuntu", "aws_profile": "poc", "aws_account_id": "123456789012",
             "region": "us-east-1", "cloud_account_id": 7,
             "connection_dir": "/home/ana/multicloud-aws", "kubeconfig": "/home/ana/.kube/config-poc",
-            "kube_context": "default", "pool": "poc-gpu", "peering_id": 31},
+            "kube_context": "default", "pool": "poc-gpu", "peering_id": 31, "proxy": "ready"},
   "results": {"multicloud-connect-aws": "MULTICLOUD-RESULT skill=multicloud-connect-aws status=done cloud_account_id=7 connection_dir=/home/ana/multicloud-aws"},
   "updated": "2026-11-15T14:02:00Z"
 }
@@ -181,8 +181,8 @@ Skip a skill whose result in the ledger is `done` and whose live state agrees.
 
 | Door | Order |
 |---|---|
-| Extend, GPU LLM | workstation → aws-account-setup (if Q3 is new, or no working AWS CLI sign-in) → connect-aws → quota (goal: one on-demand L4 or A10G GPU) → extend `cluster` → advisor (optional) → extend pool, peering, run, cleanup (profile `gpu-llm`) |
-| Extend, CPU | workstation → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → extend `cluster` → advisor (optional) → extend pool, peering, run, cleanup (profile `cpu-burst`) |
+| Extend, GPU LLM | workstation → aws-account-setup (if Q3 is new, or no working AWS CLI sign-in) → connect-aws → quota (goal: one on-demand L4 or A10G GPU) → extend `cluster` → advisor (optional) → extend pool, peering, run, proxy, cleanup (profile `gpu-llm`) |
+| Extend, CPU | workstation → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → extend `cluster` → advisor (optional) → extend pool, peering, run, proxy, cleanup (profile `cpu-burst`) |
 | CI runners | workstation (no kubectl, no helm) → aws-account-setup (if needed) → connect-aws → quota (only if `quota_low`) → ci-pool |
 
 The account is already connected and verified (live state), but no connect-aws result is in the

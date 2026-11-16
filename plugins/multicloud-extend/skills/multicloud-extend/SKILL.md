@@ -114,36 +114,7 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 5. `gpu-llm`: `check-gpu` must print `1` (empty in the first two minutes is normal; retry).
    `cpu-burst`: `check-virtual-node` must show `Ready` and the pool slug.
 
-## Step 4: Reach the pool from your cluster (stage `proxy`)
-
-The Extend proxy lets a pod or Service in the cluster call a pod on the pool. It runs for **every**
-use case, after the first workload (`run-gpu-llm` or `run-cpu-burst`), because its route points at
-that workload's namespace (`my-apps`) and Service (`vllm`). That namespace must already be offloaded.
-Steps in order:
-1. `proxy-key` (user, owner, secret): the user creates an API key with scope `extend:proxy` only.
-   Wait for the user to say it is done. Never ask for the key.
-2. `proxy-manifest` (ask): ask for the path of `extend-proxy.yaml` and the release image tag. Both come
-   from Multicloud; there is no public download, so do not invent either. The agent copies the file to
-   `~/multicloud-onboarding/`, fills in the image tag, pool, peering ID and the route (`my-apps`,
-   `vllm`, port 8000), checks no placeholder is left, dry-runs the apply, shows you the result, and
-   applies only on your yes. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
-3. `proxy-secret` (user, secret): the user types the key at the prompt of their own terminal (the
-   command reads it without echo). Wait for the user to say it is done.
-4. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.
-5. `proxy-restart` (optional, ask): only for offloaded workloads that already run. None on a first run.
-6. `proxy-test` (agent): run it only after the first workload is up on the pool (`deploy-vllm` in
-   `run-gpu-llm`, or `burst-pod` in `run-cpu-burst`). Before that, leave it and come back.
-
-Notes for the user:
-- `HOST_FIREWALL_OFF` in the proxy log: ask Multicloud to turn on the pool network. The proxy retries.
-- The replicas show NotReady while the pool sleeps. Do not act; they become Ready when the pool wakes.
-- An offloaded pod not restarted since the chart change has no address. Restart it (`proxy-restart`).
-
-If the user declines the proxy: say that a pod in the cluster calling a pod on the pool will not
-work, and record `proxy=skipped`. If the check fails and cannot be fixed, record `proxy=blocked`
-and ask the Multicloud contact.
-
-## Step 5: First workload
+## Step 4: First workload
 
 - `gpu-llm` (stage `run-gpu-llm`): `offload-namespace`, `model-api-key`, `save-manifest` (write
   `assets/vllm-gpu.yaml` unchanged to `vllm-gpu.yaml` in the working folder), `deploy-vllm` (wait
@@ -157,11 +128,46 @@ and ask the Multicloud contact.
 - `cpu-burst` (stage `run-cpu-burst`): `offload-namespace`, `burst-pod` with the pool slug. Done
   when the log says `hello from the pool`.
 
+## Step 5: Reach the pool from your cluster (stage `proxy`)
+
+The Extend proxy lets a pod or Service in the cluster call a pod on the pool. It runs for **every**
+use case, after the first workload (`run-gpu-llm` or `run-cpu-burst`), because its route points at
+that workload's namespace (`my-apps`) and Service (`vllm`). That namespace must already be offloaded.
+Steps in order:
+1. `proxy-key` (user, owner, secret): the user creates the key in the console (Account › API keys ›
+   Create a key, only the free **Extend proxy** scope, Pools: None). Wait for the user to say it is
+   done. Never ask for the key.
+2. `proxy-target` (ask, `cpu-burst` only): the burst pod exits, so run the small `hello` web service
+   (port 8080) on the pool in `my-apps`. The CPU route points at it.
+3. `proxy-manifest` (ask; `proxy-manifest-cpu` for `cpu-burst`, route `hello` port 8080): ask for the path of `extend-proxy.yaml` and the release image tag. Both come
+   from Multicloud; there is no public download, so do not invent either. The agent copies the file to
+   `~/multicloud-onboarding/`, fills in the image tag, pool, peering ID and the route (`my-apps`,
+   `vllm`, port 8000), checks no placeholder is left, dry-runs the apply, shows you the result, and
+   applies only on your yes. The `sed -i.bak` form works with GNU sed and macOS sed. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
+4. `proxy-secret` (user, secret): the user types the key at the prompt of their own terminal (the
+   command reads it without echo). Wait for the user to say it is done.
+5. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.
+6. `proxy-restart` (optional, ask): only for offloaded workloads that already run. None on a first run.
+7. `proxy-test` (agent): run it only after the first workload is up on the pool (`deploy-vllm` in
+   `run-gpu-llm`, or `proxy-target` for `cpu-burst`). Any HTTP status means the path works (vLLM
+   answers 401 without its key).
+
+Notes for the user:
+- `HOST_FIREWALL_OFF` in the proxy log: ask Multicloud to turn on the pool network. The proxy retries.
+- The replicas show NotReady while the pool sleeps. Do not act; they become Ready when the pool wakes.
+- An offloaded pod not restarted since the chart change has no address. Restart it (`proxy-restart`).
+
+If the user declines the proxy: say that a pod in the cluster calling a pod on the pool will not
+work, and record `proxy=skipped`. If the check fails and cannot be fixed, record `proxy=blocked`
+and ask the Multicloud contact.
+
 ## Pause, resume, clean up
 
 - Stop for the day: `mctl pool hibernate <pool>` (ask). Resume: `mctl pool wake <pool> --wait`. A
   peering cannot be created on a hibernated pool (409 `POOL_HIBERNATED`).
-- Clean up only when the user asks: stage `cleanup`, in the order of the flow (for `cpu-burst`, skip
+- Clean up only when the user asks: stage `cleanup`, in the order of the flow. The proxy goes first
+  (`kubectl delete namespace multicloud-extend-proxy`): when it stops, it removes its registration with
+  its key. Then the user revokes the `extend-proxy` key in the console (for `cpu-burst`, skip
   the vLLM lines and use pool `burst`). Put the real region, AWS profile and connection folder
   (from the onboarding ledger or skill `multicloud-connect-aws`) into the `<…>` placeholders. Ask once for the whole list and say that the pool delete
   cannot be undone. Stop the background port-forward first:
