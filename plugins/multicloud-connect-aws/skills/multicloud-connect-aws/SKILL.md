@@ -137,7 +137,12 @@ Run `mctl cloud-account list`.
 - The AWS account is listed: note its number (first column). Find its folder (the one with
   `multicloud.tf` whose `account_row_id` is that number). Ask the user if you cannot find it.
   Status `verified`: run `mctl cloud-account verify <n> --wait` and go to step 5 (the user may
-  only want the check). Other status: go to step 4.
+  only want the check). Status `revoked`: **stop and ask before anything else.** Run
+  `mctl cloud-account show <n>` and read the `Reason:` and `Connected:` lines to the user. A
+  revoked account was disconnected on purpose (for example, by an organization owner), so do not
+  re-connect it on your own. Re-connecting needs the owner's decision and the user's explicit yes,
+  after the warning in Rule 6. Also ask whether a new dedicated account is the better choice.
+  Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
   may use (it starts machines only there). Name the regions again in the apply question.
 - Ask also: "Turn on the AWS opt-in regions in this account?" (default yes). Opt-in regions (for
