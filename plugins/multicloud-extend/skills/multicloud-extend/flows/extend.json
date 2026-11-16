@@ -36,8 +36,8 @@
             "Pod CIDR",
             "Service CIDR"
           ],
-          "c": "# any cluster: Kubernetes 1.33 or later\nkubectl get servicecidrs -o custom-columns=NAME:.metadata.name,CIDRS:.spec.cidrs\nkubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDRS:.spec.podCIDRs\n# kubeadm clusters: the whole pod range\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
-          "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
+          "c": "kubectl get servicecidrs -o custom-columns=NAME:.metadata.name,CIDRS:.spec.cidrs\nkubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDRS:.spec.podCIDRs\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
+          "g": "The first two commands work on any cluster with Kubernetes 1.33 or later. The last command works on kubeadm clusters and shows the whole pod range. k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
         },
         {
           "id": "pod-proxy",
@@ -212,7 +212,7 @@
           "h": "Save the connection file",
           "who": "You, in a terminal",
           "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
-          "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      status=$(jq -r .status peering.json); echo \"Status: $status\"\n      [ \"$status\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
+          "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      st=$(jq -r .status peering.json); echo \"Status: $st\"\n      [ \"$st\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
           "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again.",
           "detect": "peering_ready",
           "in": [
@@ -393,7 +393,7 @@
           "who_kind": "ask",
           "h": "Fill and apply the proxy manifest",
           "who": "You, with the file from Multicloud (the agent edits the copy)",
-          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service vllm, port 8000) from this ledger, and shows you the result. It applies the file only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
+          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service vllm, port 8000) from this ledger, and shows you the result. The grep line prints nothing when every placeholder is filled. The agent runs the last line (kubectl apply) only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
           "in": [
             {
               "label": "Path to extend-proxy.yaml (from Multicloud)",
@@ -404,7 +404,7 @@
               "placeholder": "<image-tag>"
             }
           ],
-          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\ncp \"<path-to-extend-proxy.yaml>\" \"$F\" && chmod 600 \"$F\"\nsed -i.bak -e 's|multicloud/extend-proxy:<tag>|multicloud/extend-proxy:<image-tag>|' -e 's|pool: <pool name>|pool: <pool>|' -e 's|peering_id: <peering id>|peering_id: <peering-id>|' -e 's|{listen_port: 8000, namespace: demo, service: vllm, port: 8000}|{listen_port: 8000, namespace: my-apps, service: vllm, port: 8000}|' -e 's|namespace: demo[[:space:]]*$|namespace: my-apps|' \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n -e '<' -e 'demo'   # prints nothing when every placeholder is filled\nkubectl apply --dry-run=server -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
+          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\ncp \"<path-to-extend-proxy.yaml>\" \"$F\" && chmod 600 \"$F\"\nsed -i.bak -e 's|multicloud/extend-proxy:<tag>|multicloud/extend-proxy:<image-tag>|' -e 's|pool: <pool name>|pool: <pool>|' -e 's|peering_id: <peering id>|peering_id: <peering-id>|' -e 's|{listen_port: 8000, namespace: demo, service: vllm, port: 8000}|{listen_port: 8000, namespace: my-apps, service: vllm, port: 8000}|' -e 's|namespace: demo[[:space:]]*$|namespace: my-apps|' \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n -e '<' -e 'demo'\nkubectl apply --dry-run=server -f \"$F\"\nkubectl apply -f \"$F\"",
           "g": "An install from an older copy of the file used the names extend-proxy-discovery. Only if they exist: kubectl -n my-apps get role,rolebinding extend-proxy-discovery. If they do, delete them after your yes (deletes cannot be undone).",
           "doors": [
             "extend-gpu"
@@ -415,7 +415,7 @@
           "who_kind": "ask",
           "h": "Fill and apply the proxy manifest",
           "who": "You, with the file from Multicloud (the agent edits the copy)",
-          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service hello, port 8080, from the step before) from this ledger, and shows you the result. It applies the file only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
+          "d": "Ask Multicloud for two things: the file extend-proxy.yaml and the image tag of the release. There is no public download. The agent copies the file to ~/multicloud-onboarding (inside Ubuntu on Windows), fills in the pool, the peering ID and the route (my-apps, Service hello, port 8080, from the step before) from this ledger, and shows you the result. The grep line prints nothing when every placeholder is filled. The agent runs the last line (kubectl apply) only on your yes. This stage runs after the first workload, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second proxy in the same cluster needs its own copy with its own namespace.",
           "in": [
             {
               "label": "Path to extend-proxy.yaml (from Multicloud)",
@@ -426,7 +426,7 @@
               "placeholder": "<image-tag>"
             }
           ],
-          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\ncp \"<path-to-extend-proxy.yaml>\" \"$F\" && chmod 600 \"$F\"\nsed -i.bak -e 's|multicloud/extend-proxy:<tag>|multicloud/extend-proxy:<image-tag>|' -e 's|pool: <pool name>|pool: <pool>|' -e 's|peering_id: <peering id>|peering_id: <peering-id>|' -e 's|{listen_port: 8000, namespace: demo, service: vllm, port: 8000}|{listen_port: 8000, namespace: my-apps, service: hello, port: 8080}|' -e 's|namespace: demo[[:space:]]*$|namespace: my-apps|' \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n -e '<' -e 'demo'   # prints nothing when every placeholder is filled\nkubectl apply --dry-run=server -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
+          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\ncp \"<path-to-extend-proxy.yaml>\" \"$F\" && chmod 600 \"$F\"\nsed -i.bak -e 's|multicloud/extend-proxy:<tag>|multicloud/extend-proxy:<image-tag>|' -e 's|pool: <pool name>|pool: <pool>|' -e 's|peering_id: <peering id>|peering_id: <peering-id>|' -e 's|{listen_port: 8000, namespace: demo, service: vllm, port: 8000}|{listen_port: 8000, namespace: my-apps, service: hello, port: 8080}|' -e 's|namespace: demo[[:space:]]*$|namespace: my-apps|' \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n -e '<' -e 'demo'\nkubectl apply --dry-run=server -f \"$F\"\nkubectl apply -f \"$F\"",
           "g": "An install from an older copy of the file used the names extend-proxy-discovery. Only if they exist: kubectl -n my-apps get role,rolebinding extend-proxy-discovery. If they do, delete them after your yes (deletes cannot be undone).",
           "doors": [
             "extend-cpu"
@@ -446,7 +446,7 @@
               "secret": true
             }
           ],
-          "c": "printf 'extend:proxy key: '; stty -echo; IFS= read -r PK; stty echo; echo   # bash and zsh (macOS, Linux, WSL)\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
+          "c": "printf 'extend:proxy key: '; stty -echo; IFS= read -r PK; stty echo; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
         },
         {
           "id": "proxy-check",
@@ -461,8 +461,8 @@
           "who_kind": "ask",
           "h": "Restart offloaded workloads that already run",
           "who": "You, in a terminal",
-          "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
-          "c": "kubectl -n my-apps rollout restart deployment/<name>      # also statefulset\nkubectl -n my-apps get pods -o wide                        # the IP column shows an fd00:244:... address",
+          "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. Restart each deployment (or statefulset) in my-apps. After the restart, the IP column shows an fd00:244:... address. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
+          "c": "kubectl -n my-apps rollout restart deployment/<name>\nkubectl -n my-apps get pods -o wide",
           "optional": true
         },
         {
@@ -486,11 +486,11 @@
           "who_kind": "ask",
           "h": "Remove the PoC from your cluster and Multicloud",
           "who": "You confirm each delete",
-          "d": "Stop the port-forward first (Ctrl+C). The proxy goes first: when it stops, it removes its registration with its key. Then revoke the extend-proxy key in Account › API keys. Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
+          "d": "Stop the port-forward first (Ctrl+C). The proxy goes first: when it stops, it removes its registration with its key. Then revoke the extend-proxy key in Account › API keys. Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. After the bundle delete, Liqo cannot clear its own finalizers, so the for loop clears them. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
           "in": [
             "Confirm delete"
           ],
-          "c": "kubectl delete namespace multicloud-extend-proxy --ignore-not-found   # the proxy removes its registration when it stops\nkubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes",
+          "c": "kubectl delete namespace multicloud-extend-proxy --ignore-not-found\nkubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes",
           "detect": "cleanup"
         },
         {
@@ -510,7 +510,7 @@
           "in": [
             "Approve: close the AWS account"
           ],
-          "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account destroy <cloud-account-id>",
+          "c": "cd <connection-folder>\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account destroy <cloud-account-id>",
           "optional": true
         },
         {
@@ -522,7 +522,7 @@
           "in": [
             "Approve: disconnect and remove the role"
           ],
-          "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\nTF_VAR_multicloud_connect_token=unused tofu destroy",
+          "c": "cd <connection-folder>\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\nTF_VAR_multicloud_connect_token=unused tofu destroy",
           "optional": true
         }
       ]

@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "multicloud-extend",
   "description": "Give your own Kubernetes cluster cloud nodes or a cloud GPU with Multicloud Extend: cluster checks, pool, peering, connector install, and a first vLLM or burst workload, with the bundle read once and kept private.",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "author": {
     "name": "Multicloud",
     "url": "https://multicloud.io"
