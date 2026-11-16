@@ -34,11 +34,19 @@ Policy: Multicloud runs in a **separate AWS account** for the PoC. Offer this fi
 existing account is used. Explain in one line: "A new account keeps the PoC apart from your current
 work, and you can close it later."
 
-- **Using AWS Organizations** (the user's management account): create a member account named for the
-  PoC (for example `multicloud-poc`) with a new email address that the user owns. Console: AWS
-  Organizations → Accounts → Add an AWS account → Create an AWS account. Or Terraform in the
-  management account: `resource "aws_organizations_account" "poc"` with `name`, `email` and
-  `role_name = "OrganizationAccountAccessRole"`. The Terraform user needs `organizations:CreateAccount`.
+- **Using AWS Organizations** (the management account of the organization): the product's own path
+  is the one in the Multicloud console (`content/docs/connect-aws.md` in the `website` repo, section
+  "Connect a new AWS account"):
+  1. `mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1 --org <org>`
+     with a new email that no AWS account uses (a plus address such as `you+multicloud@…` usually
+     works). Type the email twice; a typo creates an account with the wrong email. This writes
+     `multicloud.tf` and `multicloud.auto.tfvars` in the folder (keep both).
+  2. Run Terraform in that folder with the **management account's** profile (for example
+     `AWS_PROFILE=<mgmt>`): `tofu init && tofu apply -target=module.multicloud_account`. This creates
+     the AWS account (a few minutes). Then `tofu apply` creates the Multicloud role in it. Each apply
+     asks for a yes from the user.
+  3. Multicloud gets no access to the management account. Only the user's Terraform run uses it.
+  If the CLI and the website differ, the website is the product's current path: check it first.
 - **Without an organization:** the user creates a new AWS account with a new email address
   (aws.amazon.com → Create an AWS account), then continues with Step 1 in that account.
 

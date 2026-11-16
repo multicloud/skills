@@ -266,6 +266,11 @@ again only when the target or the effect changes. Do not hand these commands to 
    it through `mctl cloud-account apply <n>` (or the token step it prints), never by hand. If the
    state lists only `data.*` and `random_id` (an apply that failed before creating anything), there
    is nothing to destroy: remove the local folder after the user's yes, and say so.
+3. **New account (created by Multicloud's Terraform):** the cleanup closes the AWS account, which is
+   stronger than the step above. Run `mctl cloud-account destroy <n>` only after an explicit yes that
+   names the account. It removes the role and closes the AWS account. AWS keeps a closed account for
+   90 days, and its email cannot be used for a new AWS account again. For an account the user
+   already had, step 2 is the cleanup.
 
 A `destroy` before step 1 can leave machines running and billed that Multicloud can no longer reach.
 
