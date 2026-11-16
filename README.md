@@ -64,7 +64,7 @@ Reserved names are listed here rather than as entries in
 
 ```bash
 claude plugin marketplace add multicloud/skills
-for p in onboarding workstation aws-account-setup connect-aws quota extend ci-pool; do
+for p in onboarding workstation aws-account-setup connect-aws quota extend ci-pool progress; do
   claude plugin install multicloud-$p@multicloud
 done
 ```

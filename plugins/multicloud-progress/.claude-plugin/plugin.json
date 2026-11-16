@@ -1,0 +1,6 @@
+{
+  "name": "multicloud-progress",
+  "version": "0.1.0",
+  "description": "Multicloud onboarding progress panel",
+  "types": "./types/index.d.ts"
+}
