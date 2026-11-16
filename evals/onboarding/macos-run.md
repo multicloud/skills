@@ -22,6 +22,10 @@ Approved spend cap: $1 per hour (the skill default is $1.50), 3 hours.
 | Extend cluster stage | PASS | can-i `yes`; one `validatingadmissionpolicies`; pod `192.168.194.0/25`, service `192.168.194.128/25`; egress 401/401/200 with `-i` (bug 3) |
 | Fractional GPU guard | PASS (not a bug) | cheapest on-demand L4 is `g6f.large` (1/8 GPU); `ServerResourcesConstraint.java:199` rejects fraction < 1 unless `allowFractional` is true |
 | Pool create | PASS | `Pool 1038 (poc-gpu) created. Status: PROVISIONING` |
+| GPU node for vLLM (12 Gi) | PASS after fix | scheduler: `Workload requires 12288MB but the node ceiling only allows 7168MB after overhead` (196 times); `mctl pool update poc-gpu --set max_memory_gb=16` → GPU node up (bug 5) |
+| Port-forward on OrbStack | FAIL (cluster, not skill) | `proxy error from 127.0.0.1:26443 while dialing 192.168.194.14:10250, code 502`; the apiserver gives 502 even to the CoreDNS pod IP (bug 7) |
+| Second consumer: kind (Kubernetes in Docker) | PASS | `apiserver->pod: OK`; `deployment.apps/vllm condition met`; `health=200`; first query → `Hello! How can I assist you today?` |
+| Cleanup | PASS after fix | peerings 25, 26 `REVOKED`; pool 1038 deleted; account 19 revoked, `No leftovers`; tenant namespace deleted with no hang after the finalizer patch (bug 6) |
 
 ## Skill bugs found
 
@@ -34,6 +38,22 @@ Approved spend cap: $1 per hour (the skill default is $1.50), 3 hours.
 4. extend cluster `cidrs`: covers kubeadm and k3s only. `kubectl get servicecidrs` (Kubernetes 1.33+)
    and the node `spec.podCIDRs` give both CIDRs on any cluster.
 
-## Not skill bugs (follow-ups for mctl)
+5. extend `pool`: a Kamaji pool caps each node at 4 × `min_memory_gb`, rounded down to the
+   4/8/16/32/64 GB tiers, minus 1024 MB. With the default, vLLM (12 Gi) never fits and the pool
+   buys no GPU node. The flow now sets `max_memory_gb` 16 at create (commit 0037f6a).
+6. extend `cleanup`: deleting the bundle removes the Liqo bridge, so Liqo cannot clear the
+   finalizers on `NamespaceMap` and `ResourceSlice`, and the tenant namespace hangs. The flow now
+   deletes the bundle before the revoke and clears those finalizers (commit 42d3ddb).
+7. extend cluster: no check that the API server can dial a pod IP. On OrbStack it cannot (502),
+   so `port-forward`, `logs` and `exec` to the pool fail. The new `pod-proxy` step calls
+   `kubectl get --raw .../pods/<coredns>:8080/proxy/health` and stops on anything but `ok`
+   (commit 42d3ddb).
+
+## Not skill bugs
 
 - `mctl cloud-account quota-plan` prints a raw Python dict on the `Request budget:` line.
+- `mctl peering create` prints `Next: mctl peering show …`. A person who runs it uses up the
+  fetch-once bundle, and the skill's bundle loop then fails.
+- Platform latency: on the kind run, GPU server 5528 (g6.xlarge) stayed `STARTING` for 31 minutes
+  before EC2 launched it (row 21:02 UTC, instance launch 21:33:43 UTC). Needs a scheduler check.
+- OrbStack Kubernetes cannot be a consumer cluster for Extend (bug 7). Use kind, k3d or a cloud cluster.
