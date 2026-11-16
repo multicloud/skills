@@ -68,7 +68,8 @@
      "d": "AWS can open a support case and ask for your use case. Reply: “Evaluation of LLM inference on one L4 or A10G GPU, on-demand, for about one week.”",
      "in": [
       "Reply to AWS"
-     ]
+     ],
+     "optional": true
     },
     {
      "id": "wait-approval",
