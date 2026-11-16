@@ -446,7 +446,7 @@
               "secret": true
             }
           ],
-          "c": "read -rs -p 'extend:proxy key: ' PK; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
+          "c": "printf 'extend:proxy key: '; stty -echo; IFS= read -r PK; stty echo; echo   # bash and zsh (macOS, Linux, WSL)\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
         },
         {
           "id": "proxy-check",
