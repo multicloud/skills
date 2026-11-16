@@ -11,7 +11,7 @@
      "who_kind": "ask",
      "h": "Install WSL2 with Ubuntu",
      "who": "The agent opens an administrator PowerShell after your yes; Windows asks you to approve it (UAC)",
-     "d": "Check first (no change, no admin needed): Get-CimInstance Win32_OptionalFeature -Filter \"Name='VirtualMachinePlatform'\" and the same for Name='Microsoft-Windows-Subsystem-Linux' (InstallState 1 = enabled, 2 = disabled, 3 = absent). Check the Ubuntu distro too: no entries under HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss means none installed. If both features are on, the feature step needs no restart: say so, and only the Ubuntu install is left. Only if a feature is off, after your yes, the agent starts an elevated PowerShell (Start-Process powershell -Verb RunAs) that runs the command and writes its output to a log file. You approve the Windows admin prompt on your screen. The install turns on the features WSL2 needs: they take effect after a restart, because Windows loads the WSL2 Linux kernel at boot. Restart only after you say yes to the restart; the agent saves the ledger first and tells you to run claude --continue after the restart.",
+     "d": "Check first (no change, no admin needed): Get-CimInstance Win32_OptionalFeature -Filter \"Name='VirtualMachinePlatform'\" and the same for Name='Microsoft-Windows-Subsystem-Linux' (InstallState 1 = enabled, 2 = disabled, 3 = absent). Check the Ubuntu distro too: no entries under HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss means none installed. If both features are on, the feature step needs no restart: say so, and only the Ubuntu install is left. Only if a feature is off, after your yes, the agent starts an elevated PowerShell (Start-Process powershell -Verb RunAs) that runs the command and writes its output to a log file. You approve the Windows admin prompt on your screen. The install turns on the features WSL2 needs: they take effect after a restart, because Windows loads the WSL2 Linux kernel at boot. A failed install stops with the log's last lines; the agent does not retry in a loop. Restart only if a feature was off before the install, and only after you say yes; the agent saves the ledger first. After the restart, the agent checks again: if no Ubuntu with VERSION 2 is listed, it runs this install again after your yes.",
      "c": "wsl --install -d Ubuntu"
     },
     {
@@ -19,7 +19,7 @@
      "who_kind": "user",
      "h": "Open Ubuntu",
      "who": "You",
-     "d": "Open Ubuntu from the Start menu. The first start asks you to make a Linux user name and password. Run every later command on this page in this Ubuntu window.",
+     "d": "After the install (and the restart, if one was needed), open Ubuntu from the Start menu once. The first start asks you to make a Linux user name and password; the agent cannot run commands in Ubuntu until you do this. Then say \"done\". Run every later command on this page in this Ubuntu window.",
      "in": [
       "Linux user name",
       "Linux password"

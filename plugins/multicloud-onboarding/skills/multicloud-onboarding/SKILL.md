@@ -68,11 +68,13 @@ every result line into the ledger before you start the next skill.
 works; see the check in `multicloud-workstation`, Step 1; `wsl.exe -l -v` printing usage text
 counts as "none"),
 run only the `windows` stage of `multicloud-workstation` first: the ledger lives inside
-WSL, and the WSL install ends with a Windows restart. Tell the user, in this order: (1) "Restart
-Windows now." (2) "After it restarts, open your WSL distro once (Ubuntu from the Start menu, or the one you chose) and set a Linux user name and password."
-(3) "Then quit Claude Code and start it again with `claude --continue` in PowerShell, so the
-Multicloud skills load. The skills are only loaded at the start of a session." (4) "Then say:
-continue my Multicloud onboarding." Then stop.
+WSL, and the WSL install may end with a Windows restart (only when a WSL feature was off; see the sequence in
+`multicloud-workstation`, Step 1). Tell the user, in this order: (1) "Restart Windows now."
+(2) "After it restarts, open PowerShell and run `claude --continue`, so the Multicloud skills
+load. The skills are only loaded at the start of a session." (3) The agent checks WSL again. If no
+Ubuntu is registered, it installs one after your yes. Then open Ubuntu once from the Start menu and
+set a Linux user name and password, and say "done." (4) "Then say: continue my Multicloud
+onboarding." Then stop.
 
 **Restart rule for every step.** Whenever a step installs or updates a plugin, or changes skill
 files, tell the user to restart Claude Code (`claude --continue`) before the next skill runs, and

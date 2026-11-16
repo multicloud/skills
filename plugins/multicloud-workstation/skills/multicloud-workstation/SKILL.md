@@ -63,21 +63,34 @@ On a Windows host shell:
   `Get-CimInstance Win32_OptionalFeature -Filter "Name='Microsoft-Windows-Subsystem-Linux'"`
   (InstallState 1 = enabled, 2 = disabled, 3 = absent) and the registered distros under
   `HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss` (empty = none).
-- No Ubuntu with VERSION 2: do stage `windows`. You can run PowerShell yourself, but every change
-  waits for the user's yes: first the read-only checks (`Get-CimInstance Win32_OptionalFeature` for
-  `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux`; `Get-WindowsOptionalFeature`
-  needs an elevated shell and takes one name per call, so do not use it for checks), then the
-  install. If both features are already enabled (InstallState 1), no feature restart is needed: say
-  so and only the Ubuntu install and its first start are left. If either is disabled (2), the
-  install enables it and a restart is needed before the distro works. The install
-  needs administrator rights: start an elevated PowerShell (`Start-Process powershell -Verb RunAs`)
-  and let the user approve the Windows admin prompt (UAC) on their screen; never type or pass the
-  user's password. Why a restart: when `wsl --install` turns on a Windows feature (the Linux subsystem or
-  Virtual Machine Platform, which run the WSL2 Linux kernel), Windows loads it only at boot. If the
-  checks show both features on, there is no such reason.
-  Ask before the restart, save the ledger first, then tell the user: after the restart, open Ubuntu
-  once and set a Linux user name and password, then restart Claude Code (`claude --continue`) so the
-  Multicloud skills load. A restart ends this session, so the next session resumes from the ledger.
+- No distro with VERSION 2: do stage `windows`. The agent runs the checks itself; every change
+  waits for the user's yes. The sequence:
+  1. **Check (read-only, no admin).** `Get-CimInstance Win32_OptionalFeature` for
+     `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` (InstallState 1 = enabled,
+     2 = disabled, 3 = absent). Do not use `Get-WindowsOptionalFeature` for checks: it needs an
+     elevated shell and takes one name per call. Then the distro list: `wsl.exe -l -v`, and
+     `HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss` (empty = none). Usage text means the
+     WSL Store app is missing, so there is no distro yet.
+  2. **Install (after a yes).** Start an elevated PowerShell (`Start-Process powershell -Verb RunAs`)
+     that runs `wsl --install -d Ubuntu` and writes its output to a log file. The user approves the
+     Windows admin prompt (UAC) on their screen; never type or pass their password. If the command
+     fails, show the log's last lines and stop with `status=failed`. Do not retry in a loop. Seen on
+     Windows 10 Home (2026-11-16): `wsl --install` ended with "Catastrophic failure" (exit 1), though
+     it had turned both features on.
+  3. **Restart, only if needed.** A feature that was disabled (2) before the install needs a Windows
+     restart, because Windows loads the WSL2 Linux kernel only at boot. If both features were already
+     on (1), no restart. Before any restart: save the ledger, then tell the user: "Restart Windows
+     now. After it restarts, open PowerShell and run `claude --continue`; then say: continue my
+     Multicloud onboarding."
+  4. **After a restart (new session), check again** with the step 1 checks. The distro list decides:
+     - A distro with VERSION 2 is listed: go to step 5.
+     - Features on, no distro (usage text or empty `Lxss`): the install did not finish. Run step 2
+       again after a yes.
+     - A feature still disabled (2): the restart did not apply it. Say so, and stop with
+       `status=failed`.
+  5. **First start (the user).** Open the distro once from the Start menu and set a Linux user name
+     and password. The agent cannot run commands in the distro before this. Ask the user to say
+     "done", then continue.
   A company policy that blocks WSL: stop with `status=blocked who=it`.
 - Run every later command as `wsl.exe -d <wsl_distro> -- bash -lc '<command>'`. For more than one
   line, write the lines to a script inside WSL (`~/multicloud-onboarding/run/<step>.sh`, by a
