@@ -142,6 +142,11 @@ Run `mctl cloud-account list`.
   revoked account was disconnected on purpose (for example, by an organization owner), so do not
   re-connect it on your own. Re-connecting needs the owner's decision and the user's explicit yes,
   after the warning in Rule 6. Also ask whether a new dedicated account is the better choice.
+  When the owner confirms a re-connect of an account that is not dedicated, the user runs this in
+  their own terminal (an owner's sign-in, `mctl auth login`; never an API key):
+  `mctl cloud-account accept-shared-account <account-id> --org <org-id>`. The command shows the
+  warning and asks the user to type the account ID. The typed ID is the approval. You do not type
+  it for them. Then `mctl cloud-account show <n>` and continue with step 4.
   Other status: go to step 4.
 - Not listed: use the regions the user named. If they named none, ask which regions Multicloud
   may use (it starts machines only there). Name the regions again in the apply question.
