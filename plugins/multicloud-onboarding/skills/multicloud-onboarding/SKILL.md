@@ -201,6 +201,14 @@ tell the user how to continue: "Say: continue my Multicloud onboarding."
 
 **When a skill is `blocked`:** say who must act and what to ask them, save the ledger, and stop.
 
+**Progress panel (optional mod).** If the tool `mcp__multicloud-progress__mark_step` is available,
+call it to keep the onboarding panel on the right of the chat up to date: `active` when a skill
+starts, `done` when it finishes, `waiting` with a short note (for example the open quota request
+IDs) when it waits, and `waiting` with the note `blocked: <who>` when a person must act. The step
+ids are exactly: `workstation`, `aws-account` (aws-account-setup), `connect-aws`, `quota`,
+`extend-cluster`, `extend-pool`, `extend-first-run` (the Extend stages), `cleanup`. If the tool is
+not available, skip this silently: the panel is optional and never blocks a step.
+
 ## Step 5: End of each session
 
 - A pool is awake and the user stops for the day: offer `mctl pool hibernate <pool>` (it stops the
