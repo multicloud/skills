@@ -159,8 +159,9 @@
    "steps": [
     {
      "id": "create-peering",
+     "doors": ["extend-gpu"],
      "who_kind": "ask",
-     "h": "Ask for one GPU",
+     "h": "Create the peering (1 GPU)",
      "who": "You approve",
      "in": [
       "GPU: 1",
@@ -168,15 +169,17 @@
       "Memory: 14 GB",
       "Disk: 50 GB"
      ],
-     "d": "The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
+     "d": "--gpu 1 lets your cluster use 1 GPU of the pool. Without --gpu, the pool grants no GPU. The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
      "c": "mctl peering create poc-gpu --gpu 1 --cpu-millicores 4000 --memory-mb 14336 \\\n  --pods 110 --ephemeral-storage-mb 51200",
      "detect": "peering_created"
     },
     {
      "id": "create-peering-cpu",
+     "doors": ["extend-cpu"],
+     "detect": "peering_created",
      "who_kind": "ask",
      "page": false,
-     "h": "Create the peering (CPU profile)",
+     "h": "Create the peering",
      "who": "You approve",
      "d": "The pool default grant. The output starts with Peering <id> created and has an Install command line. Then continue with install-connector.",
      "c": "mctl peering create burst"
@@ -225,6 +228,7 @@
     },
     {
      "id": "check-gpu",
+     "doors": ["extend-gpu"],
      "who_kind": "agent",
      "h": "Check that the GPU shows up",
      "who": "You, in a terminal",
@@ -233,9 +237,10 @@
     },
     {
      "id": "check-virtual-node",
+     "doors": ["extend-cpu"],
      "who_kind": "agent",
      "page": false,
-     "h": "Check the virtual node (CPU profile)",
+     "h": "Check the virtual node",
      "who": "You, in a terminal",
      "d": "The virtual node must be Ready and show the pool slug in the last column. It needs about 2 minutes after the bundle.",
      "c": "kubectl get nodes -l liqo.io/type=virtual-node -L multicloud.io/pool"

@@ -16,6 +16,7 @@ DETECT = {"organization", "cloud_account", "pool_created", "pool_ready",
           "peering_created", "peering_ready", "cleanup", "quota_gpu"}
 errs = []
 stages = {}
+step_doors = []
 for f in sorted(ROOT.glob("plugins/*/skills/*/flows/*.json")):
   try:
     d = json.loads(f.read_text())
@@ -31,6 +32,8 @@ for f in sorted(ROOT.glob("plugins/*/skills/*/flows/*.json")):
       where = f"{f.stem}#{st['id']}:{s['id']}"
       if "detect" in s and s["detect"] not in DETECT:
         errs.append(f"{where}: unknown detect {s['detect']!r}")
+      if "doors" in s:
+        step_doors.append((where, s["doors"]))
       if "owner_only" in s and not isinstance(s["owner_only"], bool):
         errs.append(f"{where}: owner_only must be a boolean")
       for i in s.get("in", []):
@@ -57,6 +60,10 @@ for door in doors["doors"]:
   ids = [cs["id"] for cs in door["stages"]]
   if len(ids) != len(set(ids)):
     errs.append(f"{door['id']}: duplicate console stage ids")
+door_ids = {d["id"] for d in doors["doors"]}
+for where, ds in step_doors:
+  if not isinstance(ds, list) or not ds or not set(ds) <= door_ids:
+    errs.append(f"{where}: doors must be a non-empty list of door ids, got {ds!r}")
 for e in errs:
   print("FAIL ", e)
 if not errs:
