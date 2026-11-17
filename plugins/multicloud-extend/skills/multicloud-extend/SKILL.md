@@ -184,6 +184,9 @@ Notes for the user:
 - `HOST_FIREWALL_OFF` in the proxy log: ask Multicloud to turn on the pool network. The proxy retries.
 - The replicas show NotReady while the pool sleeps. Do not act; they become Ready when the pool wakes.
 - An offloaded pod not restarted since the chart change has no address. Restart it (`proxy-restart`).
+- The proxy reaches pods by their IPv6 address. A server that listens only on IPv4 gives
+  `connection refused` in the proxy log. nginx needs `listen [::]:80;` and vLLM needs `--host ::`
+  (the bundled vLLM manifest has it).
 
 If the user declines the proxy: say that a pod in the cluster calling a pod on the pool will not
 work, and record `proxy=skipped`. If the check fails and cannot be fixed, record `proxy=blocked`
