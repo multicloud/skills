@@ -615,9 +615,9 @@ const STAGES = [
    {
     "h": "Install mctl (the Multicloud CLI)",
     "who": "You, in a terminal",
-    "d": "mctl needs Python 3.10 or later. The uv tool installs Python for you. Open a new terminal after the install.",
+    "d": "mctl needs Python 3.10 or later. The uv tool installs Python for you. On macOS, brew needs Homebrew: https://brew.sh. Open a new terminal after the install.",
     "os": {
-     "mac": "brew install uv        # Homebrew: https://brew.sh\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
+     "mac": "brew install uv\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
      "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version",
      "win": "# In the Ubuntu window\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nsource \"$HOME/.local/bin/env\"\nuv tool install multicloud-cli\nuv tool update-shell\nmctl --version"
     }
@@ -628,10 +628,10 @@ const STAGES = [
     "d": "The output of aws --version must start with aws-cli/2.",
     "os": {
      "mac": "brew install awscli\naws --version",
-     "linux": "sudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version",
+     "linux": "sudo apt install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version",
      "win": "# In the Ubuntu window\nsudo apt install -y unzip        # or: sudo dnf install -y unzip\ncurl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o awscliv2.zip\nunzip -q -o awscliv2.zip && sudo ./aws/install --update && rm -rf awscliv2.zip aws\naws --version"
     },
-    "g": "ARM Linux (uname -m prints aarch64): use awscli-exe-linux-aarch64.zip."
+    "g": "Fedora or RHEL: use sudo dnf install -y unzip. ARM Linux (uname -m prints aarch64): use awscli-exe-linux-aarch64.zip."
    },
    {
     "h": "Install OpenTofu (1.10 or later)",
@@ -649,10 +649,10 @@ const STAGES = [
     "d": "You need them from the stage “Prepare your cluster” on. The connector needs helm 3.14 or later.",
     "os": {
      "mac": "brew install kubectl helm jq\nkubectl version --client && helm version",
-     "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq        # or: sudo dnf install -y jq\nkubectl version --client && helm version",
+     "linux": "curl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq\nkubectl version --client && helm version",
      "win": "# In the Ubuntu window\ncurl -LO \"https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nsudo install -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl\ncurl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash\nsudo apt install -y jq\nkubectl version --client && helm version"
     },
-    "g": "ARM Linux (uname -m prints aarch64): replace linux/amd64 with linux/arm64 in the kubectl URL."
+    "g": "Fedora or RHEL: use sudo dnf install -y jq. ARM Linux (uname -m prints aarch64): replace linux/amd64 with linux/arm64 in the kubectl URL."
    },
    {
     "h": "Sign in to AWS from the terminal",
@@ -664,11 +664,11 @@ const STAGES = [
      "Profile name: poc"
     ],
     "os": {
-     "mac": "aws configure sso --use-device-code   # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
-     "linux": "aws configure sso --use-device-code   # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
+     "mac": "aws configure sso --use-device-code\naws configure --profile poc\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
+     "linux": "aws configure sso --use-device-code\naws configure --profile poc\nexport AWS_PROFILE=poc\naws sts get-caller-identity",
      "win": "# In the Ubuntu window\naws configure sso --use-device-code   # path A\naws configure --profile poc   # path B\nexport AWS_PROFILE=poc\naws sts get-caller-identity"
     },
-    "g": "The Account value in the output is your 12-digit AWS account ID. You need it in the next stage. Never paste keys into an AI chat. Path A: if your sign-in expires later, run aws sso login --profile poc. With --use-device-code the command prints a link and a code: open the link in any browser, sign in, enter the code. Later sign-ins: aws sso login --profile poc --use-device-code."
+    "g": "Run one of the two configure commands: aws configure sso for path A, or aws configure --profile poc for path B. The Account value in the output is your 12-digit AWS account ID. You need it in the next stage. Never paste keys into an AI chat. Path A: if your sign-in expires later, run aws sso login --profile poc. With --use-device-code the command prints a link and a code: open the link in any browser, sign in, enter the code. Later sign-ins: aws sso login --profile poc --use-device-code."
    }
   ]
  },
@@ -827,8 +827,8 @@ const STAGES = [
      "Pod CIDR",
      "Service CIDR"
     ],
-    "c": "# any cluster: Kubernetes 1.33 or later\nkubectl get servicecidrs -o custom-columns=NAME:.metadata.name,CIDRS:.spec.cidrs\nkubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDRS:.spec.podCIDRs\n# kubeadm clusters: the whole pod range\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
-    "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
+    "c": "kubectl get servicecidrs -o custom-columns=NAME:.metadata.name,CIDRS:.spec.cidrs\nkubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDRS:.spec.podCIDRs\nkubectl -n kube-system get cm kubeadm-config \\\n  -o jsonpath='{.data.ClusterConfiguration}' | grep -E 'podSubnet|serviceSubnet'",
+    "g": "The first two commands work on any cluster with Kubernetes 1.33 or later. The last command works on kubeadm clusters and shows the whole pod range. k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
    },
    {
     "h": "Check that your cluster can reach its apps",
@@ -928,11 +928,11 @@ const STAGES = [
    {
     "h": "Save the connection file",
     "who": "You, in a terminal",
-    "d": "Multicloud gives this connection file only once, the first time it is read after the link is ready. The agent waits for it and saves it to your computer. Keep it secret: it lets your cluster reach the machines. Do not open it.",
+    "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
     "in": [
      "Peering connection file (shown once)"
     ],
-    "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      status=$(jq -r .status peering.json); echo \"Status: $status\"\n      [ \"$status\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
+    "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      st=$(jq -r .status peering.json); echo \"Status: $st\"\n      [ \"$st\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
     "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again."
    },
    {
@@ -1004,6 +1004,55 @@ const STAGES = [
     ]
    }
   ]
+ },
+ {
+  "t": "Reach the pool from your cluster (Extend proxy)",
+  "note": "Required for every Extend use case. Without the proxy, a pod in your cluster cannot call a pod on the pool. The skill brings the proxy file. Multicloud turns on the pool network for your pool.",
+  "steps": [
+   {
+    "h": "Create the proxy API key (you, secret)",
+    "who": "You, an organization owner, in the console",
+    "d": "Open Account › API keys › Create a key. Name it extend-proxy. Untick Catalog, choose Pools: None, and tick only Extend proxy (it is free). The key can only run the proxy. The console shows it once: keep the page open until the Secret step, and paste the key only at the prompt of that step, in your own terminal. The agent never sees or stores it."
+   },
+   {
+    "h": "Set up the bridge",
+    "who": "You, with the agent (it fills the file and shows you the result)",
+    "d": "The bridge file comes with this skill (assets/extend-proxy.yaml), so you need nothing from anyone else. The agent copies it to your home folder, fills in your pool name, your link number and the route (my-apps, service vllm, port 8000), checks that nothing is left to fill in, and shows you the result. It loads the file only on your yes. This step comes after your first app runs, because the route needs the namespace my-apps to exist and be offloaded. The namespace multicloud-extend-proxy is never labelled for Liqo offloading. A second bridge in the same cluster needs its own copy of the file with its own namespace.",
+    "in": [
+     "Pool name (from the pool step)",
+     "Link number (from the link step, starts with Peering)"
+    ],
+    "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\nmkdir -p \"$HOME/multicloud-onboarding\" && cp \"<skill-folder>/assets/extend-proxy.yaml\" \"$F\" && chmod 600 \"$F\"\nPOOL=\"<pool>\"; PEER=\"<peering-id>\"; SVC=\"vllm\"; PORT=\"8000\"\nsed -i.bak -e \"s|<pool>|$POOL|\" -e \"s|<peering-id>|$PEER|\" -e \"s|<service>|$SVC|\" -e \"s|<service-port>|$PORT|\" \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n '<'   # prints nothing when every placeholder is filled\nkubectl apply --dry-run=server -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
+    "g": "An install from an older copy of the file used the names extend-proxy-discovery. Only if they exist: kubectl -n my-apps get role,rolebinding extend-proxy-discovery. If they do, delete them after your yes (deletes cannot be undone)."
+   },
+   {
+    "h": "Save the bridge key in your cluster",
+    "who": "You, in your own terminal",
+    "d": "Type or paste the bridge key at the prompt. The prompt does not show it. The agent never asks for the key and never writes it to a file.",
+    "in": [
+     "extend:proxy key (typed at the prompt, never in chat)"
+    ],
+    "c": "printf 'extend:proxy key: '; stty -echo; IFS= read -r PK; stty echo; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
+   },
+   {
+    "h": "Check that the bridge is ready",
+    "who": "You, in a terminal",
+    "d": "Needs the machines awake, the link ready, the namespace my-apps sent to Multicloud, and Multicloud software version 0.3.1 or later (helm list -n liqo). Both bridge copies must show READY 1/1. If the machines are paused, the bridge shows not ready: do not act, it becomes ready when the machines start. If the log says HOST_FIREWALL_OFF, ask Multicloud to turn on the machine network; the bridge retries by itself.",
+    "c": "kubectl -n multicloud-extend-proxy get pods\nkubectl -n multicloud-extend-proxy logs deploy/extend-proxy --tail=20"
+   },
+   {
+    "h": "Restart apps that already run",
+    "who": "You, in a terminal",
+    "d": "An offloaded pod that has not restarted since the chart change has no address. The proxy skips it. Restart each deployment (or statefulset) in my-apps. After the restart, the IP column shows an fd00:244:... address. On a first run there are no such pods: skip this step. A pod that no controller owns needs kubectl delete pod and a new kubectl apply. Node-level DaemonSets do not run on the virtual node, so they need no restart.",
+    "c": "kubectl -n my-apps rollout restart deployment/<name>\nkubectl -n my-apps get pods -o wide"
+   },
+   {
+    "h": "Test the bridge from an app in your cluster",
+    "who": "You, in a terminal",
+    "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or proxy-target for the CPU use case). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works: for vLLM a 401 is normal (it needs its API key); the CPU service answers 200. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
+    "c": "kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \\\n  curl -sS -m 10 -o /dev/null -w '%{http_code}\\n' http://vllm-pool.multicloud-extend-proxy.svc:8000/"
+   }
+  ]
  }
 ];
 const STAGES_B = [
@@ -1015,11 +1064,11 @@ const STAGES_B = [
    {
     "h": "Remove the PoC from your cluster and Multicloud",
     "who": "You confirm each delete",
-    "d": "Stop the port-forward first (Ctrl+C). Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
+    "d": "Stop the port-forward first (Ctrl+C). The proxy goes first: when it stops, it removes its registration with its key. Then revoke the extend-proxy key in Account › API keys. Replace <peering-id>. Delete the bundle before the revoke: a revoke first makes the bundle delete hang on Liqo finalizers. After the bundle delete, Liqo cannot clear its own finalizers, so the for loop clears them. Do not delete the liqo namespace before helm uninstall finishes. Deleting the pool cannot be undone.",
     "in": [
      "Confirm delete"
     ],
-    "c": "kubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\n# the bridge is gone now, so Liqo cannot clear its own finalizers: clear them\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes"
+    "c": "kubectl delete namespace multicloud-extend-proxy --ignore-not-found\nkubectl -n my-apps delete -f vllm-gpu.yaml\nkubectl -n my-apps delete secret vllm-api-key\nkubectl delete namespaceoffloadings.offloading.liqo.io --all -A\nkubectl delete -f multicloud-peering.yaml --wait=false\nfor t in namespacemaps.offloading.liqo.io resourceslices.authentication.liqo.io; do\n  kubectl get $t -A -o jsonpath='{range .items[*]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}' |\n    while read ns n; do kubectl -n \"$ns\" patch $t \"$n\" --type=merge -p '{\"metadata\":{\"finalizers\":null}}'; done\ndone\nmctl peering revoke poc-gpu <peering-id> --yes\nkubectl delete foreignclusters.core.liqo.io --all\nhelm uninstall liqo-consumer -n liqo --wait --timeout 10m\nkubectl delete namespace liqo my-apps\nmctl pool delete poc-gpu --yes"
    },
    {
     "h": "Check that nothing is left",
@@ -1034,7 +1083,7 @@ const STAGES_B = [
     "in": [
      "Approve: close the AWS account"
     ],
-    "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account destroy <cloud-account-id>"
+    "c": "cd <connection-folder>\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account destroy <cloud-account-id>"
    },
    {
     "h": "Path B: remove Multicloud from an account you have",
@@ -1043,7 +1092,7 @@ const STAGES_B = [
     "in": [
      "Approve: disconnect and remove the role"
     ],
-    "c": "cd <connection-folder>        # the folder with multicloud.tf, for example ~/multicloud-aws\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\nTF_VAR_multicloud_connect_token=unused tofu destroy"
+    "c": "cd <connection-folder>\nexport AWS_PROFILE=<profile> AWS_REGION=<region>\nmctl cloud-account disconnect <cloud-account-id> --wait\ntofu state list\nTF_VAR_multicloud_connect_token=unused tofu destroy"
    }
   ]
  }

@@ -24,7 +24,8 @@
   "multicloud-extend:cluster",
   "multicloud-extend:pool-gpu",
   "multicloud-extend:peering",
-  "multicloud-extend:run-gpu-llm"
+  "multicloud-extend:run-gpu-llm",
+  "multicloud-extend:proxy"
  ],
  "STAGES_B": [
   "multicloud-extend:cleanup"
