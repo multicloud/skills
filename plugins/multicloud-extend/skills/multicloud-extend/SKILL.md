@@ -102,7 +102,11 @@ quota waits).
   rounded down to a size tier (8 GB, 7168 MB after overhead), and the vLLM pod (12 Gi) never gets
   a node. The scheduler then logs `Workload requires 12288MB but the node ceiling only allows
   7168MB after overhead`. Fix on a live pool: `mctl pool update <pool> --set max_memory_gb=16`.
-- `cpu-burst`: stage `pool-cpu`, pool `burst`.
+- `cpu-burst`: stage `pool-cpu`, pool `burst`. If a pool with that name already exists and is
+  hibernated (`mctl pool show burst`), wake it (`mctl pool wake burst --wait`) instead of creating one.
+- If the user belongs to several organizations, every `mctl` command needs `--org <org-id>` (or
+  `MULTICLOUD_ORG` set). Without it mctl stops and names the organizations. Use the same org for
+  the pool, the peering and the proxy key.
 
 Put the cloud-account ID and the region into the commands: the flow shows `us-east-1` as an
 example; use the region of the quota (GPU) or the region the user chose. Then open the pools page
