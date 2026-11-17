@@ -63,9 +63,11 @@ Every Extend use case runs the proxy stage. The flow runs these stages in this o
    $<max-cost-per-hour> per hour. `mctl pool hibernate <pool>` stops the cost." Ask, then create.
 5. **Ask before each change** (`who_kind` `ask`): pool, peering, helm install, kubectl apply,
    namespace, secret, deploy, deletes. A yes covers one step. Deletes cannot be undone: say so.
-6. **The proxy key is the user's.** Steps `proxy-key` and `proxy-secret` are `who_kind` `user` with
-   `owner_only`: the user creates the key and types it at the prompt of their own terminal. Never
-   ask for it in chat, never print it, never write a file with it.
+6. **The proxy key never leaves Multicloud and the cluster.** Step `proxy-secret` runs
+   `mctl extend proxy-key create`: mctl makes the key and saves it as the cluster Secret. The key is
+   never printed, never on a command line, never in chat, never in a file. The user needs to be an
+   owner and signed in (`mctl auth login`). Never ask for the key, and never make the key in the
+   console.
 
 `who_kind` in the flow: `agent` = run it; `ask` = show, ask, then run; `user` = the user does it;
 `page` = skip. When a step has `c_agent`, run that instead of `c`.
@@ -153,21 +155,19 @@ The Extend proxy lets a pod or Service in the cluster call a pod on the pool. It
 use case, after the first workload (`run-gpu-llm` or `run-cpu-burst`), because its route points at
 that workload's namespace (`my-apps`) and Service (`vllm`). That namespace must already be offloaded.
 Steps in order:
-1. `proxy-key` (user, owner, secret): the user creates the key in the console (Account › API keys ›
-   Create a key, only the free **Extend proxy** scope, Pools: None). Wait for the user to say it is
-   done. Never ask for the key.
-2. `proxy-target` (ask, `cpu-burst` only): the burst pod exits, so run nginx (a small public web server,
+1. `proxy-target` (ask, `cpu-burst` only): the burst pod exits, so run nginx (a small public web server,
    no GPU, port 80) on the pool in `my-apps` as Service `nginx`. The CPU route points at it.
-3. `proxy-manifest` (ask; `proxy-manifest-cpu` for `cpu-burst`): the file comes with this skill
+2. `proxy-manifest` (ask; `proxy-manifest-cpu` for `cpu-burst`): the file comes with this skill
    (`assets/extend-proxy.yaml`, release `multicloud/extend-proxy:0.1.2`), so the user needs nothing from
    anyone else. The agent copies it to `~/multicloud-onboarding/`, fills in the pool, peering ID and the
    route (GPU: Service `vllm` port 8000; CPU: Service `nginx` port 80), checks no placeholder is left,
    dry-runs the apply, shows you the result, and applies only on your yes. The `sed -i.bak` form works with GNU sed and macOS sed. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
-4. `proxy-secret` (user, secret): the user types the key at the prompt of their own terminal (the
-   command reads it without echo). Wait for the user to say it is done.
-5. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.
-6. `proxy-restart` (optional, ask): only for offloaded workloads that already run. None on a first run.
-7. `proxy-test` (agent): run it only after the first workload is up on the pool (`deploy-vllm` in
+3. `proxy-secret` (ask, owner): `mctl extend proxy-key create --pool <pool> --kube-context <context>`
+   after the file of step 2 is applied (it creates the namespace the key goes into). The output says
+   the Secret is saved; it never shows the key. Ask first; a second run needs `--replace` and a yes.
+4. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.
+5. `proxy-restart` (optional, ask): only for offloaded workloads that already run. None on a first run.
+6. `proxy-test` (agent): run it only after the first workload is up on the pool (`deploy-vllm` in
    `run-gpu-llm`, or `proxy-target` for `cpu-burst`). Any HTTP status means the path works (vLLM
    answers 401 without its key).
 

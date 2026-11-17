@@ -376,15 +376,6 @@
       "note": "Required for every Extend use case. Without the proxy, a pod in your cluster cannot call a pod on the pool. The skill brings the proxy file. Multicloud turns on the pool network for your pool.",
       "steps": [
         {
-          "id": "proxy-key",
-          "who_kind": "user",
-          "owner_only": true,
-          "h": "Create the proxy API key (you, secret)",
-          "who": "You, an organization owner, in the console",
-          "d": "Open Account › API keys › Create a key. Name it extend-proxy. Untick Catalog, choose Pools: None, and tick only Extend proxy (it is free). The key can only run the proxy. The console shows it once: keep the page open until the Secret step, and paste the key only at the prompt of that step, in your own terminal. The agent never sees or stores it.",
-          "console": "/account/keys"
-        },
-        {
           "id": "proxy-target",
           "doors": [
             "extend-cpu"
@@ -443,18 +434,13 @@
         },
         {
           "id": "proxy-secret",
-          "who_kind": "user",
+          "who_kind": "ask",
           "owner_only": true,
-          "h": "Save the bridge key in your cluster",
-          "who": "You, in your own terminal",
-          "d": "Type or paste the bridge key at the prompt. The prompt does not show it. The agent never asks for the key and never writes it to a file.",
-          "in": [
-            {
-              "label": "extend:proxy key (typed at the prompt, never in chat)",
-              "secret": true
-            }
-          ],
-          "c": "printf 'extend:proxy key: '; stty -echo; IFS= read -r PK; stty echo; echo\nkubectl -n multicloud-extend-proxy create secret generic extend-proxy-api-key --from-literal=key=\"$PK\"\nunset PK"
+          "h": "Create the bridge key in your cluster",
+          "who": "You approve; the agent runs it. Multicloud makes the key and saves it in your cluster. Nobody sees it.",
+          "d": "The bridge key lets the bridge sign in to Multicloud. Multicloud makes it for you and saves it in your cluster, in the namespace multicloud-extend-proxy, so you never copy it. The key can only run this bridge. It is not shown on screen, not printed and not written to a file. You need to be an owner of your Multicloud organization. It runs after the bridge file is applied, because the key is saved in the namespace that file creates. Run it with --replace only when you want a new key: the old key then keeps working until you revoke it in the console.",
+          "c": "mctl extend proxy-key create --pool <pool> --kube-context <context>",
+          "g": "Not signed in: run mctl auth login first. Several organizations: add --org <org>. Needs mctl 0.12.0 or later (mctl --version). <context> is the context from the cluster check (kubectl config current-context)."
         },
         {
           "id": "proxy-check",
