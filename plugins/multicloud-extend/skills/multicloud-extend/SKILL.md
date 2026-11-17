@@ -117,6 +117,10 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 0. `check-connector` (agent): if `liqo-consumer` is already installed on this cluster, stop. An
    existing install serves a peering that may still be in use (one consumer ID per install). Show
    the release and its consumer ID, find the peering it serves, and ask the user before any change.
+   To replace it for a new pool: `helm upgrade` cannot change the cluster ID (Liqo refuses), so
+   uninstall and install. The uninstall removes the other pool's virtual node and link, so say so and
+   get a yes first. If a Liqo pre-delete hook fails because the controller is already gone, use
+   `helm uninstall liqo-consumer -n liqo --no-hooks`, then delete the leftover hook jobs.
 1. `gpu-llm`: step `create-peering`. `cpu-burst`: step `create-peering-cpu`. Note the peering ID
    from `Peering <id> created`, and the whole `Install command:` line.
 2. `install-connector` (ask, name the context): the install command with `<POD_CIDR>` and
@@ -170,6 +174,11 @@ Steps in order:
 6. `proxy-test` (agent): run it only after the first workload is up on the pool (`deploy-vllm` in
    `run-gpu-llm`, or `proxy-target` for `cpu-burst`). Any HTTP status means the path works (vLLM
    answers 401 without its key).
+7. `tunnel-test` (ask): the end-to-end test from the user's computer. `kubectl port-forward` opens a
+   tunnel from the computer into the cluster to the proxy, and `curl localhost:8000` makes the request
+   through the proxy to the pool. CPU: the answer is `hello from the pool`. GPU: vLLM answers 401
+   without its key, and with the key it answers the model. Tell the user to keep the port-forward
+   window open while they test.
 
 Notes for the user:
 - `HOST_FIREWALL_OFF` in the proxy log: ask Multicloud to turn on the pool network. The proxy retries.

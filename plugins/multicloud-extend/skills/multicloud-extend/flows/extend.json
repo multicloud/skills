@@ -162,7 +162,7 @@
           "who_kind": "agent",
           "h": "Check that your cluster has no Multicloud software yet",
           "who": "You, in a terminal",
-          "d": "If Multicloud software is already installed in your cluster, stop. That software may be used by another link, and changing it could break it. Show the release and its ID, then ask the user before any change to this cluster.",
+          "d": "The cluster runs one liqo-consumer release. A new pool's peering needs that release replaced, and helm upgrade cannot do it: Liqo refuses a changed cluster ID. Show the release and its consumer ID, and the pool whose virtual node it serves. Tell the user that replacing it removes that pool's virtual node and link. After a yes: helm uninstall liqo-consumer -n liqo --wait. If a Liqo pre-delete hook fails because the controller is gone, helm uninstall liqo-consumer -n liqo --no-hooks, then remove leftover hook jobs. Then install the new release with the new peering's install command.",
           "c": "if helm list -n liqo -o json | jq -e 'length > 0' >/dev/null; then\n  echo 'liqo-consumer is installed: stop'\n  helm get values liqo-consumer -n liqo | grep -E 'clusterID|remoteClusterID'\nelse\n  echo 'no connector: continue'\nfi"
         },
         {
@@ -384,8 +384,8 @@
           "who_kind": "ask",
           "h": "Run a small web server on the pool",
           "who": "You approve",
-          "d": "The CPU test app is a pod that exits, so the bridge has nothing to reach. This runs nginx, a small public web server, on the pool in my-apps, with a Service named nginx on port 80. It needs no GPU and costs nothing beyond the pool node. Replace <slug> with the pool slug from the node check. Cleanup removes it with the namespace my-apps.",
-          "c": "kubectl apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata: {name: nginx, namespace: my-apps}\nspec:\n  replicas: 1\n  selector: {matchLabels: {app: nginx}}\n  template:\n    metadata: {labels: {app: nginx}}\n    spec:\n  tolerations:\n  - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n  nodeSelector: {multicloud.io/pool: <slug>}\n      containers:\n      - name: nginx\n        image: nginx:1.27-alpine\n        ports: [{containerPort: 80, name: http}]\n        resources:\n          requests: {cpu: 10m, memory: 32Mi}\n---\napiVersion: v1\nkind: Service\nmetadata: {name: nginx, namespace: my-apps}\nspec:\n  selector: {app: nginx}\n  ports: [{name: http, port: 80, targetPort: http}]\nEOF\nkubectl -n my-apps wait --for=condition=Available deploy/nginx --timeout=15m"
+          "d": "The CPU test app is a pod that exits, so the bridge has nothing to reach. This runs nginx, a small public web server with no GPU, on the pool in my-apps, as Service nginx on port 80. Its page says 'hello from the pool', so the tunnel test has a known answer. It costs nothing beyond the pool node. Replace <slug> with the pool slug from the node check. Cleanup removes it with the namespace my-apps.",
+          "c": "kubectl apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata: {name: nginx, namespace: my-apps}\nspec:\n  replicas: 1\n  selector: {matchLabels: {app: nginx}}\n  template:\n    metadata: {labels: {app: nginx}}\n    spec:\n      tolerations:\n      - {key: multicloud.io/pool, operator: Equal, value: <slug>, effect: NoSchedule}\n      nodeSelector: {multicloud.io/pool: <slug>}\n      containers:\n      - name: nginx\n        image: nginx:1.27-alpine\n        command: [\"sh\", \"-c\", \"echo hello from the pool > /usr/share/nginx/html/index.html && exec nginx -g 'daemon off;'\"]\n        ports: [{containerPort: 80, name: http}]\n        resources:\n          requests: {cpu: 10m, memory: 32Mi}\n---\napiVersion: v1\nkind: Service\nmetadata: {name: nginx, namespace: my-apps}\nspec:\n  selector: {app: nginx}\n  ports: [{name: http, port: 80, targetPort: http}]\nEOF\nkubectl -n my-apps wait --for=condition=Available deploy/nginx --timeout=15m"
         },
         {
           "id": "proxy-manifest",
@@ -403,7 +403,7 @@
               "placeholder": "<peering-id>"
             }
           ],
-          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\nmkdir -p \"$HOME/multicloud-onboarding\" && cp \"<skill-folder>/assets/extend-proxy.yaml\" \"$F\" && chmod 600 \"$F\"\nPOOL=\"<pool>\"; PEER=\"<peering-id>\"; SVC=\"vllm\"; PORT=\"8000\"\nsed -i.bak -e \"s|<pool>|$POOL|\" -e \"s|<peering-id>|$PEER|\" -e \"s|<service>|$SVC|\" -e \"s|<service-port>|$PORT|\" \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n '<'   # prints nothing when every placeholder is filled\nkubectl apply --dry-run=server -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
+          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\nmkdir -p \"$HOME/multicloud-onboarding\" && cp \"<skill-folder>/assets/extend-proxy.yaml\" \"$F\" && chmod 600 \"$F\"\nPOOL=\"<pool>\"; PEER=\"<peering-id>\"; SVC=\"vllm\"; PORT=\"8000\"\nsed -i.bak -e \"s|<pool>|$POOL|\" -e \"s|<peering-id>|$PEER|\" -e \"s|<service>|$SVC|\" -e \"s|<service-port>|$PORT|\" \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n '<'   # prints nothing when every placeholder is filled\n# client dry-run: a server dry-run needs the namespace, which only the apply creates\nkubectl apply --dry-run=client -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
           "g": "An install from an older copy of the file used the names extend-proxy-discovery. Only if they exist: kubectl -n my-apps get role,rolebinding extend-proxy-discovery. If they do, delete them after your yes (deletes cannot be undone).",
           "doors": [
             "extend-gpu"
@@ -425,7 +425,7 @@
               "placeholder": "<peering-id>"
             }
           ],
-          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\nmkdir -p \"$HOME/multicloud-onboarding\" && cp \"<skill-folder>/assets/extend-proxy.yaml\" \"$F\" && chmod 600 \"$F\"\nPOOL=\"<pool>\"; PEER=\"<peering-id>\"; SVC=\"nginx\"; PORT=\"80\"\nsed -i.bak -e \"s|<pool>|$POOL|\" -e \"s|<peering-id>|$PEER|\" -e \"s|<service>|$SVC|\" -e \"s|<service-port>|$PORT|\" \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n '<'   # prints nothing when every placeholder is filled\nkubectl apply --dry-run=server -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
+          "c": "F=\"$HOME/multicloud-onboarding/extend-proxy.yaml\"\nmkdir -p \"$HOME/multicloud-onboarding\" && cp \"<skill-folder>/assets/extend-proxy.yaml\" \"$F\" && chmod 600 \"$F\"\nPOOL=\"<pool>\"; PEER=\"<peering-id>\"; SVC=\"nginx\"; PORT=\"80\"\nsed -i.bak -e \"s|<pool>|$POOL|\" -e \"s|<peering-id>|$PEER|\" -e \"s|<service>|$SVC|\" -e \"s|<service-port>|$PORT|\" \"$F\" && rm -f \"$F.bak\"\n! grep -v '^ *#' \"$F\" | grep -n '<'   # prints nothing when every placeholder is filled\n# client dry-run: a server dry-run needs the namespace, which only the apply creates\nkubectl apply --dry-run=client -f \"$F\"\n# after your yes:\nkubectl apply -f \"$F\"",
           "g": "An install from an older copy of the file used the names extend-proxy-discovery. Only if they exist: kubectl -n my-apps get role,rolebinding extend-proxy-discovery. If they do, delete them after your yes (deletes cannot be undone).",
           "doors": [
             "extend-cpu"
@@ -466,6 +466,18 @@
           "who": "You, in a terminal",
           "d": "Run it only after the first workload runs on the pool (deploy-vllm in run-gpu-llm, or proxy-target for the CPU use case). Before that, leave it and come back. The test pod runs in a namespace that is not offloaded, so it stays on your own nodes. Any HTTP status code means the path works: for vLLM a 401 is normal (it needs its API key); the CPU service answers 200. A timeout or a DNS error means it does not: check proxy-check and HOST_FIREWALL_OFF.",
           "c": "kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \\\n  curl -sS -m 10 -o /dev/null -w '%{http_code}\\n' http://vllm-pool.multicloud-extend-proxy.svc:8000/"
+        },
+        {
+          "id": "tunnel-test",
+          "who_kind": "ask",
+          "h": "Test through the tunnel from your computer",
+          "who": "You, in a terminal",
+          "d": "A tunnel carries the request from your computer, through your cluster and the proxy, to the pool. Keep the first window open while you test. Run the second command in a second window. CPU use case: the answer is 'hello from the pool'. GPU use case (vLLM): a 401 is the right answer without the key; ask for a model answer with the key from the vLLM step to see the model reply.",
+          "c": "# window 1: the tunnel (keep it open)\nkubectl -n multicloud-extend-proxy port-forward svc/vllm-pool 8000:8000\n# window 2: the test\ncurl -sS -m 10 http://localhost:8000/",
+          "doors": [
+            "extend-cpu",
+            "extend-gpu"
+          ]
         }
       ]
     },
