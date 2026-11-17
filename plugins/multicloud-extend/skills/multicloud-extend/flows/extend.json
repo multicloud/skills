@@ -130,7 +130,7 @@
           "who_kind": "ask",
           "h": "Create your CPU machines",
           "who": "You approve the spend limit",
-          "d": "Replace <cloud-account-id> and the region. Up to three machines, at most $0.50 per hour together.",
+          "d": "Replace <cloud-account-id> and the region. Up to three machines, at most $0.50 per hour together. If a pool with this name already exists and is hibernated, wake it instead of creating one: mctl pool wake <pool> --wait.",
           "in": [
             "Pool name: burst",
             "Max servers: 3",
@@ -201,7 +201,7 @@
           "who_kind": "ask",
           "h": "Install the Multicloud software in your cluster",
           "who": "You run it, with your CIDRs",
-          "d": "Paste the command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the two address ranges you wrote down in the cluster check. Change nothing else. The version must be 0.3.1 or later. This is needed for every Multicloud customer, with or without the bridge: apps that already run keep no address until they restart.",
+          "d": "Paste the command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the two address ranges you wrote down in the cluster check. Change nothing else. Use the chart version the Install command prints (0.4.0 when this was tested); 0.3.1 is the minimum. This is needed for every Multicloud customer, with or without the bridge: apps that already run keep no address until they restart.",
           "in": [
             {
               "label": "Pod CIDR",
@@ -219,8 +219,8 @@
           "who_kind": "agent",
           "h": "Save the connection file",
           "who": "You, in a terminal",
-          "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
-          "c": "POOL=poc-gpu ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      st=$(jq -r .status peering.json); echo \"Status: $st\"\n      [ \"$st\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
+          "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> and <pool>: poc-gpu for the GPU route, burst for the CPU route. The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
+          "c": "POOL=<pool> ID=<peering-id>\n(\n  umask 077\n  while true; do\n    if mctl peering show \"$POOL\" \"$ID\" --json > peering.new; then\n      mv peering.new peering.json\n      jq -e '.bundle != null' peering.json >/dev/null && break\n      st=$(jq -r .status peering.json); echo \"Status: $st\"\n      [ \"$st\" = PENDING ] || break\n    else\n      rc=$?; [ \"$rc\" -eq 3 ] || [ \"$rc\" -eq 4 ] && { echo \"mctl exit $rc: stop\"; break; }\n    fi\n    sleep 10\n  done\n  rm -f peering.new\n  jq -er '.bundle // empty' peering.json > multicloud-peering.yaml && rm peering.json\n)",
           "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again.",
           "detect": "peering_ready",
           "in": [
@@ -447,7 +447,7 @@
           "who_kind": "agent",
           "h": "Check that the bridge is ready",
           "who": "You, in a terminal",
-          "d": "Needs the machines awake, the link ready, the namespace my-apps sent to Multicloud, and Multicloud software version 0.3.1 or later (helm list -n liqo). Both bridge copies must show READY 1/1. If the machines are paused, the bridge shows not ready: do not act, it becomes ready when the machines start. If the log says HOST_FIREWALL_OFF, ask Multicloud to turn on the machine network; the bridge retries by itself.",
+          "d": "Needs the machines awake, the link ready, the namespace my-apps sent to Multicloud, and Multicloud software version 0.3.1 or later (helm list -n liqo). Both bridge copies must show READY 1/1. If the machines are paused, the bridge shows not ready: do not act, it becomes ready when the machines start. If the log says HOST_FIREWALL_OFF, ask Multicloud to turn on the machine network; the bridge retries by itself. The first registration can take a few minutes; the log shows registration retries, then a registered line. Before that, check the pool: mctl pool show <pool> --json must show managed.host_firewall true. If it is false, the log shows HOST_FIREWALL_OFF: ask Multicloud to turn the host firewall on for the pool.",
           "c": "kubectl -n multicloud-extend-proxy get pods\nkubectl -n multicloud-extend-proxy logs deploy/extend-proxy --tail=20"
         },
         {
