@@ -25,6 +25,20 @@ On Windows, run every command inside WSL (`wsl.exe -d <wsl_distro> -- bash -lc '
 WSL home folder; see skill `multicloud-workstation`). Keep every file of this skill in a folder in
 the WSL home, never under `/mnt/c`.
 
+## Words used in this skill
+
+- **Machines (pool):** the Multicloud machines that run your work in your own AWS account. You pay for
+  them by the hour. A paused set costs nothing.
+- **Link (peering):** the connection between your cluster and those machines. One link per machine set.
+- **Connector:** the Multicloud software installed in your cluster. It makes the link work.
+- **Connection file (bundle):** a file from Multicloud that lets your cluster reach the machines. It is
+  given once and must stay secret.
+- **Multicloud node:** a node in your cluster that stands for the Multicloud machines. Your apps are
+  sent there with a namespace setting ("send this namespace").
+- **Bridge (proxy):** a small set of pods in your cluster that lets your apps reach an app on the
+  Multicloud machines.
+- **Your cluster ID:** the ID Multicloud gives your cluster (starts with `c-`).
+
 ## Stage order
 
 Every Extend use case runs the proxy stage. The flow runs these stages in this order:
@@ -32,7 +46,7 @@ Every Extend use case runs the proxy stage. The flow runs these stages in this o
 | Profile | Stages, in order |
 |---|---|
 | `gpu-llm` | `cluster` → `pool-gpu` → `peering` → `run-gpu-llm` → `proxy` → (`cleanup` on request) |
-| `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `run-cpu-burst` → `proxy` → (`cleanup` on request) |
+| `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `run-cpu-burst` (the proxy stage's `proxy-target` adds the nginx route target) → `proxy` → (`cleanup` on request) |
 
 ## Rules that do not bend
 
@@ -89,13 +103,18 @@ quota waits).
 - `cpu-burst`: stage `pool-cpu`, pool `burst`.
 
 Put the cloud-account ID and the region into the commands: the flow shows `us-east-1` as an
-example; use the region of the quota (GPU) or the region the user chose. Then poll `wait-ready`: run
-`mctl pool show <pool>` once a minute until `Status: ready`, at most 20 minutes; then stop and give
-the output to the user for their Multicloud contact. Errors: `ACCOUNT_NOT_READY` (409) → verify
+example; use the region of the quota (GPU) or the region the user chose. Then open the pools page
+(`https://multicloud.io/console/pools`) and tell the user they can follow the creation there, and
+that they should come back to this chat. Poll `wait-ready` here: run `mctl pool show <pool>` once
+a minute until `Status: ready`, at most 20 minutes; then stop and give the output to the user for
+their Multicloud contact. Errors: `ACCOUNT_NOT_READY` (409) → verify
 the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 
 ## Step 3: Connect the cluster (stage `peering`)
 
+0. `check-connector` (agent): if `liqo-consumer` is already installed on this cluster, stop. An
+   existing install serves a peering that may still be in use (one consumer ID per install). Show
+   the release and its consumer ID, find the peering it serves, and ask the user before any change.
 1. `gpu-llm`: step `create-peering`. `cpu-burst`: step `create-peering-cpu`. Note the peering ID
    from `Peering <id> created`, and the whole `Install command:` line.
 2. `install-connector` (ask, name the context): the install command with `<POD_CIDR>` and
@@ -137,13 +156,13 @@ Steps in order:
 1. `proxy-key` (user, owner, secret): the user creates the key in the console (Account › API keys ›
    Create a key, only the free **Extend proxy** scope, Pools: None). Wait for the user to say it is
    done. Never ask for the key.
-2. `proxy-target` (ask, `cpu-burst` only): the burst pod exits, so run the small `hello` web service
-   (port 8080) on the pool in `my-apps`. The CPU route points at it.
-3. `proxy-manifest` (ask; `proxy-manifest-cpu` for `cpu-burst`, route `hello` port 8080): ask for the path of `extend-proxy.yaml` and the release image tag. Both come
-   from Multicloud; there is no public download, so do not invent either. The agent copies the file to
-   `~/multicloud-onboarding/`, fills in the image tag, pool, peering ID and the route (`my-apps`,
-   `vllm`, port 8000), checks no placeholder is left, dry-runs the apply, shows you the result, and
-   applies only on your yes. The `sed -i.bak` form works with GNU sed and macOS sed. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
+2. `proxy-target` (ask, `cpu-burst` only): the burst pod exits, so run nginx (a small public web server,
+   no GPU, port 80) on the pool in `my-apps` as Service `nginx`. The CPU route points at it.
+3. `proxy-manifest` (ask; `proxy-manifest-cpu` for `cpu-burst`): the file comes with this skill
+   (`assets/extend-proxy.yaml`, release `multicloud/extend-proxy:0.1.2`), so the user needs nothing from
+   anyone else. The agent copies it to `~/multicloud-onboarding/`, fills in the pool, peering ID and the
+   route (GPU: Service `vllm` port 8000; CPU: Service `nginx` port 80), checks no placeholder is left,
+   dry-runs the apply, shows you the result, and applies only on your yes. The `sed -i.bak` form works with GNU sed and macOS sed. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
 4. `proxy-secret` (user, secret): the user types the key at the prompt of their own terminal (the
    command reads it without echo). Wait for the user to say it is done.
 5. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.

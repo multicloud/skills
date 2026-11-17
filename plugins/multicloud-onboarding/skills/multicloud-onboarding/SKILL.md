@@ -196,8 +196,11 @@ the region, `cloud_account_id`, `connection_dir`, the profile, the GitHub organi
 
 **While a skill is `waiting`:** tell the user what you wait for and how long it usually takes. Do
 the next steps that do not need it. For Extend GPU while quota waits: run only the `cluster` stage
-of `multicloud-extend` (it creates nothing that costs), never the pool. Then save the ledger and
-tell the user how to continue: "Say: continue my Multicloud onboarding."
+of `multicloud-extend` (it creates nothing that costs), never the GPU pool. Then offer the CPU path,
+which needs no GPU quota: `pool-cpu` (at most $0.50 per hour), `peering`, `run-cpu-burst`, and
+`proxy`. It proves the whole chain (pool, peering, connector, proxy) before the GPU quota arrives.
+Ask first, because it costs money. Then save the ledger and tell the user how to continue: "Say:
+continue my Multicloud onboarding."
 
 **When a skill is `blocked`:** say who must act and what to ask them, save the ledger, and stop.
 
@@ -236,6 +239,6 @@ ledger.
 | `multicloud-aws-account-setup` | `multicloud-aws-account-setup--v0.1.0` |
 | `multicloud-connect-aws` | `multicloud-connect-aws--v0.3.0` |
 | `multicloud-quota` | `multicloud-quota--v0.2.0` |
-| `multicloud-extend` | `multicloud-extend--v0.1.0` |
+| `multicloud-extend` | `multicloud-extend--v0.2.2` |
 | `multicloud-ci-pool` | `multicloud-ci-pool--v0.1.0` |
 | `multicloud-advisor` | the newest `multicloud-advisor--v*` tag |

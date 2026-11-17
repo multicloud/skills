@@ -1,0 +1,6 @@
+{
+  "source": "tools/extend-proxy/deploy/extend-proxy.yaml",
+  "source_sha256": "75589f3d27770ef775f1fe96ec828b2918169d68fc094e261c4b7493c994ee55",
+  "platform_commit": "1c34b4755",
+  "image_tag": "0.1.2"
+}
