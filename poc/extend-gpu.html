@@ -820,9 +820,9 @@ const STAGES = [
     "c": "kubectl version\nkubectl api-resources | grep validatingadmissionpolicies"
    },
    {
-    "h": "Find your pod and service CIDRs",
+    "h": "Write down two address ranges",
     "who": "You, in a terminal",
-    "d": "Write down both values. You need them when you install the connector.",
+    "d": "Find the address range for your cluster's pods and for its services. Write down both. You need them in the connector step. Your cluster administrator can tell you if you cannot find them.",
     "in": [
      "Pod CIDR",
      "Service CIDR"
@@ -831,30 +831,30 @@ const STAGES = [
     "g": "k3s: the defaults are 10.42.0.0/16 (pods) and 10.43.0.0/16 (services), unless your k3s server uses --cluster-cidr or --service-cidr. The node podCIDRs are slices of the pod range: with several nodes, ask your cluster administrator for the whole range. Other clusters: ask your cluster administrator."
    },
    {
-    "h": "Check that the API server reaches pods",
+    "h": "Check that your cluster can reach its apps",
     "who": "You, in a terminal",
-    "d": "It must print ok (or OK). A 502 means the API server cannot reach pod addresses (OrbStack Kubernetes does this): kubectl logs, exec and port-forward to the pool then fail. Use another cluster, for example kind or k3s.",
+    "d": "It must print ok (or OK). A 502 means this cluster cannot reach the addresses of its own apps (this happens with OrbStack Kubernetes). Use another cluster, for example kind or k3s.",
     "c": "P=$(kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{.items[0].metadata.name}')\nkubectl get --raw \"/api/v1/namespaces/kube-system/pods/$P:8080/proxy/health\""
    },
    {
-    "h": "Find your CNI",
+    "h": "Find your cluster's network software",
     "who": "You, in a terminal",
-    "d": "The output names your network plugin, for example calico, cilium or flannel. Tell your Multicloud contact.",
+    "d": "The output names the network software in your cluster, for example calico, cilium or flannel. Tell your Multicloud contact.",
     "in": [
      "CNI"
     ],
     "c": "kubectl -n kube-system get pods -o name | grep -E 'cilium|calico|flannel|weave|antrea|canal'"
    },
    {
-    "h": "Check free CPU",
+    "h": "Check that your cluster has spare room",
     "who": "You, in a terminal",
-    "d": "The virtual node needs about 115m of free CPU requests on one of your nodes. If every node shows 95% or more CPU requested, add capacity first.",
+    "d": "The Multicloud node needs about 115m of spare CPU on one of your machines. If every machine is 95% or more used, add a machine first.",
     "c": "kubectl describe nodes | grep -A8 'Allocated resources'"
    },
    {
-    "h": "Check outbound access",
+    "h": "Check that your cluster can reach the internet",
     "who": "You, with your network team",
-    "d": "Good result: docker hub 401, ghcr 401, cloudflare 200. A connection or certificate error means your network blocks the connector. No inbound port is needed. If you use an HTTPS proxy or TLS inspection, tell your Multicloud contact.",
+    "d": "Good result: docker hub 401, ghcr 401, cloudflare 200. A connection or certificate error means your network blocks the connector. Nothing needs to reach your cluster from outside. If you use a company web proxy or TLS inspection, tell your Multicloud contact.",
     "in": [
      "Egress path: direct, proxy or TLS inspection"
     ],
@@ -868,9 +868,9 @@ const STAGES = [
   "dg": "pool",
   "steps": [
    {
-    "h": "Create the pool with GPU settings",
+    "h": "Create your GPU machines",
     "who": "You approve the spend limit",
-    "d": "Replace <cloud-account-id> with your cloud-account ID. The settings allow L4 or A10G only, on-demand only (no interruptions), and a 100 GB disk for the model. A cap of $1.50 per hour allows both GPU types.",
+    "d": "Replace <cloud-account-id> with your cloud account ID. These machines are GPU machines (L4 or A10G) that you pay for by the hour, never interrupted, with a 100 GB disk for the model. The cap is $1.50 per hour.",
     "in": [
      "Pool name: poc-gpu",
      "Max servers: 2",
@@ -879,15 +879,15 @@ const STAGES = [
     "c": "cat > poc-gpu.json <<'EOF'\n{\"settings\": {\"regions\": [\"us-east-1\"], \"accelerator_names\": [\"L4\", \"A10G\"],\n              \"max_risk\": 0, \"min_storage_gb\": 100,\n              \"max_memory_gb\": 16}}\nEOF\nmctl extend create poc-gpu --cloud-account <cloud-account-id> --max-servers 2 \\\n  --max-cost-per-hour 1.5 --from-file poc-gpu.json"
    },
    {
-    "h": "Wait until the pool is ready",
+    "h": "Wait until the machines are ready",
     "who": "You, in a terminal",
-    "d": "Open the pools page in the browser and tell the user: you can follow the creation at https://multicloud.io/console/pools. Then return to this chat. The agent keeps checking the status here: run the check every minute until Status: ready. Status: provisioning (…) means it is still starting; the first start takes several minutes. If the status stays provisioning for more than 20 minutes, send the output to your Multicloud contact.",
+    "d": "Open https://multicloud.io/console/pools in your browser to follow the creation. Then return to this chat. The agent keeps checking here until the status says ready. The first start takes several minutes. If it is still starting after 20 minutes, send the output to your Multicloud contact.",
     "c": "cmd.exe /c start \"\" \"https://multicloud.io/console/pools\"   # opens the pools page in the Windows browser\nmctl pool show poc-gpu"
    },
    {
-    "h": "Pause the pool when you stop for the day",
+    "h": "Pause the machines when you stop for the day",
     "who": "You",
-    "d": "A hibernated pool runs no worker and costs nothing. Wake it when you continue.",
+    "d": "Paused machines cost nothing. Start them again when you continue.",
     "c": "mctl pool hibernate poc-gpu\nmctl pool wake poc-gpu --wait"
    }
   ]
@@ -898,15 +898,15 @@ const STAGES = [
   "dg": "peer",
   "steps": [
    {
-    "h": "Check that the cluster has no connector yet",
+    "h": "Check that your cluster has no Multicloud software yet",
     "who": "You, in a terminal",
-    "d": "If liqo-consumer is already installed, stop. That install serves a peering that may still be in use. Show the release and its consumer ID, then find the peering it serves (mctl peering list <pool> in each org you belong to). Ask the user before any peering or install on this cluster: use another cluster, or replace the connector only on a yes.",
+    "d": "If Multicloud software is already installed in your cluster, stop. That software may be used by another link, and changing it could break it. Show the release and its ID, then ask the user before any change to this cluster.",
     "c": "if helm list -n liqo -o json | jq -e 'length > 0' >/dev/null; then\n  echo 'liqo-consumer is installed: stop'\n  helm get values liqo-consumer -n liqo | grep -E 'clusterID|remoteClusterID'\nelse\n  echo 'no connector: continue'\nfi"
    },
    {
-    "h": "Create the peering (1 GPU)",
+    "h": "Create the link (GPU)",
     "who": "You approve",
-    "d": "--gpu 1 lets your cluster use 1 GPU of the pool. Without --gpu, the pool grants no GPU. The output starts with Peering <id> created. Write down the peering ID. Copy the full line after Install command: you need it in the next step. To see both again, run: mctl peering list poc-gpu --json | jq -r '.peerings[] | \"\\(.id) \\(.helm_command)\"'",
+    "d": "This link lets your cluster use one GPU from the GPU machines. Without --gpu 1, the link gets no GPU. Write down the link number the output shows (it starts with Peering). Copy the whole line after Install command: you need it in the next step.",
     "in": [
      "GPU: 1",
      "CPU: 4 cores",
@@ -916,9 +916,9 @@ const STAGES = [
     "c": "mctl peering create poc-gpu --gpu 1 --cpu-millicores 4000 --memory-mb 14336 \\\n  --pods 110 --ephemeral-storage-mb 51200"
    },
    {
-    "h": "Install the connector",
+    "h": "Install the Multicloud software in your cluster",
     "who": "You run it, with your CIDRs",
-    "d": "Paste the helm command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the values from “Prepare your cluster”. Do not change the other values. It looks like the example below, with your own IDs. The chart must be 0.3.1 or later (this command uses 0.3.1). The --set-string reflectionKick.remoteClusterID line (your pool slug) is required. This chart change applies to every Extend customer, with or without the proxy: offloaded pods that already run keep an empty IP until they restart.",
+    "d": "Paste the command from the Install command line. Replace <POD_CIDR> and <SERVICE_CIDR> with the two address ranges you wrote down in the cluster check. Change nothing else. The version must be 0.3.1 or later. This is needed for every Multicloud customer, with or without the bridge: apps that already run keep no address until they restart.",
     "in": [
      "Pod CIDR",
      "Service CIDR"
@@ -928,7 +928,7 @@ const STAGES = [
    {
     "h": "Save the connection file",
     "who": "You, in a terminal",
-    "d": "Multicloud gives the connection file only once, on the first read after the peering is ready. This loop waits for it and saves it. Replace <peering-id> (and the pool name, if yours is not poc-gpu). The file must not be empty. Keep it secret: it grants access to the pool. Do not run mctl peering show by hand before the loop ends.",
+    "d": "Multicloud gives this connection file only once, the first time it is read after the link is ready. The agent waits for it and saves it to your computer. Keep it secret: it lets your cluster reach the machines. Do not open it.",
     "in": [
      "Peering connection file (shown once)"
     ],
@@ -936,21 +936,21 @@ const STAGES = [
     "g": "If the status is SUSPENDED, wake the pool (mctl pool wake poc-gpu --wait) and run the loop again. If the status is FAILED or the file is empty, revoke the peering (mctl peering revoke poc-gpu <peering-id> --yes) and ask for one GPU again."
    },
    {
-    "h": "Apply the connection file",
+    "h": "Load the connection file into your cluster",
     "who": "You, in a terminal",
-    "d": "The check Job name ends with your consumer cluster ID (c- and 8 characters), not the peering ID. Find it in the line Consumer cluster of mctl peering show poc-gpu <peering-id>, or in the clusterID value of your helm command.",
+    "d": "The check job name ends with your cluster's ID (c- and 8 characters), not the link number. Find that ID in the Install command line, in the clusterID part.",
     "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<consumer-cluster-id>"
    },
    {
-    "h": "Check that the GPU shows up",
+    "h": "Check that the GPU shows up in your cluster",
     "who": "You, in a terminal",
-    "d": "The virtual node needs about 2 minutes. The output must be 1. An empty output in the first minutes is normal: run it again.",
+    "d": "The Multicloud node needs about 2 minutes. The output must be 1. An empty output in the first minutes is normal: run it again.",
     "c": "kubectl get node -l liqo.io/type=virtual-node \\\n  -o jsonpath='{..allocatable.nvidia\\.com/gpu}'"
    },
    {
-    "h": "Upgrade an older connector install",
+    "h": "Update an older install",
     "who": "You run it, with your CIDRs",
-    "d": "Only if liqo-consumer is already installed below chart 0.3.1. Keep the same values, then restart the offloaded workloads (step proxy-restart).",
+    "d": "Only if Multicloud software below version 0.3.1 is already installed. Keep the same values, then restart the apps that already run (the restart step below).",
     "in": [
      "Pod CIDR",
      "Service CIDR"
@@ -965,9 +965,9 @@ const STAGES = [
   "dg": "run",
   "steps": [
    {
-    "h": "Create and offload the namespace",
+    "h": "Send this namespace to the Multicloud machines",
     "who": "You, in a terminal",
-    "d": "Only pods in an offloaded namespace can use the pool. Other pods in my-apps still run on your own nodes.",
+    "d": "Only apps in a namespace sent to Multicloud can use its machines. Other apps in my-apps still run on your own machines.",
     "c": "kubectl create namespace my-apps\nkubectl apply -f - <<'EOF'\napiVersion: offloading.liqo.io/v1beta1\nkind: NamespaceOffloading\nmetadata: {name: offloading, namespace: my-apps}\nspec:\n  namespaceMappingStrategy: DefaultName\n  podOffloadingStrategy: LocalAndRemote\n  clusterSelector:\n    nodeSelectorTerms:\n    - matchExpressions:\n      - {key: liqo.io/type, operator: In, values: [virtual-node]}\nEOF"
    },
    {

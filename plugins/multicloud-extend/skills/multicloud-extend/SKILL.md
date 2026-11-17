@@ -25,6 +25,20 @@ On Windows, run every command inside WSL (`wsl.exe -d <wsl_distro> -- bash -lc '
 WSL home folder; see skill `multicloud-workstation`). Keep every file of this skill in a folder in
 the WSL home, never under `/mnt/c`.
 
+## Words used in this skill
+
+- **Machines (pool):** the Multicloud machines that run your work in your own AWS account. You pay for
+  them by the hour. A paused set costs nothing.
+- **Link (peering):** the connection between your cluster and those machines. One link per machine set.
+- **Connector:** the Multicloud software installed in your cluster. It makes the link work.
+- **Connection file (bundle):** a file from Multicloud that lets your cluster reach the machines. It is
+  given once and must stay secret.
+- **Multicloud node:** a node in your cluster that stands for the Multicloud machines. Your apps are
+  sent there with a namespace setting ("send this namespace").
+- **Bridge (proxy):** a small set of pods in your cluster that lets your apps reach an app on the
+  Multicloud machines.
+- **Your cluster ID:** the ID Multicloud gives your cluster (starts with `c-`).
+
 ## Stage order
 
 Every Extend use case runs the proxy stage. The flow runs these stages in this order:
@@ -127,11 +141,11 @@ that workload's namespace (`my-apps`) and Service (`vllm`). That namespace must 
 Steps in order:
 1. `proxy-key` (user, owner, secret): the user creates an API key with scope `extend:proxy` only.
    Wait for the user to say it is done. Never ask for the key.
-2. `proxy-manifest` (ask): ask for the path of `extend-proxy.yaml` and the release image tag. Both come
-   from Multicloud; there is no public download, so do not invent either. The agent copies the file to
-   `~/multicloud-onboarding/`, fills in the image tag, pool, peering ID and the route (`my-apps`,
-   `vllm`, port 8000), checks no placeholder is left, dry-runs the apply, shows you the result, and
-   applies only on your yes. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
+2. `proxy-manifest` (ask): the file comes with this skill (`assets/extend-proxy.yaml`, release image
+   `multicloud/extend-proxy:0.1.2`), so the user needs nothing from anyone else. The agent copies it to
+   `~/multicloud-onboarding/`, fills in the pool and peering ID (ask for them from the ledger or the
+   pool and link steps), checks no placeholder is left, dry-runs the apply, shows you the result, and
+   applies only on your yes. The route is `my-apps`, `vllm`, port 8000. An older copy's `extend-proxy-discovery` objects are deleted only on a yes.
 3. `proxy-secret` (user, secret): the user types the key at the prompt of their own terminal (the
    command reads it without echo). Wait for the user to say it is done.
 4. `proxy-check` (agent): both replicas show `READY 1/1`. Then hand back `proxy=ready`.

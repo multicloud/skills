@@ -60,4 +60,7 @@ done
 # The PoC page is built from the flow files; a stale page gives a person other commands than the skills.
 python3 scripts/render-poc-page.py --check || fail=1
 
+# The Extend proxy manifest must match the platform manifest it is generated from.
+python3 scripts/sync-extend-proxy.py --check || fail=1
+
 exit "$fail"
