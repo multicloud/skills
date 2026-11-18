@@ -16,13 +16,15 @@ Last updated: 2026-11-18.
 | GPU pool created and ready: 1 node, cost cap $1.50/h, accelerators L4 and A10G | `mctl pool show` | 2026-11-18 |
 | Connector for the GPU pool installed (`liqo-consumer` chart 0.4.0); preflight job completes | `helm`, `kubectl wait` | 2026-11-18 |
 | GPU virtual node is Ready and reports `nvidia.com/gpu: 1` | `kubectl get node -l liqo.io/type=virtual-node` | 2026-11-18 |
+| vLLM (Qwen2.5-7B-Instruct) starts on the GPU pool and answers in the pod: no key gives 401, the key gives a model answer. First start took about 25 minutes, mostly the model download | In-pod request test | 2026-11-18 |
+| GPU route end to end: laptop, kubectl port-forward, cluster, Extend proxy (route to `vllm`, port 8000), pool, vLLM. No key gives 401, the key gives a model answer | Live tunnel test | 2026-11-18 |
+| The GPU proxy key is created with `mctl extend proxy-key create --pool <gpu pool> --replace` and written to the cluster secret. The proxy registers (status PENDING until activated) | `mctl` output, proxy log | 2026-11-18 |
 
 ## Not yet verified
 
-- vLLM answers a model request on the GPU pool (deployed 2026-11-18; first start can take up to 20 minutes).
-- The GPU proxy (route to `vllm` on port 8000) registers and forwards requests.
-- The tunnel test to vLLM: 401 without the key, a model answer with it.
+- The GPU proxy reaches ACTIVE status (it was PENDING at the last check).
 - The CPU route on a second pool: the earlier pool's connector was replaced, so it needs a new peering first.
+- The old proxy key used before `--replace` must be revoked in the console. That step is manual.
 
 ## Known issues from this track
 
