@@ -109,7 +109,7 @@ Format (IDs and states only, nothing secret):
 {
   "version": 1,
   "answers": {"door": "extend", "cloud": "aws", "aws_account": "new", "os": "windows",
-              "cluster": "kubectl-works", "workload": "gpu-llm"},
+              "cluster": "kubectl-works", "udp_51820": "open", "workload": "gpu-llm"},
   "facts": {"org_id": "acme", "wsl_distro": "Ubuntu", "aws_profile": "poc", "aws_account_id": "123456789012",
             "region": "us-east-1", "cloud_account_id": 7,
             "connection_dir": "/home/ana/multicloud-aws", "kubeconfig": "/home/ana/.kube/config-poc",
@@ -148,8 +148,16 @@ laptop", "my k3s cluster"), and write that answer to the ledger. Ask only what i
 5. Extend only: **Cluster.** My cluster works with `kubectl` now · I have a cluster but no access yet
    (the administrator must give a kubeconfig file and cluster-admin rights: continue, and stop
    before the cluster stage) · No cluster (Extend needs one: offer CI runners, else stop).
-6. Extend only: **Workload.** One LLM on one GPU (the GPU PoC) · CPU work · other.
-7. CI only: **GitHub organization** name, and which runner sizes. If the user asks for GPU runners,
+6. Extend only: **Network.** "The bridge in your cluster sends WireGuard traffic out on UDP port
+   51820 to any IPv4 address. Does your network allow outbound UDP 51820 from the cluster nodes?"
+   Yes, confirmed · I do not know, or a company firewall · No. Any answer but "Yes, confirmed": tell
+   the user to ask the network team now, because a firewall change can take days and runs while
+   quota waits. The rule: outbound UDP 51820 from every node (or the NAT gateway) to any IPv4
+   address, any source port, return traffic allowed; nothing inbound. Write `udp_51820` (`open`,
+   `unknown`, `requested` or `blocked`) to the ledger. Do not stop: the `cluster` stage tests the
+   port (`udp-51820`), and only the `proxy` stage needs it.
+7. Extend only: **Workload.** One LLM on one GPU (the GPU PoC) · CPU work · other.
+8. CI only: **GitHub organization** name, and which runner sizes. If the user asks for GPU runners,
    say first that GPU runner classes are not available yet, and ask one question: CPU runners now
    (recommended), or a cloud GPU for their own Kubernetes cluster (the Extend door).
 
