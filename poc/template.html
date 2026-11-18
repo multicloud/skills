@@ -177,7 +177,7 @@ footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px
   <section class="panel" aria-labelledby="arch-h">
     <h2 id="arch-h">What you end up with</h2>
     <p>Your cluster gets one virtual node. A pod you place on it runs on a real GPU worker in your AWS account. Multicloud runs the control plane of that worker pool and keeps one worker running while the pool is awake. You hibernate the pool to stop paying for the worker. Your control plane, your other nodes and your data stay where they are.</p>
-    <figure class="dg" id="d-arch"><figcaption>Final architecture. Solid lines are in use during the PoC. The dashed line is the optional in-cluster path (Extend proxy).</figcaption></figure>
+    <figure class="dg" id="d-arch"><figcaption>Final architecture. Solid lines are in use during the PoC. The dashed line is the in-cluster path (Extend proxy).</figcaption></figure>
   </section>
 
   <div class="progress"><span id="count">0 of 0 steps done</span><div class="bar"><i id="fill"></i></div><button type="button" id="reset">Clear</button></div>
@@ -318,10 +318,10 @@ const DIAGRAMS = {
     note(30, 190, "No inbound port is opened."),
     box(480, 20, 230, 54, "Cloudflare", "TCP 443 · required", "cf"),
     box(480, 94, 230, 54, "docker.io · ghcr.io", "TCP 443 · images", "cf"),
-    box(480, 168, 230, 54, "GPU worker (later)", "UDP 51820 · optional", "aws", true),
+    box(480, 168, 230, 54, "GPU worker (later)", "UDP 51820 · outbound", "aws", true),
     edge([[290, 96], [480, 47]]), edge([[290, 108], [480, 121]]), edge([[290, 120], [480, 195]], "", { d: true }),
     note(385, 70, "outbound", "middle"),
-  ].join(""), "Your cluster needs outbound TCP 443 to Cloudflare and the image registries. UDP 51820 is optional."),
+  ].join(""), "Your cluster needs outbound TCP 443 to Cloudflare and the image registries. Outbound UDP 51820 to any IPv4 address is needed for the Extend proxy."),
 
   pool: svg(230, [
     zone(10, 12, 300, 206, "Multicloud"),
@@ -385,7 +385,7 @@ const DIAGRAMS = {
     zone(25, 138, 220, 280, "Your cluster (on-prem)"),
     box(40, 170, 190, 56, "Your apps", "unchanged", "you"),
     box(40, 250, 190, 56, "Virtual node", "poc-gpu · 1 GPU", "you"),
-    box(40, 330, 190, 70, "Liqo + bridge", "outbound 443\n(+ Extend proxy, optional)", "you"),
+    box(40, 330, 190, 70, "Liqo + bridge", "outbound 443\n(+ Extend proxy: UDP 51820)", "you"),
     edge([[135, 306], [135, 330]]),
     box(290, 337, 130, 56, "Cloudflare", "TCP 443", "cf"),
     zone(460, 12, 250, 190, "Multicloud"),
@@ -400,7 +400,7 @@ const DIAGRAMS = {
     edge([[480, 380], [420, 380]], "worker joins", { at: [450, 396] }),
     edge([[690, 71], [703, 71], [703, 275], [690, 275]], "", {}),
     note(698, 215, "assumes role", "end"),
-    edge([[135, 400], [135, 424], [585, 424], [585, 402]], "UDP 51820 · optional proxy", { d: true, at: [360, 418] }),
+    edge([[135, 400], [135, 424], [585, 424], [585, 402]], "UDP 51820 · Extend proxy", { d: true, at: [360, 418] }),
   ].join(""), "Final architecture: your site, Cloudflare, Multicloud and your AWS account."),
 };
 

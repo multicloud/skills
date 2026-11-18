@@ -20,6 +20,9 @@ You need (ask the user, or take it from the onboarding ledger):
 - for `gpu-llm`: on-demand G and VT vCPU quota of 4 or more in that region. Unknown or lower: use
   skill `multicloud-quota` first. Never create the GPU pool before the quota is there.
 - `kubectl`, `helm` 3.14+, `jq`, and a kubeconfig with cluster-admin rights.
+- **outbound UDP 51820** from the cluster nodes (or their NAT gateway) to any IPv4 address, from
+  any source port. The bridge needs it; no inbound rule is needed. Ask early: a firewall change can
+  take days. Step 1, check `udp-51820`, tests it.
 
 On Windows, run every command inside WSL (`wsl.exe -d <wsl_distro> -- bash -lc '…'`, or a script in the
 WSL home folder; see skill `multicloud-workstation`). Keep every file of this skill in a folder in
@@ -90,6 +93,12 @@ Run the steps in order and report each result in one line:
   `exec` and `port-forward` to the pool: stop and ask for another cluster (kind, k3s).
 - `free-cpu`: about 115m of free CPU requests on one node; a node at 95% or more is full.
 - `egress` (ask: it starts one short pod): docker hub 401, ghcr 401, cloudflare 200 are good.
+- `udp-51820` (ask: it starts one short pod): the bridge sends WireGuard on UDP 51820 to pool
+  addresses that change. A UDP send exits 0 even when a firewall drops it, so the result shows only
+  on a listener outside the user's network: the user runs `nc -u -l 51820` on a host with a public
+  address, and the text `multicloud-udp-test` must arrive there. No such host: the user gets a
+  written yes from the network team. A firewall request is open: record `udp_51820=requested`, do
+  not stop, and continue; the `proxy` stage needs the port. Never invent a Multicloud test endpoint.
 
 A failed check: stop and say what the cluster administrator must change. All good: hand back
 `status=done stage=cluster` when the orchestrator asked only for this stage (for example while
@@ -186,6 +195,10 @@ Steps in order:
 
 Notes for the user:
 - `HOST_FIREWALL_OFF` in the proxy log: ask Multicloud to turn on the pool network. The proxy retries.
+- Both replicas stay `0/1` after a registered line, the pool is awake and there is no
+  `HOST_FIREWALL_OFF`: outbound UDP 51820 is the first suspect (check `udp-51820`). The proxy log
+  does not name this cause. Ask the network team to open the port, and ask Multicloud to check the
+  pool side (`0` fresh handshakes means no packet from the bridge arrives).
 - The replicas show NotReady while the pool sleeps. Do not act; they become Ready when the pool wakes.
 - An offloaded pod not restarted since the chart change has no address. Restart it (`proxy-restart`).
 - The proxy reaches pods by their IPv6 address. A server that listens only on IPv4 gives
