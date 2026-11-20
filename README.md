@@ -52,6 +52,7 @@ yourself, including the one that watching the pod's egress cannot tell you.
 | `multicloud-workstation` | Available | Prepares your computer: WSL2 on Windows, `mctl`, AWS CLI, OpenTofu, kubectl, helm, and the Multicloud sign-in |
 | `multicloud-aws-account-setup` | Available | Makes a brand-new AWS account ready: root MFA, single sign-on or an IAM user, and an AWS CLI profile |
 | `multicloud-extend` | Available | Gives your own Kubernetes cluster cloud nodes or a cloud GPU, and runs a first vLLM or burst workload |
+| `multicloud-troubleshoot` | Available | Finds why Extend or a pool misbehaves with your own access (kubectl, mctl, AWS CLI), proposes the fix, and prepares a support bundle without secrets |
 | `multicloud-ci-pool` | Available | GitHub Actions runners in your own AWS account (CPU sizes; the GitHub App step goes through your Multicloud contact) |
 | `skipper-onboard` | Name reserved | Onboarding onto Skipper |
 | `skipper-deploy` | Name reserved | Deploying with Skipper |
@@ -64,7 +65,7 @@ Reserved names are listed here rather than as entries in
 
 ```bash
 claude plugin marketplace add multicloud/skills
-for p in onboarding workstation aws-account-setup connect-aws quota extend ci-pool progress; do
+for p in onboarding workstation aws-account-setup connect-aws quota extend troubleshoot ci-pool progress; do
   claude plugin install multicloud-$p@multicloud
 done
 ```
@@ -156,7 +157,7 @@ Each plugin carries its own `LICENSE` file:
 | `multicloud-advisor` | Proprietary, see [LICENSE](LICENSE) |
 | `multicloud-connect-aws` | Apache-2.0, see [plugins/multicloud-connect-aws/LICENSE](plugins/multicloud-connect-aws/LICENSE) |
 | `multicloud-quota` | Apache-2.0, see [plugins/multicloud-quota/LICENSE](plugins/multicloud-quota/LICENSE) |
-| `multicloud-onboarding`, `multicloud-workstation`, `multicloud-aws-account-setup`, `multicloud-extend`, `multicloud-ci-pool` | Apache-2.0, see the `LICENSE` file in each plugin folder |
+| `multicloud-onboarding`, `multicloud-workstation`, `multicloud-aws-account-setup`, `multicloud-extend`, `multicloud-troubleshoot`, `multicloud-ci-pool` | Apache-2.0, see the `LICENSE` file in each plugin folder |
 
 Everything else in this repository is proprietary ([LICENSE](LICENSE)). It is **public so you can
 read it before you run it**, not open source. You are licensed to run these Materials against

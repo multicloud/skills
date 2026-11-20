@@ -20,6 +20,9 @@
  {"skill": "multicloud-ci-pool", "query": "our CI pool 'ci' on Multicloud is costing too much over the weekend, pause it and tell me what the -no-spot labels do"},
  {"skill": "multicloud-ci-pool", "query": "Can I get GPU GitHub Actions runners from Multicloud on my own AWS account for ML tests?"},
  {"skill": "multicloud-advisor", "query": "what would our EKS cluster cost on GCP or Azure spot? I want a savings report before we commit to anything"},
+ {"skill": "multicloud-troubleshoot", "query": "the extend-proxy pods in multicloud-extend-proxy stay 0/1 Ready, the log says registered and then nothing. pool burst. what's wrong?"},
+ {"skill": "multicloud-troubleshoot", "query": "my multicloud pool poc-gpu has been 'waking' for 25 minutes, is something broken? also my namespace offloading says NoClusterSelected"},
+ {"skill": "multicloud-troubleshoot", "query": "pods in my-apps are Pending on the multicloud virtual node and the node shows NotReady, help me debug with kubectl"},
  {"skill": "none", "query": "my EC2 instance in us-west-2 can't reach the internet, check the route table and security group for i-0abc123"},
  {"skill": "none", "query": "write a GitHub Actions workflow that builds my Go service and pushes the image to ECR on every tag"},
  {"skill": "none", "query": "install k3s on this raspberry pi cluster and set up helm"}

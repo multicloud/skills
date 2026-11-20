@@ -51,6 +51,15 @@ Every Extend use case runs the proxy stage. The flow runs these stages in this o
 | `gpu-llm` | `cluster` → `pool-gpu` → `peering` → `run-gpu-llm` → `proxy` → (`cleanup` on request) |
 | `cpu-burst` | `cluster` → `pool-cpu` → `peering` → `run-cpu-burst` (the proxy stage's `proxy-target` adds the nginx route target) → `proxy` → (`cleanup` on request) |
 
+## When a step fails
+
+A check fails, a wait times out, or a status is not what the step expects: use skill
+`multicloud-troubleshoot`. It diagnoses read-only with the same access (kubectl, mctl, AWS CLI),
+proposes the fix, and prepares a support bundle without secrets. Then come back to the step that
+failed. Examples: a pool still waking after 20 minutes, a peering not `READY`, a preflight Job that
+fails, a virtual node NotReady, pods Pending, `NoClusterSelected`, the bridge at `0/1`, a failed
+`proxy-test`.
+
 ## Rules that do not bend
 
 1. **The bundle is read once.** The first read of a READY peering holds the connection file; the
@@ -122,7 +131,7 @@ example; use the region of the quota (GPU) or the region the user chose. Then op
 (`https://multicloud.io/console/pools`) and tell the user they can follow the creation there, and
 that they should come back to this chat. Poll `wait-ready` here: run `mctl pool show <pool>` once
 a minute until `Status: ready`, at most 20 minutes; then stop and give the output to the user for
-their Multicloud contact. Errors: `ACCOUNT_NOT_READY` (409) → verify
+their Multicloud contact (skill `multicloud-troubleshoot`, Step 4, collects it). Errors: `ACCOUNT_NOT_READY` (409) → verify
 the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 
 ## Step 3: Connect the cluster (stage `peering`)
@@ -147,8 +156,10 @@ the account (skill `multicloud-connect-aws`); a 422 names the bad field.
    multicloud-peering.yaml && echo saved`. Status `SUSPENDED`: the pool hibernates or wakes;
    `mctl pool wake <pool> --wait`, then run the loop again. Empty, or status FAILED: revoke
    (`mctl peering revoke <pool> <peering-id> --yes`, ask first) and create a new peering.
-4. `apply-bundle` (ask): the preflight Job name ends with the **consumer cluster ID** (`c-` and 8
-   hex characters, from the `clusterID` value of the install command), not the peering ID.
+4. `apply-bundle` (ask): the preflight Job is `multicloud-peering-preflight-<pool-slug>-<consumer-cluster-id>`.
+   The slug is the `reflectionKick.remoteClusterID` value of the install command; the consumer
+   cluster ID (`c-` and 8 hex characters) is its `clusterID` value. It is not the peering ID.
+   `kubectl -n liqo get jobs | grep multicloud-peering-preflight` shows the exact name.
 5. `gpu-llm`: `check-gpu` must print `1` (empty in the first two minutes is normal; retry).
    `cpu-burst`: `check-virtual-node` must show `Ready` and the pool slug.
 
@@ -204,6 +215,9 @@ Notes for the user:
 - The proxy reaches pods by their IPv6 address. A server that listens only on IPv4 gives
   `connection refused` in the proxy log. nginx needs `listen [::]:80;` and vLLM needs `--host ::`
   (the bundled vLLM manifest has it).
+
+For any of these, skill `multicloud-troubleshoot` (section S10 for the bridge, S11 for
+`proxy-test`) has the checks in order and the support bundle.
 
 If the user declines the proxy: say that a pod in the cluster calling a pod on the pool will not
 work, and record `proxy=skipped`. If the check fails and cannot be fixed, record `proxy=blocked`
