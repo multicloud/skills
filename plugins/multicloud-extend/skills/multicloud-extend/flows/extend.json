@@ -247,7 +247,7 @@
           "h": "Load the connection file into your cluster",
           "who": "You, in a terminal",
           "d": "The check job name ends with your cluster's ID (c- and 8 characters), not the link number. Find that ID in the Install command line, in the clusterID part.",
-          "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<consumer-cluster-id>"
+          "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<pool-slug>-<consumer-cluster-id>"
         },
         {
           "id": "check-gpu",

@@ -55,12 +55,14 @@ the IDs it needs, and keep a ledger so the work can continue on another day.
 | `multicloud-extend` | Extend door: cluster checks, pool, peering, first workload, cleanup | `pool`, `peering_id`, `consumer_cluster_id`, `first_run` |
 | `multicloud-ci-pool` | CI runners door | `pool`, `github_app`, `first_job` |
 | `multicloud-advisor` | Optional Extend stage (workloads and cost check, after the cluster checks) | (route only) |
+| `multicloud-troubleshoot` | Any stage that fails or times out: pool wake, workers, peering, virtual node, bridge, quota, cloud account | `symptom`, `fixed`, `bundle` |
 
 **Find a skill.** If your agent has the skill installed, use it by name. Otherwise read its
 `SKILL.md` from this repository at the release tag in the table at the end, from
 `https://raw.githubusercontent.com/multicloud/skills/<tag>/plugins/<skill>/skills/<skill>/SKILL.md`,
-and the files it names from the same folder (`flows/*.json`, and `assets/vllm-gpu.yaml` for
-`multicloud-extend`). If the tag answers 404 (not released yet), use `main` instead of the tag and
+and the files it names from the same folder (`flows/*.json`, `assets/vllm-gpu.yaml` for
+`multicloud-extend`, and `playbook.md` and `scripts/support-bundle.sh` for
+`multicloud-troubleshoot`). If the tag answers 404 (not released yet), use `main` instead of the tag and
 tell the user so. (`flows/doors.json` and the step fields `detect`, `optional`, `console`, `d_human`
 are for the multicloud.io console; ignore them. Object-form `in[]` items have a `label`. A step with
 `doors` belongs only to those doors: skip it on any other door.) Never copy its text into this conversation as your own
@@ -210,7 +212,15 @@ which needs no GPU quota: `pool-cpu` (at most $0.50 per hour), `peering`, `run-c
 Ask first, because it costs money. Then save the ledger and tell the user how to continue: "Say:
 continue my Multicloud onboarding."
 
+**When a check fails:** a focused skill reports `failed`, a check or wait does not give the
+expected result, or the user says something does not work. Run `multicloud-troubleshoot` with the
+pool, the organization and the kubeconfig from the ledger. It finds the cause read-only, asks before
+each fix, and prepares a support bundle without secrets when Multicloud must help. Write its result
+line to the ledger, then go back to the step that failed.
+
 **When a skill is `blocked`:** say who must act and what to ask them, save the ledger, and stop.
+For `who=multicloud-contact`, run `multicloud-troubleshoot`, Step 4 first: it collects the support
+bundle and tells the owner how to allow support access.
 
 **Progress panel (optional mod).** If the tool `mcp__multicloud-progress__mark_step` is available,
 call it to keep the onboarding panel on the right of the chat up to date: `active` when a skill
@@ -250,3 +260,4 @@ ledger.
 | `multicloud-extend` | `multicloud-extend--v0.2.2` |
 | `multicloud-ci-pool` | `multicloud-ci-pool--v0.1.0` |
 | `multicloud-advisor` | the newest `multicloud-advisor--v*` tag |
+| `multicloud-troubleshoot` | `multicloud-troubleshoot--v0.1.0` |

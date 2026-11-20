@@ -115,6 +115,20 @@
       "strict": true
     },
     {
+      "name": "multicloud-troubleshoot",
+      "source": "./plugins/multicloud-troubleshoot",
+      "description": "Diagnose Multicloud Extend and pools with your own access only: pool wake, workers, peering, virtual node, NamespaceOffloading, the extend-proxy bridge (including blocked UDP 51820), quota and cloud account. Read-only by default; prepares a support bundle without secrets.",
+      "category": "infrastructure",
+      "tags": [
+        "kubernetes",
+        "troubleshooting",
+        "extend",
+        "liqo",
+        "support"
+      ],
+      "strict": true
+    },
+    {
       "name": "multicloud-ci-pool",
       "source": "./plugins/multicloud-ci-pool",
       "description": "Run GitHub Actions jobs on machines in your own AWS account with a Multicloud CI pool: create the pool, connect GitHub, and run a first job with runs-on: multicloud.",
