@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "multicloud-troubleshoot",
   "description": "Find out why Multicloud Extend or a pool misbehaves with only your own access (kubectl, mctl, AWS CLI): symptom, checks, fix, read-only by default, and a support bundle without secrets when Multicloud must help.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Multicloud",
     "url": "https://multicloud.io"

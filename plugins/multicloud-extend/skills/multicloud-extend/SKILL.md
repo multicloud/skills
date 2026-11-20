@@ -131,7 +131,7 @@ example; use the region of the quota (GPU) or the region the user chose. Then op
 (`https://multicloud.io/console/pools`) and tell the user they can follow the creation there, and
 that they should come back to this chat. Poll `wait-ready` here: run `mctl pool show <pool>` once
 a minute until `Status: ready`, at most 20 minutes; then stop and give the output to the user for
-their Multicloud contact (skill `multicloud-troubleshoot`, section S4, collects it). Errors: `ACCOUNT_NOT_READY` (409) → verify
+their Multicloud contact (skill `multicloud-troubleshoot`, Step 4, collects it). Errors: `ACCOUNT_NOT_READY` (409) → verify
 the account (skill `multicloud-connect-aws`); a 422 names the bad field.
 
 ## Step 3: Connect the cluster (stage `peering`)

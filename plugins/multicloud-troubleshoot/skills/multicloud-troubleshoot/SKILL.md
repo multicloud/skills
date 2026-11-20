@@ -16,7 +16,8 @@ the commands as written there.
 
 ## Rules that do not bend
 
-1. **Read-only by default.** Every check in `playbook.md` reads. A fix changes something: show the
+1. **Read-only by default.** Every check in `playbook.md` reads, except the ones marked "ask":
+   they start one short test pod (`udp-check`, `proxy-test`), so ask before them too. A fix changes something: show the
    command, name the cluster (`kubectl config current-context`) or the pool, ask, and run it only
    after a clear yes. A yes covers one fix. Deletes cannot be undone: say so.
 2. **No secrets.** Never print, `cat`, copy or ask for the peering bundle (`multicloud-peering.yaml`),
@@ -64,7 +65,7 @@ Match the first bad result to a row. Then open that section of `playbook.md`.
 | mctl stops before any answer | `Your session ended`, `You belong to several organizations`, `You are not a member of` | S1 Sign-in and organization |
 | Cloud account not ready | `mctl cloud-account list` STATUS is not `verified`; pool create gives `ACCOUNT_NOT_READY` | S2 Cloud account not verified |
 | Not enough AWS quota | pool stays without a GPU worker; `quota-plan` limit below the need | S3 Quota too low |
-| Pool wakes slowly or stays waking | `Status: waking` (or `provisioning`) for more than 11 minutes | S4 Pool slow to wake |
+| Pool wakes slowly or stays waking | `Status: waking` (or `provisioning`) for more than 11 minutes (normal is 8.5 to 11; escalate only after 20) | S4 Pool slow to wake |
 | Pool has no worker | `Nodes: 0` while pods wait on the virtual node | S5 Pool has no worker |
 | Peering not READY, preflight Job fails | `peering list` STATUS is not `READY`; `kubectl -n liqo wait job/...` times out | S6 Peering and preflight |
 | Virtual node missing, NotReady or tainted | no line, `NotReady` or `Unknown`, an unexpected taint | S7 Virtual node |
@@ -91,6 +92,11 @@ Escalate when `playbook.md` says so, or after two failed fixes.
    ```bash
    bash <skill-folder>/scripts/support-bundle.sh --pool <pool> --org <org-id> --ns my-apps
    ```
+
+   `<skill-folder>` is the folder of this `SKILL.md`. Without the plugin installed, download the
+   script first into `~/multicloud-onboarding/` from
+   `https://raw.githubusercontent.com/multicloud/skills/main/plugins/multicloud-troubleshoot/skills/multicloud-troubleshoot/scripts/support-bundle.sh`,
+   and read it before you run it.
 
    It collects IDs, states and log tails only: pool, peerings, cloud accounts, connector pods and
    IDs, virtual nodes, NamespaceOffloading phases, workload pods and events, bridge pods, config,

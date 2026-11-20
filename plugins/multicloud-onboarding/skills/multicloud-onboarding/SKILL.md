@@ -260,4 +260,4 @@ ledger.
 | `multicloud-extend` | `multicloud-extend--v0.2.2` |
 | `multicloud-ci-pool` | `multicloud-ci-pool--v0.1.0` |
 | `multicloud-advisor` | the newest `multicloud-advisor--v*` tag |
-| `multicloud-troubleshoot` | `multicloud-troubleshoot--v0.1.0` |
+| `multicloud-troubleshoot` | `multicloud-troubleshoot--v0.1.1` |

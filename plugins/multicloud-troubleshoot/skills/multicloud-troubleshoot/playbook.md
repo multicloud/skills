@@ -211,8 +211,9 @@ kubectl -n liqo logs job/multicloud-peering-preflight-<slug>-<consumer-id>
 - The Job never starts: `kubectl -n liqo get pods` must show the connector pods `Running` first.
 
 A connector that was uninstalled and installed again cannot reuse an old bundle. Delete the old
-bundle objects first (`kubectl delete -f multicloud-peering.yaml`), then revoke, then create a new
-peering. Revoking first leaves Liqo objects that do not delete.
+bundle objects first (`kubectl delete -f multicloud-peering.yaml`, ask first), then revoke, then
+create a new peering. Revoking first leaves Liqo objects that do not delete. The file is gone:
+do not guess which objects to delete; escalate (Step 4) with the peering ID.
 
 **Escalate:** `FAILED` with a message that names Multicloud (for example `INTERNAL`), `PENDING`
 for more than 20 minutes on a ready pool, or the preflight Job fails twice with the right
@@ -378,7 +379,8 @@ ready, `host_firewall` is true, and the replicas stay 0/1. Put the bridge log in
 
 ## S11 `proxy-test` fails
 
-**Check** (the test of skill `multicloud-extend`, step `proxy-test`; route `vllm-pool`, port 8000):
+**Check** (ask: it starts one short pod in `default`; the test of skill `multicloud-extend`, step
+`proxy-test`; route `vllm-pool`, port 8000):
 
 ```bash
 kubectl -n default run proxy-test --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \

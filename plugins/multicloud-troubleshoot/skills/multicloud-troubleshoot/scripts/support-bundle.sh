@@ -23,11 +23,12 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$POOL" ] || { echo "usage: $0 --pool <pool> [--org <org-id>] [--ns <namespace>] [--out <file>]" >&2; exit 2; }
 OUT="${OUT:-$HOME/multicloud-onboarding/support-bundle-$(date -u +%Y%m%dT%H%M%SZ).txt}"
-mkdir -p "$(dirname "$OUT")"
 umask 077
+mkdir -p "$(dirname "$OUT")"
 
 if [ -z "$ORG" ]; then
   orgs="$(mctl auth status 2>/dev/null | sed -n 's/^Organizations: //p')"
+  [ -n "$orgs" ] || { echo "mctl lists no organization (not signed in?). Run mctl auth login, or pass --org <org-id>." >&2; exit 2; }
   case "$orgs" in
     *,*) echo "You belong to several organizations ($orgs). Run again with --org <org-id>." >&2; exit 2 ;;
   esac
@@ -35,9 +36,15 @@ fi
 MCTL=(mctl)
 [ -n "$ORG" ] && MCTL+=(--org "$ORG")
 
+scrub() {  # a second guard: mask anything shaped like a key or token
+  sed -E -e 's/mca_[A-Za-z0-9_-]+/mca_[REDACTED]/g' \
+         -e 's/([Bb]earer )[A-Za-z0-9._~+\/=-]+/\1[REDACTED]/g' \
+         -e 's/((api[_-]?key|token|password|secret)["]?[=:][ ]*["]?)[^ ",}]+/\1[REDACTED]/Ig'
+}
+
 run() {  # run <title> <command...>: print the command, then its output (stdout and stderr)
   printf '\n### %s\n$ %s\n' "$1" "${*:2}"
-  "${@:2}" 2>&1 | tail -n 60
+  "${@:2}" 2>&1 | tail -n 60 | scrub
 }
 
 {
