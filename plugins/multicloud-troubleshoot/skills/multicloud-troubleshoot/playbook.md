@@ -12,6 +12,12 @@ Several organizations: add `--org <org-id>` to every `mctl` line below (Rule 4).
 
 A line marked `# UNTESTED` was not run by the skill authors (see "Test record" at the end).
 
+`mctl pool diagnose <pool>` needs mctl 0.13.0 or later (`mctl --version`). It reads only and never
+wakes a pool. It shows what Multicloud's side sees: the pool lifecycle, its readiness gates, and for
+each bridge replica the WireGuard handshake as the pool sees it. With an older mctl, ask the user
+to upgrade (`uv tool upgrade multicloud-cli`, or `pipx upgrade multicloud-cli`), or skip the
+`pool diagnose` lines.
+
 ---
 
 ## S1 Sign-in and organization
@@ -116,6 +122,7 @@ can take hours or days: `status=waiting`.
 ```bash
 mctl pool show <pool>
 mctl pool show <pool> --json | jq '{status, status_message, node_count, hibernated_reason}'
+mctl pool diagnose <pool>        # lines "Pool …", "Gates:", "Waiting for:", "Provisioning breaker:"
 ```
 
 **Good:** `Status: ready`. A wake normally takes **8.5 to 11 minutes**; plan for up to 20.
@@ -129,6 +136,9 @@ mctl pool show <pool> --json | jq '{status, status_message, node_count, hibernat
 | `waking` or `provisioning` with the same message for less than 20 minutes | Normal. A spot reclaim on Multicloud's side can make one wake slower. | Wait. Check again once a minute. |
 | `waking` or `provisioning` with the same message for **more than 20 minutes**, or the message `STATE_STALE` (UNTESTED: from the API source) | The wake is stuck on Multicloud's side. | Escalate. |
 | `Status: disabled` | The pool is turned off. | Escalate. |
+| `pool diagnose` shows `Provisioning breaker: capacity-starved` (UNTESTED: from the API source) | The cloud has no free capacity for the pool's server types now. | Wait, or ask Multicloud for more server types or regions. Escalate after 20 minutes. |
+| `pool diagnose` shows another `Provisioning breaker:` value (UNTESTED) | Multicloud stopped new workers after repeated failures. | Escalate. Put the value in the message. |
+| `pool diagnose` shows `Waiting for: <code>` | The wake waits on this gate: `WAKE_REQUESTED`, `QUEUED_FOR_BOOTSTRAP`, `WORKERS_BELOW_FLOOR`, `TCP_NOT_READY`, `LIQO_NOT_SYNCED`, `TENANT_RBAC_NOT_READY` (wake steps); `DRAINING_WORKERS`, `CONTROL_PLANE_STOPPING` (it goes to sleep). | Normal for less than 20 minutes. After 20 minutes on the same code, escalate with the code. |
 
 **Escalate:** after 20 minutes in `waking` or `provisioning`. Put in the message: the pool name,
 the `status_message`, and the time you started the wake. The cause is almost always on Multicloud's
@@ -323,6 +333,7 @@ sends WireGuard on **UDP 51820** from a random source port to IPv4 addresses of 
 ```bash
 mctl pool show <pool>                                   # must be ready
 mctl pool show <pool> --json | jq '.managed.host_firewall'   # must be true
+mctl pool diagnose <pool>                               # the pool's view of each bridge replica
 kubectl -n multicloud-extend-proxy get pods
 kubectl -n multicloud-extend-proxy get events --sort-by=.lastTimestamp \
   -o custom-columns=REASON:.reason,MSG:.message | tail -n 5
@@ -334,7 +345,24 @@ kubectl -n multicloud-extend-proxy logs deploy/extend-proxy --tail=40
 **Good:** both replicas `1/1 Running`; the log has a line `registered` with `proxy_id`; `pool` and
 `peering_id` in the ConfigMap match `mctl peering list <pool>` (a `READY` peering).
 
-Read the first bad result, top to bottom:
+**`pool diagnose` first.** It has one block per bridge replica (`Bridge <pod> (peering <id>):
+<status>`). `Pool handshake` is `fresh`, `stale`, `never` or `unknown`. `Source IP` is the public
+IPv4 address the pool sees for your cluster (your NAT gateway). A hint code at the end of a block
+names the cause:
+
+| Hint code | Cause | Fix (ask first) |
+|---|---|---|
+| none, `Pool handshake: fresh` | The pool has a handshake from this replica. The tunnel works. | Use the table below for the other causes. |
+| `POOL_NOT_RUNNING` | The pool is not running. | S4. Run `pool diagnose` again when the pool is `ready`. |
+| `NO_HANDSHAKE_AT_POOL` (UNTESTED: from the mctl source) | The pool never received a handshake from this replica. Almost always: **outbound UDP 51820 is blocked**. | See "Outbound UDP 51820 blocked" below. Give the network team the time of the check. |
+| `STALE_HANDSHAKE_AT_POOL` (UNTESTED) | The pool had a handshake before, but none recently. | Check that the replica runs. Then check that UDP 51820 is still allowed (a changed firewall rule or NAT gateway). |
+| `REPLICA_NOT_A_PEER_YET` (UNTESTED) | The pool does not list this replica as a peer yet. | Wait 5 minutes. If it stays, escalate. |
+| `POOL_NODE_AGENT_OUTDATED` (UNTESTED) | The pool nodes cannot report the handshake. The state is unknown. | Use the table below. Escalate if it does not find the cause. |
+| A line `Proxy list not published: <code>` (UNTESTED) | Multicloud did not publish the bridge to the pool. | Escalate with the code. |
+
+A replica with status `REMOVING` is an old pod that no longer runs. Ignore its block.
+
+Then read the first bad result of the other checks, top to bottom:
 
 | Output | Cause | Fix (ask first) |
 |---|---|---|
@@ -350,7 +378,9 @@ Read the first bad result, top to bottom:
 | `cannot create the WireGuard device` or `peer sync failed` | A node or kernel problem in your cluster. | Escalate with the log. |
 | **A `registered` line, the pool is ready, `host_firewall` is true, no error after it, and both replicas stay 0/1 for more than 3 minutes** | **Outbound UDP 51820 is blocked.** The log does not name this cause. | See below. |
 
-**Outbound UDP 51820 blocked.** The test must end on a listener outside the customer's network,
+**Outbound UDP 51820 blocked.** `NO_HANDSHAKE_AT_POOL` from `pool diagnose` is the pool's own
+proof that no handshake arrives. Use it, together with the bridge log, when you talk to the
+network team. To prove it from your side too, the test must end on a listener outside the customer's network,
 because a UDP send exits 0 even when a firewall drops the packet:
 
 1. The user starts a listener on a host with a public IPv4 address: `nc -u -l 51820`.
@@ -373,7 +403,8 @@ the pool side that handshakes arrive. Never invent a Multicloud test endpoint.
 one. That is normal: the rollout waits for a Ready pod.
 
 **Escalate:** UDP 51820 is proven open (the test text arrived), the pool and the peering are
-ready, `host_firewall` is true, and the replicas stay 0/1. Put the bridge log in the bundle.
+ready, `host_firewall` is true, and the replicas stay 0/1. Or `pool diagnose` shows
+`Pool handshake: fresh` and the replicas stay 0/1. Put the bridge log in the bundle.
 
 ---
 
@@ -433,6 +464,13 @@ pool):
 `peering list` (`SUSPENDED`, `REVOKED`), `cloud-account list`, `cloud-account show`, `quota-plan`,
 `ssh support list`, `overview`; the error `Your session ended`. `mctl` prints pool states in lower
 case (`hibernated`).
+
+**Tested with `mctl` 0.13.0** on 2026-11-21 (read-only): `pool diagnose <pool>` and `--json` on a
+hibernated pool (`HIBERNATED`, all gates `no`, two `REMOVING` replicas with `POOL_NOT_RUNNING`),
+and on an unknown pool name (`No pool named …`). `scripts/support-bundle.sh` with the new
+`pool diagnose` section: file mode 600, no keys or long base64 strings in the output. The other hint codes, the `Waiting for:`,
+`Provisioning breaker:` and `Proxy list not published:` lines are taken from the mctl and API
+source.
 
 **Not tested (marked `UNTESTED` or below):** every `aws` command; `mctl cloud-account verify`;
 `mctl pool update`; `mctl pool wake` (it changes state); `mctl ssh support allow` and `revoke`;
