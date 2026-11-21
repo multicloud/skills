@@ -72,7 +72,7 @@ Match the first bad result to a row. Then open that section of `playbook.md`.
 | Virtual node missing, NotReady or tainted | no line, `NotReady` or `Unknown`, an unexpected taint | S7 Virtual node |
 | Pods Pending on the virtual node | `kubectl get pods` shows `Pending` | S8 Pods Pending |
 | Namespace not offloaded | NamespaceOffloading PHASE `NoClusterSelected` | S9 NamespaceOffloading |
-| Bridge (extend-proxy) 0/1 Ready | `READY 0/1` on both replicas, or `pool diagnose` shows `NO_HANDSHAKE_AT_POOL` or `STALE_HANDSHAKE_AT_POOL` | S10 Bridge not Ready |
+| Bridge (extend-proxy) 0/1 Ready | `READY 0/1` on both replicas, or `pool diagnose` shows `NO_HANDSHAKE_AT_POOL` or `STALE_HANDSHAKE_AT_POOL` (UNTESTED) | S10 Bridge not Ready |
 | `proxy-test` fails | `000`, `Could not connect`, or a 502 | S11 proxy-test fails |
 
 More than one row matches: fix them in table order. A higher row often causes a lower one (a
@@ -99,7 +99,8 @@ Escalate when `playbook.md` says so, or after two failed fixes.
    `https://raw.githubusercontent.com/multicloud/skills/main/plugins/multicloud-troubleshoot/skills/multicloud-troubleshoot/scripts/support-bundle.sh`,
    and read it before you run it.
 
-   It collects IDs, states and log tails only: pool, pool diagnose, peerings, cloud accounts, connector pods and
+   It collects IDs, states and log tails only, plus the public IPv4 address the pool sees for your
+   cluster (`pool diagnose`, line `Source IP`): pool, pool diagnose, peerings, cloud accounts, connector pods and
    IDs, virtual nodes, NamespaceOffloading phases, workload pods and events, bridge pods, config,
    log and events. It never reads a Secret's content, never runs `mctl peering show` and never
    prints a bundle object. Tell the user to read the file before they send it.
