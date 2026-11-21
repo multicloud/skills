@@ -53,6 +53,7 @@ run() {  # run <title> <command...>: print the command, then its output (stdout 
   run "mctl version"              mctl --version
   run "organizations"             sh -c "mctl auth status | grep -E '^(API URL|Method|Organizations):'"
   run "pool"                      "${MCTL[@]}" pool show "$POOL"
+  run "pool diagnose"             "${MCTL[@]}" pool diagnose "$POOL"
   run "peerings"                  "${MCTL[@]}" peering list "$POOL"
   run "cloud accounts"            "${MCTL[@]}" cloud-account list
   run "support access"            "${MCTL[@]}" ssh support list
