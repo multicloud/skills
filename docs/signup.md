@@ -2,6 +2,7 @@
 
 > **Availability.** Self-serve signup is open. Create an account at
 > [multicloud.io/console](https://multicloud.io/console) and confirm your email address.
+> If the verification email does not arrive, write to **support@multicloud.io**.
 
 This page covers the whole lifecycle: creating an account, organizations, invitations, roles, and
 minting (creating) and revoking the API keys that authenticate your traffic. If you are here to install the
@@ -211,8 +212,7 @@ you need either.
 ## How this document was verified
 
 When this page was first written, no deployed environment was reachable and signup was still
-closed, so every claim on this page was checked directly against the code that implements it. Signup has
-since opened, and the first customer completed this flow end to end in November 2026:
+closed, so every claim on this page was checked directly against the code that implements it:
 
 - **Organizations, discovery, invitations, ownership, roles** — `backend/api-server/src/orgs_api.py`
   and `backend/api-server/src/org_identity.py` (the `/owners` group check, the per-slug — never
@@ -243,11 +243,9 @@ since opened, and the first customer completed this flow end to end in November 
 - **Deploy keys still require an operator, not self-serve** — `backend/api-server/src/deploy_keys_api.py`,
   whose issuance, listing, and revocation routes all gate on the caller holding the
   `multicloud-admins` realm role.
-- **Self-service revocation exists as a real UI, not just an API** — the `/account` page's catalog
-  keys panel (`components/account/CatalogKeysPanel.tsx`, built in a separate worktree of the
-  website repo per this plan's Task 13) calls this same revoke endpoint from a "Revoke" button.
-  That worktree is outside this repository and its own commit is not yet merged, so treat this one
-  claim as confirmed in source only.
+- **Self-service revocation exists as a real UI, not just an API** — the Keys page of your account
+  (`/account/keys`, the website's `components/account/KeysPanel.tsx`) edits, rotates and revokes
+  keys through the same endpoints.
 
 One thing this page deliberately does **not** claim: that every catalog key Multicloud has ever
 issued cannot be recovered. That's true for every key minted through the flow described above. It is
