@@ -54,9 +54,8 @@ switches it off outright — see
 That query is authenticated with a scoped, revocable key.
 
 **See [signup.md](signup.md)** for the full account, organization and key-creation flow,
-including how to mint, rename and revoke a key yourself once you have an account. Self-serve
-signup is not open yet — until it is, the key is created for you separately by your Multicloud
-contact and sent once; store it like any other secret.
+including how to mint, rename and revoke a key yourself once you have an account. Store the key
+like any other secret.
 
 Keep the value out of your shell history and out of Helm values, both of which store it:
 

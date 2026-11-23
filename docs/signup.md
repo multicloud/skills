@@ -1,12 +1,7 @@
 # Signing up for Multicloud
 
-> **Availability.** Self-serve signup is not open yet. New-account registration is switched off
-> while we finish two remaining safety checks — a negative security test and a working
-> verification-email path — so that a new account cannot slip through half-verified. Until it
-> opens, accounts are created by hand: write to **support@multicloud.io** and someone will set one
-> up for you. Everything else on this page describes the flow as it actually works once signup
-> opens: it is built and tested, just not yet reachable from the public signup page.
-
+> **Availability.** Self-serve signup is open. Create an account at
+> [multicloud.io/console](https://multicloud.io/console) and confirm your email address.
 
 This page covers the whole lifecycle: creating an account, organizations, invitations, roles, and
 minting (creating) and revoking the API keys that authenticate your traffic. If you are here to install the
@@ -215,9 +210,9 @@ you need either.
 
 ## How this document was verified
 
-No deployed environment was reachable while writing this page, and self-serve signup is not open
-yet regardless — so nothing here was exercised end-to-end against a running instance. Every claim
-above was instead checked directly against the code that implements it:
+When this page was first written, no deployed environment was reachable and signup was still
+closed, so every claim on this page was checked directly against the code that implements it. Signup has
+since opened, and the first customer completed this flow end to end in November 2026:
 
 - **Organizations, discovery, invitations, ownership, roles** — `backend/api-server/src/orgs_api.py`
   and `backend/api-server/src/org_identity.py` (the `/owners` group check, the per-slug — never
@@ -252,8 +247,7 @@ above was instead checked directly against the code that implements it:
   keys panel (`components/account/CatalogKeysPanel.tsx`, built in a separate worktree of the
   website repo per this plan's Task 13) calls this same revoke endpoint from a "Revoke" button.
   That worktree is outside this repository and its own commit is not yet merged, so treat this one
-  claim as confirmed-in-source-but-not-yet-shipped-to-production, same as everything else on this
-  page until signup opens.
+  claim as confirmed in source only.
 
 One thing this page deliberately does **not** claim: that every catalog key Multicloud has ever
 issued cannot be recovered. That's true for every key minted through the flow described above. It is
