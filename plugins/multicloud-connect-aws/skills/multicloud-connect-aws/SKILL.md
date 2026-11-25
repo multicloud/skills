@@ -158,7 +158,8 @@ yes, `apply --yes`). Then continue here at step 5.
      with those answers. This writes `multicloud.tf` in the current folder and gives a new number.
   4. `AWS_PROFILE=<p> AWS_REGION=<r> mctl cloud-account apply <new-n> --plan-only`. Show the plan
      counts (add/change/destroy), then ask one yes/no. `--plan-only` needs `AWS_PROFILE` and
-     `AWS_REGION`, or tofu fails on the credentials.
+     `AWS_REGION`, or tofu fails on the credentials. `<r>` is any one region (for example `us-east-1`)
+     when the user limited none.
   5. After the yes: `mctl cloud-account apply <new-n> --yes`, with the same environment.
 
   When the owner confirms a re-connect of an account that is not dedicated, the user runs this in
@@ -172,8 +173,8 @@ yes, `apply --yes`). Then continue here at step 5.
   user names regions to limit Multicloud to. Name the regions (or "all regions") again in the
   apply question.
 - Ask also: "Turn on the AWS opt-in regions in this account?" (default yes). Opt-in regions (for
-  example `af-south-1`) are off in a new AWS account. With yes, Multicloud turns them on (only
-  the named regions, when the user named some). That takes minutes to hours, and Multicloud never
+  example `af-south-1`) are off in a new AWS account. With yes, Multicloud turns them on (every
+  opt-in region by default; only the named regions, when the user named some). That takes minutes to hours, and Multicloud never
   turns a region off again.
   - Yes: pass `--opt-in-regions`. No: pass `--no-opt-in-regions`. Always pass one of them: your
     shell has no terminal, and without a flag `mctl` takes yes.

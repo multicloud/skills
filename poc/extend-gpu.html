@@ -713,7 +713,7 @@ const STAGES = [
    {
     "h": "Path B: register the AWS account you have",
     "who": "You confirm the values",
-    "d": "Replace <account-id> with your 12-digit AWS account ID. Answer two questions: turn on the AWS opt-in regions (for us-east-1 alone this changes nothing; yes is the default), and let Multicloud file quota requests (recommended: yes; it files each request only after your yes). Write your answers as flags: --no-opt-in-regions for no, --no-allow-quota-requests for no.",
+    "d": "Replace <account-id> with your 12-digit AWS account ID. Answer two questions: turn on the AWS opt-in regions (yes is the default: Multicloud may use every region and turns on the opt-in regions, for example af-south-1), and let Multicloud file quota requests (recommended: yes; it files each request only after your yes). Write your answers as flags: --no-opt-in-regions for no, --no-allow-quota-requests for no. To limit the regions, add --region <region> once for each region.",
     "in": [
      "AWS account ID",
      "Regions: all (default)",
