@@ -696,10 +696,10 @@ const STAGES = [
     "d": "Replace <email> with an email address that no AWS account uses (a plus address such as you+multicloud@company.com usually works). Type it twice and compare: a typo creates an account with the wrong email. --allow-quota-requests lets Multicloud file the GPU quota request for you in the next stage; it files each request only after your yes. To file quota yourself, use --no-allow-quota-requests (then you need your own sign-in to the new account).",
     "in": [
      "Email for the new AWS account",
-     "Region: us-east-1",
+     "Regions: all (default)",
      "Quota requests by Multicloud: yes (recommended) or no"
     ],
-    "c": "mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1 \\\n  --opt-in-regions --allow-quota-requests",
+    "c": "mctl cloud-account create --cloud AWS --new-account-email <email> \\\n  --opt-in-regions --allow-quota-requests",
     "g": "This writes multicloud.tf and multicloud.auto.tfvars (the email only) in the folder: keep both. The output has a line like: Next: mctl cloud-account apply 7. The number (here 7) is your cloud-account ID, not an AWS account ID. Write it down. To see it again: mctl cloud-account list"
    },
    {
@@ -713,14 +713,14 @@ const STAGES = [
    {
     "h": "Path B: register the AWS account you have",
     "who": "You confirm the values",
-    "d": "Replace <account-id> with your 12-digit AWS account ID. Answer two questions: turn on the AWS opt-in regions (for us-east-1 alone this changes nothing; yes is the default), and let Multicloud file quota requests (recommended: yes; it files each request only after your yes). Write your answers as flags: --no-opt-in-regions for no, --no-allow-quota-requests for no.",
+    "d": "Replace <account-id> with your 12-digit AWS account ID. Answer two questions: turn on the AWS opt-in regions (yes is the default: Multicloud may use every region and turns on the opt-in regions, for example af-south-1), and let Multicloud file quota requests (recommended: yes; it files each request only after your yes). Write your answers as flags: --no-opt-in-regions for no, --no-allow-quota-requests for no. To limit the regions, add --region <region> once for each region.",
     "in": [
      "AWS account ID",
-     "Region: us-east-1",
+     "Regions: all (default)",
      "Opt-in regions: yes or no",
      "Quota requests by Multicloud: yes (recommended) or no"
     ],
-    "c": "mctl cloud-account create --cloud AWS --account <account-id> --region us-east-1 \\\n  --opt-in-regions --allow-quota-requests",
+    "c": "mctl cloud-account create --cloud AWS --account <account-id> \\\n  --opt-in-regions --allow-quota-requests",
     "g": "The output has a line like: Next: mctl cloud-account apply 7. (The line By hand: … after it is for people who apply without mctl; skip it.) The number (here 7) is your cloud-account ID, not your AWS account ID. Write it down. To see it again: mctl cloud-account list. A disconnected (revoked) account: run the same command again; it gets a new number. Reconnect it only with the organization owner's yes."
    },
    {
