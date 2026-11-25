@@ -947,8 +947,8 @@ const STAGES = [
    {
     "h": "Load the connection file into your cluster",
     "who": "You, in a terminal",
-    "d": "The check job name ends with your cluster's ID (c- and 8 characters), not the link number. Find that ID in the Install command line, in the clusterID part. To see the full job name, with the pool part, run: kubectl -n liqo get jobs.",
-    "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<pool-slug>-<consumer-cluster-id>"
+    "d": "The check job name ends with your cluster's ID (c- and 8 characters), not the link number. Find that ID in the Install command line, in the clusterID part. The second command prints the full job name, with the pool part.",
+    "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo get jobs -o name | grep multicloud-peering-preflight\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<pool-slug>-<consumer-cluster-id>"
    },
    {
     "h": "Check that the GPU shows up in your cluster",
