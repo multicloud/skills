@@ -37,11 +37,11 @@ work, and you can close it later."
 - **Using AWS Organizations** (the management account of the organization): the product's own path
   is the one in the Multicloud console (`content/docs/connect-aws.md` in the `website` repo, section
   "Connect a new AWS account"):
-  1. First ask the questions of `multicloud-connect-aws`, Step 3, one at a time: regions (`us-east-1`
-     for the PoC), opt-in regions (default yes), and quota requests by Multicloud (recommend yes; each
+  1. First ask the questions of `multicloud-connect-aws`, Step 3, one at a time: regions (default: all;
+     pass `--region` only when the user limits them), opt-in regions (default yes), and quota requests by Multicloud (recommend yes; each
      filing still needs a yes). Pass the answers as flags; without a terminal `mctl` takes no for
      quota requests:
-     `mctl cloud-account create --cloud AWS --new-account-email <email> --region us-east-1
+     `mctl cloud-account create --cloud AWS --new-account-email <email> [--region <r> ...]
      <--opt-in-regions | --no-opt-in-regions> <--allow-quota-requests | --no-allow-quota-requests> --org <org>`
      with a new email that no AWS account uses (a plus address such as `you+multicloud@…` usually
      works). Type the email twice; a typo creates an account with the wrong email. This writes

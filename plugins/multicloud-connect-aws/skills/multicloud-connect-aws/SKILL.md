@@ -151,10 +151,10 @@ yes, `apply --yes`). Then continue here at step 5.
   **Reconnect path, as tested on 2026-11-16 (account 431412299678, record 19, revoked):**
   1. `accept-shared-account` refuses when the record already carries an approval ("Needs no
      approval (approved)"). Do not use it for a revoked record with a recorded approval.
-  2. Ask the Step 3 questions first, one at a time: regions (`us-east-1` only), opt-in regions
+  2. Ask the Step 3 questions first, one at a time: regions (default: all), opt-in regions
      (default yes, the flow's `--no-opt-in-regions` is a choice to confirm), quota requests (default
      no). Do not pass the flow's flags without the user's answers.
-  3. The owner runs `mctl cloud-account create --cloud AWS --account <12-digit> --region <r> --org <org>`
+  3. The owner runs `mctl cloud-account create --cloud AWS --account <12-digit> [--region <r> ...] --org <org>`
      with those answers. This writes `multicloud.tf` in the current folder and gives a new number.
   4. `AWS_PROFILE=<p> AWS_REGION=<r> mctl cloud-account apply <new-n> --plan-only`. Show the plan
      counts (add/change/destroy), then ask one yes/no. `--plan-only` needs `AWS_PROFILE` and
@@ -168,8 +168,9 @@ yes, `apply --yes`). Then continue here at step 5.
   warning and asks the user to type the account's **12-digit AWS account ID** (its cloud id, as
   `--help` says). The typed ID is the approval. You do not type it for them. Then `mctl cloud-account show <n>` and continue with step 4.
   Other status: go to step 4.
-- Not listed: use the regions the user named. If they named none, ask which regions Multicloud
-  may use (it starts machines only there). Name the regions again in the apply question.
+- Not listed: the default is every region. Pass `--region` (once for each region) only when the
+  user names regions to limit Multicloud to. Name the regions (or "all regions") again in the
+  apply question.
 - Ask also: "Turn on the AWS opt-in regions in this account?" (default yes). Opt-in regions (for
   example `af-south-1`) are off in a new AWS account. With yes, Multicloud turns them on (only
   the named regions, when the user named some). That takes minutes to hours, and Multicloud never
@@ -189,7 +190,7 @@ yes, `apply --yes`). Then continue here at step 5.
   between commands, so make the folder and create in one command:
 
   ```bash
-  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> --region <region> [--region <region> ...] <--opt-in-regions | --no-opt-in-regions> <--allow-quota-requests | --no-allow-quota-requests>
+  mkdir multicloud-aws-<account> && cd multicloud-aws-<account> && mctl cloud-account create --cloud AWS --account <12-digit-id> [--region <region> ...] <--opt-in-regions | --no-opt-in-regions> <--allow-quota-requests | --no-allow-quota-requests>
   ```
 
   It prints `Cloud account <n> created ...` and writes `multicloud.tf`. Note `<n>` and the
