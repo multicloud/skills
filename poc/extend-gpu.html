@@ -693,7 +693,7 @@ const STAGES = [
    {
     "h": "Path A: register a new AWS account",
     "who": "You confirm the values",
-    "d": "Replace <email> with an email address that no AWS account uses (a plus address such as you+multicloud@company.com usually works). Type it twice and compare: a typo creates an account with the wrong email. --allow-quota-requests lets Multicloud file the GPU quota request for you in the next stage; it files each request only after your yes. To file quota yourself, use --no-allow-quota-requests (then you need your own sign-in to the new account).",
+    "d": "Multicloud may use every region and turns on the opt-in regions of the new account (for example af-south-1); to limit the regions, add --region <region> once for each region. Replace <email> with an email address that no AWS account uses (a plus address such as you+multicloud@company.com usually works). Type it twice and compare: a typo creates an account with the wrong email. --allow-quota-requests lets Multicloud file the GPU quota request for you in the next stage; it files each request only after your yes. To file quota yourself, use --no-allow-quota-requests (then you need your own sign-in to the new account).",
     "in": [
      "Email for the new AWS account",
      "Regions: all (default)",
@@ -947,7 +947,7 @@ const STAGES = [
    {
     "h": "Load the connection file into your cluster",
     "who": "You, in a terminal",
-    "d": "The check job name ends with your cluster's ID (c- and 8 characters), not the link number. Find that ID in the Install command line, in the clusterID part.",
+    "d": "The check job name ends with your cluster's ID (c- and 8 characters), not the link number. Find that ID in the Install command line, in the clusterID part. To see the full job name, with the pool part, run: kubectl -n liqo get jobs.",
     "c": "kubectl apply -f multicloud-peering.yaml\nkubectl -n liqo wait --for=condition=complete --timeout=10m \\\n  job/multicloud-peering-preflight-<pool-slug>-<consumer-cluster-id>"
    },
    {
